@@ -1,0 +1,24 @@
+## MAC OS
+.DS_Store
+
+## TEXTMATE
+*.tmproj
+tmtags
+
+## EMACS
+*~
+\#*
+.\#*
+
+## VIM
+*.swp
+*.swo
+
+## PROJECT::GENERAL
+coverage
+rdoc
+pkg
+log
+
+## PROJECT::SPECIFIC
+virtualmonkey.gemspec

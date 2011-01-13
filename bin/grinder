@@ -1,0 +1,106 @@
+#!/usr/bin/env ruby
+
+# Development ENV only
+$LOAD_PATH.unshift(File.dirname(__FILE__))
+$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
+###
+
+require 'rubygems'
+require 'virtualmonkey'
+require 'ruby-debug'
+
+usage = <<-EOS
+After setting the 'DEPLOYMENT' and 'REST_CONNECTION_LOG' environment variables, run the grinder using:
+
+grinder "testcase.rb" [breakline number]
+
+DEVELOPERS: Grinder will drop you into ruby-debug at an exception. Setting the 'MONKEY_NO_DEBUG' environment variable will turn off this behavior.
+
+Here are your environment variables:
+export DEPLOYMENT=#{ENV['DEPLOYMENT']}
+export REST_CONNECTION_LOG=#{ENV['REST_CONNECTION_LOG']}
+export MONKEY_NO_DEBUG=#{ENV['MONKEY_NO_DEBUG']}
+export MONKEY_NO_RESUME=#{ENV['MONKEY_NO_RESUME']}
+EOS
+
+raise usage unless ENV['DEPLOYMENT']
+raise usage unless ARGV[0] and File.exist?(ARGV[0])
+if ARGV[1]
+  @breakpoint = ARGV[1].to_i
+else
+  @breakpoint = 1000000
+end
+
+@testcase = File.open(ARGV[0], "r")
+testname = File.basename(ARGV[0])
+
+linenum = 1
+@resume = 0
+
+# Should we resume?
+test_states = "test_states"
+state_dir = File.join(test_states, ENV['DEPLOYMENT'])
+if File.directory?(state_dir)
+  unless ENV['MONKEY_NO_RESUME'] =~ /true/i
+    $stdout.syswrite "Resuming previous testcase...\n\n"
+    @state_file = File.open(File.join(state_dir, testname), "r")
+    if @state_file.mtime < @testcase.mtime
+      $stdout.syswrite "WARNING: testcase has been changed since state file.\n"
+      $stdout.syswrite "Scrapping previous testcase; Starting over...\n\n"
+      @state_file.close
+      File.delete(File.join(state_dir, testname))
+    else
+      begin
+        @resume += 1 if @state_file.readline
+      rescue EOFError => e
+        done = true
+      end while !done
+      @state_file.close
+    end
+  else
+    $stdout.syswrite "Scrapping previous testcase; Starting over...\n\n"
+    File.delete(File.join(state_dir, testname))
+  end
+else
+  Dir.mkdir(test_states) unless File.directory?(test_states)
+  Dir.mkdir(state_dir)
+end
+@state_file = File.open(File.join(state_dir, testname), "a")
+
+# Grinding
+done = false
+timer = Time.now
+begin
+  line = @testcase.readline
+  if line =~ /((=)|(set_var))/ or (@resume < linenum and linenum <= @breakpoint)
+    unless line =~ /^[ \t]*#/ or line =~ /^[ \t]*$/
+      sleep(0.01)
+      $stdout.syswrite("#{"=" * line.length}\n")
+      sleep(0.01)
+      $stdout.syswrite(line)
+      sleep(0.01)
+      $stdout.syswrite("#{"=" * line.length}\n")
+      line_timer = Time.now
+      eval(line)
+      line_elapsed = Time.now - line_timer
+      $stdout.syswrite("Success. Time Elapsed: #{line_elapsed} seconds\n")
+      sleep(0.01)
+    else
+      eval(line)
+    end
+    @state_file.syswrite(line) unless @resume > 0 and line =~ /((=)|(set_var))/
+  end
+  if linenum > @breakpoint
+    $stdout.syswrite "Halting test at breakpoint (line #{@breakpoint})\n\n"
+    done = true
+  else
+    linenum += 1
+  end
+rescue EOFError => e
+  @state_file.close
+  File.delete(File.join(state_dir, testname))
+  Dir.rmdir(state_dir)
+  done = true
+end while !done
+elapsed = Time.now - timer
+$stdout.syswrite "Total time elapsed: #{elapsed} seconds\n"

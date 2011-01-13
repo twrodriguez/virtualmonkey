@@ -1,0 +1,13 @@
+{
+  "tag":"TROOP_TOMCAT6",
+  "feature":"tomcat6.rb",
+  "common_inputs":"tomcat.json",
+  "runner":"SimpleRunner",
+  "server_template_ids":[
+    "84652",
+    "84652",
+    "84651",
+    "84651"
+  ],
+  "cloud_variables":"east.json"
+}

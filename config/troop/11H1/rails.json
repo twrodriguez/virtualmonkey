@@ -1,0 +1,13 @@
+{
+  "feature":"rails.rb",
+  "runner":"SimpleRunner",
+  "server_template_ids":[
+    "84646",
+    "84646",
+    "84647",
+    "84647"
+  ],
+  "cloud_variables":"east.json",
+  "common_inputs":"rails.json",
+  "tag":"TROOP_RAILS"
+}

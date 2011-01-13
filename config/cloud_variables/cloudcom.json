@@ -1,0 +1,9 @@
+{
+  "850":{
+    "parameters":{
+      "PRIVATE_SSH_KEY":"key:publish-test:1"
+    },
+    "security_groups_href":"https://my.rightscale.com/api/acct/2901/security_groups/126284"
+    "_comment" : "The above line is likely WRONG."
+  }
+}
