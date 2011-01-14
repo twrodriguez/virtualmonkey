@@ -21,8 +21,10 @@ module VirtualMonkey
       begin
         eval("VirtualMonkey::#{options[:terminate]}.new('fgasvgreng243o520sdvnsals')") if options[:terminate]
       rescue Exception => e
-        raise e unless e.message =~ /Could not find a deployment named/
-        options[:terminate] = "SimpleRunner" if options[:terminate]
+        unless e.message =~ /Could not find a deployment named/
+          puts "WARNING: VirtualMonkey::#{options[:terminate]} is not a valid class. Defaulting to SimpleRunner."
+          options[:terminate] = "SimpleRunner"
+        end
       end
       EM.run {
         cm = CukeMonk.new

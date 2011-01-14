@@ -14,7 +14,7 @@ class DeploymentMonk
   end
 
   def initialize(tag, server_templates = [], extra_images = [])
-    @clouds = ["1","2","3","4", "232", "850"]
+#    @clouds = ["1","2","3","4", "232", "850"]
     @cloud_names = {  "1" => "ec2-east", "2" => "ec2-eu", "3" => "ec2-west", "4" => "ec2-ap",
                       "232" => "rackspace",
                       "850" => "cloud.com" }
@@ -39,8 +39,18 @@ class DeploymentMonk
       new_st = ServerTemplateInternal.new(:href => st.href)
       st.multi_cloud_images = new_st.multi_cloud_images
       @image_count = st.multi_cloud_images.size if st.multi_cloud_images.size > @image_count
+      new_st.multi_cloud_images.each { |mci|
+        @clouds << mci["multi_cloud_image_cloud_settings"].map { |settings| settings["cloud_id"] }
+      }
     end
+    @clouds.uniq!
   end
+
+#mci = MultiCloudImageInternal.find(mci_id)
+#mci.multi_cloud_image_cloud_settings.each { |settings| puts settings["cloud_id"] }
+#
+#mcis = ServerTemplateInternal.new(:href => ServerTemplate.find(90542).href).multi_cloud_images
+#mcis.each { |mci| mci["multi_cloud_image_cloud_settings"].each { |setting| puts setting["cloud_id"] } }
 
   def generate_variations(options = {})
     if options[:mci_override] && !options[:mci_override].empty?
@@ -64,8 +74,8 @@ class DeploymentMonk
                             #:ec2_image_href => image['image_href'], 
                             #:instance_type => image['aws_instance_type'] 
                           }
-          
-          server = Server.create(server_params.merge(@variables_for_cloud[cloud]))
+          server = Server.create(server_params.merge(@variables_for_cloud[cloud])) if cloud.to_i < 10
+          server = McServer.create(server_params.merge(@variables_for_cloud[cloud])) if cloud.to_i >= 10
           # since the create call does not set the parameters, we need to set them separate
           if server.respond_to?(:set_inputs)
             server.set_inputs(@variables_for_cloud[cloud]['parameters'])

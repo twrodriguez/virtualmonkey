@@ -79,11 +79,13 @@ module VirtualMonkey
         # CREATE PHASE
         if options[:step] =~ /((all)|(create))/
           @dm = DeploymentMonk.new(tag, config['server_template_ids'])
-          @dm.variables_for_cloud = JSON::parse(IO.read(File.join(config_dir, "cloud_variables", config['cloud_variables'])))
-          config['common_inputs'].each do |cipath|
-            @dm.load_common_inputs(File.join(config_dir, "common_inputs", cipath))
-          end  
-          @dm.generate_variations(options)
+          unless @dm.deployments.size > 0
+            @dm.variables_for_cloud = JSON::parse(IO.read(File.join(config_dir, "cloud_variables", config['cloud_variables'])))
+            config['common_inputs'].each do |cipath|
+              @dm.load_common_inputs(File.join(config_dir, "common_inputs", cipath))
+            end  
+            @dm.generate_variations(options)
+          end
         end
 
         # RUN PHASE
@@ -93,7 +95,16 @@ module VirtualMonkey
             @cm = CukeMonk.new
             @cm.options = options
             remaining_jobs = @cm.jobs.dup
-            @dm.deployments.each do |deploy|
+            do_these = @dm.deployments
+
+            unless options[:no_resume]
+              temp = do_these.select do |d|
+                File.exist?(File.join(global_state_dir, d.nickname, File.basename(options[:feature])))
+              end
+              do_these = temp if temp.length > 0
+            end
+
+            do_these.each do |deploy|
               @cm.run_test(deploy, File.join(features_dir, config['feature']))
             end
 
