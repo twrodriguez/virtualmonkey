@@ -27,7 +27,7 @@ module VirtualMonkey
         end
       end
       EM.run {
-        cm = CukeMonk.new
+        gm = GrinderMonk.new
         dm = DeploymentMonk.new(options[:tag])
         if options[:only]
           do_these = dm.deployments.select { |d| d.nickname =~ /#{options[:only]}/ }
@@ -42,7 +42,7 @@ module VirtualMonkey
           do_these = temp if temp.length > 0
         end
 
-        cm.options = options
+        gm.options = options
         raise "No deployments matched!" unless do_these.length > 0
         do_these.each { |d| say d.nickname }
 
@@ -51,14 +51,14 @@ module VirtualMonkey
           raise "Aborting." unless confirm
         end
 
-        remaining_jobs = cm.jobs.dup
+        remaining_jobs = gm.jobs.dup
         do_these.each do |deploy|
-          cm.run_test(deploy, options[:feature])
+          gm.run_test(deploy, options[:feature])
         end
 
         watch = EM.add_periodic_timer(10) {
-          cm.watch_and_report
-          if cm.all_done?
+          gm.watch_and_report
+          if gm.all_done?
             watch.cancel
           end
           if options[:terminate]

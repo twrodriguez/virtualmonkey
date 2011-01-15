@@ -5,7 +5,7 @@ require 'fog/credentials'
 require 'eventmachine'
 require 'right_popen'
 
-class CukeJob
+class GrinderJob
   attr_accessor :status, :output, :logfile, :deployment, :rest_log, :no_resume, :verbose
 
   def link_to_rightscale
@@ -66,14 +66,14 @@ class CukeJob
   end
 end
 
-class CukeMonk
+class GrinderMonk
   attr_accessor :jobs
   attr_accessor :options
-  # Runs a cucumber test on a single Deployment
+  # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
   # * feature<~String> the feature filename 
   def run_test(deployment, feature, break_point = 1000000)
-    new_job = CukeJob.new
+    new_job = GrinderJob.new
     new_job.logfile = File.join(@log_dir, "#{deployment.nickname}.log")
     new_job.rest_log = "#{@log_dir}/#{deployment.nickname}.rest_connection.log"
     new_job.deployment = deployment

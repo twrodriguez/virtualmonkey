@@ -31,17 +31,17 @@ module VirtualMonkey
       # run to breakpoint
       if options[:feature]
         EM.run {
-          cm = CukeMonk.new
-          cm.options = options
+          gm = GrinderMonk.new
+          gm.options = options
           do_these.each do |deploy|
-            cm.run_test(deploy, options[:feature])
+            gm.run_test(deploy, options[:feature])
           end
 
           watch = EM.add_periodic_timer(10) {
-            if cm.all_done?
+            if gm.all_done?
               watch.cancel
             end
-            cm.watch_and_report
+            gm.watch_and_report
           }
         }
       end

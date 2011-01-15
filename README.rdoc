@@ -42,12 +42,12 @@
 ===  DeploymentMonk - handles create/load/delete of DeploymentSets
    Using the RS API we create a set of all the 'basic variations' a deployment can have.
    Basic variations currently are generated using permutations of Images, Clouds, and Instance Types. 
-===  CukeMonk 
-  handles running cucumber tests and collecting and posting results to S3
+===  GrinderMonk 
+  handles running grinder tests and collecting and posting results to S3
 === VirtualMonkey::DeploymentRunner
 *  These are a set of specialty mixins per Deployment type for cluster management of a single deployment. 
 
-*  This keeps our cucumber features from getting cluttered.  Each step definition needs an equivalent DeploymentRunner method.
+*  This keeps our grinder features from getting cluttered.  Each step definition needs an equivalent DeploymentRunner method.
   
 *  'One-off' variations are setup by the DeploymentRunner(s) and will be applied during a test run. 
       ex: OPT_PHP_VHOST_PORT, SLAVE_DNS_ID
@@ -55,11 +55,11 @@
 *  VirtualMonkey::MysqlRunner, VirtualMonkey::FeAppRunner, VirtualMonkey::EBSRunner, VirtualMonkey::Mysql, VirtualMonkey::EBS
 
 
-=== Cucumber feature tests
-*  Cucumber Features live in GEM_HOME/features
-*  These features can be run by hand -or- by CukeMonk via "monkey run" command.
+=== Grinder feature tests
+*  Grinder Features live in GEM_HOME/features
+*  These features can be run by hand -or- by GrinderMonk via "monkey run" command.
 *  The features have one ENVIRONMENT variable that is used to pass in the Deployment nickname.  To run by hand:
-* "cucumber features/php.feature DEPLOYMENT=testing_deploy_x86_64"
+* "grinder features/php.feature DEPLOYMENT=testing_deploy_x86_64"
 ===  A Feature will:
  1) setup one-off variations using the VirtualMonkey::DeploymentRunner .
  2) exercise a cluster deployment using the VirtualMonkey::DeploymentRunner.

@@ -92,9 +92,9 @@ module VirtualMonkey
         if options[:step] =~ /((all)|(run))/
           @dm = DeploymentMonk.new(tag) if options[:step] =~ /run/
           EM.run {
-            @cm = CukeMonk.new
-            @cm.options = options
-            remaining_jobs = @cm.jobs.dup
+            @gm = GrinderMonk.new
+            @gm.options = options
+            remaining_jobs = @gm.jobs.dup
             do_these = @dm.deployments
 
             unless options[:no_resume]
@@ -105,12 +105,12 @@ module VirtualMonkey
             end
 
             do_these.each do |deploy|
-              @cm.run_test(deploy, File.join(features_dir, config['feature']))
+              @gm.run_test(deploy, File.join(features_dir, config['feature']))
             end
 
             watch = EM.add_periodic_timer(10) {
-              @cm.watch_and_report
-              if @cm.all_done?
+              @gm.watch_and_report
+              if @gm.all_done?
                 watch.cancel 
               end
               remaining_jobs.each do |job|
