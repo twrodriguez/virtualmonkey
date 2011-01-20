@@ -40,10 +40,10 @@ class DeploymentMonk
       st.multi_cloud_images = new_st.multi_cloud_images
       @image_count = st.multi_cloud_images.size if st.multi_cloud_images.size > @image_count
       new_st.multi_cloud_images.each { |mci|
-        @clouds << mci["multi_cloud_image_cloud_settings"].map { |settings| settings["cloud_id"] }
+        @clouds.concat( mci["multi_cloud_image_cloud_settings"].map { |s| [ "#{s["cloud_id"]}" ] } )
       }
     end
-    @clouds.uniq!
+    @clouds.flatten!.uniq!
   end
 
 #mci = MultiCloudImageInternal.find(mci_id)
@@ -64,28 +64,10 @@ class DeploymentMonk
         end
         dep_tempname = "#{@tag}-#{@cloud_names[cloud]}-#{rand(1000000)}-"
         dep_image_list = []
-        new_deploy = Deployment.create(:nickname => dep_tempname)
+        new_deploy = Deployment.create({:nickname => dep_tempname, :cloud_id => cloud})
         @deployments << new_deploy
         @server_templates.each do |st|
-          server_params = { :nickname => "tempserver-#{rand(1000000)}-#{st.nickname}", 
-                            :deployment_href => new_deploy.href, 
-                            :server_template_href => st.href, 
-                            :cloud_id => cloud
-                            #:ec2_image_href => image['image_href'], 
-                            #:instance_type => image['aws_instance_type'] 
-                          }
-          server = Server.create(server_params.merge(@variables_for_cloud[cloud])) if cloud.to_i < 10
-          server = McServer.create(server_params.merge(@variables_for_cloud[cloud])) if cloud.to_i >= 10
-          # since the create call does not set the parameters, we need to set them separate
-          if server.respond_to?(:set_inputs)
-            server.set_inputs(@variables_for_cloud[cloud]['parameters'])
-          else
-            @variables_for_cloud[cloud]['parameters'].each do |key,val|
-              server.set_input(key,val)
-            end
-          end
-         
-          # uses a special internal call for setting the MCI on the server
+          #Select an MCI to use
           if options[:mci_override] && !options[:mci_override].empty?
             use_this_image = options[:mci_override][index]
             dep_image_list << MultiCloudImage.find(options[:mci_override][index]).name.gsub(/ /,'_')
@@ -95,28 +77,56 @@ class DeploymentMonk
           else
             use_this_image = st.multi_cloud_images[0]['href']
           end
-          #RsInternal.set_server_multi_cloud_image(server.href, use_this_image)
-          sint = ServerInternal.new(:href => server.href)
-          sint.set_multi_cloud_image(use_this_image)
-
-          # finally, set the spot price
-          unless options[:no_spot]
-            server.reload
-            server.settings
-            if server.ec2_instance_type =~ /small/ 
-              server.max_spot_price = "0.085"
-            elsif server.ec2_instance_type =~ /large/
-              server.max_spot_price = "0.38"
-            end
-            server.pricing = "spot"
-            server.parameters = {}
-            server.save
+          inputs = []
+          @common_inputs.merge(@variables_for_cloud[cloud]['parameters']).each do |key,val|
+            inputs << { :name => key, :value => val }
           end
-        end
-        new_deploy.nickname = dep_tempname + dep_image_list.uniq.join("_AND_")
-        new_deploy.save
-        @common_inputs.each do |key,val|
-          new_deploy.set_input(key,val)
+          #Set Server Creation Parameters
+          server_params = { :nickname => "tempserver-#{rand(1000000)}-#{st.nickname}", 
+                            :deployment_href => new_deploy.href, 
+                            :server_template_href => st.href, 
+                            :cloud_id => cloud,
+                            :inputs => inputs,
+                            :mci_href => use_this_image
+                            #:ec2_image_href => image['image_href'], 
+                            #:instance_type => image['aws_instance_type'] 
+                          }
+          server = McServer.create(server_params.merge(@variables_for_cloud[cloud])) if cloud.to_i >= 10
+          #AWS Cloud-specific Code XXX LEGACY XXX
+          if cloud.to_i < 10
+            server = Server.create(server_params.merge(@variables_for_cloud[cloud]))
+            # since the create call does not set the parameters, we need to set them separate
+            if server.respond_to?(:set_inputs)
+              server.set_inputs(@variables_for_cloud[cloud]['parameters'])
+            else
+              @variables_for_cloud[cloud]['parameters'].each do |key,val|
+                server.set_input(key,val)
+              end
+            end
+         
+            # uses a special internal call for setting the MCI on the server
+            sint = ServerInternal.new(:href => server.href)
+            sint.set_multi_cloud_image(use_this_image)
+
+            # finally, set the spot price
+            unless options[:no_spot]
+              server.reload
+              server.settings
+              if server.ec2_instance_type =~ /small/ 
+                server.max_spot_price = "0.085"
+              elsif server.ec2_instance_type =~ /large/
+                server.max_spot_price = "0.38"
+              end
+              server.pricing = "spot"
+              server.parameters = {}
+              server.save
+            end
+          end
+          new_deploy.nickname = dep_tempname + dep_image_list.uniq.join("_AND_")
+          new_deploy.save
+          @common_inputs.each do |key,val|
+            new_deploy.set_input(key,val)
+          end
         end
       end
     end
