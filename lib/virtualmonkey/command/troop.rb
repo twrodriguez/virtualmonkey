@@ -15,9 +15,9 @@ module VirtualMonkey
       end
 
       # PATHs SETUP
-      features_glob = Dir.glob(@features_dir, "**").collect { |c| File.basename(c) }
-      cloud_variables_glob = Dir.glob(@cv_dir, "**").collect { |c| File.basename(c) }
-      common_inputs_glob = Dir.glob(@ci_dir, "**").collect { |c| File.basename(c) }
+      features_glob = Dir.glob(File.join(@features_dir, "**")).collect { |c| File.basename(c) }
+      cloud_variables_glob = Dir.glob(File.join(@cv_dir, "**")).collect { |c| File.basename(c) }
+      common_inputs_glob = Dir.glob(File.join(@ci_dir, "**")).collect { |c| File.basename(c) }
       
       # CREATE NEW CONFIG
       if @options[:create]
