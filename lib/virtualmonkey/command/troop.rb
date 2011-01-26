@@ -70,7 +70,7 @@ module VirtualMonkey
         @@options[:step] = "all" unless @@options[:step]
         @@options[:cloud_variables] = File.join(@@cv_dir, config['cloud_variables'])
         @@options[:common_inputs] = config['common_inputs'].map { |cipath| File.join(@@ci_dir, cipath) }
-        @@options[:feature] = File.join(@@feature_dir, config['feature'])
+        @@options[:feature] = File.join(@@features_dir, config['feature'])
         @@options[:terminate] = config['runner']
         unless @@options[:step] =~ /(all)|(create)|(run)|(destroy)/
           raise "Invalid --step argument. Valid steps are: 'all', 'create', 'run', or 'destroy'"
