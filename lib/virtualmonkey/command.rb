@@ -13,14 +13,14 @@ module VirtualMonkey
   module Command
     # Parses the initial command string, removing it from ARGV, then runs command.
     def self.go
-      @command = ARGV.shift
-      @global_state_dir = File.join(File.dirname(__FILE__), "..", "..", "test_states")
-      @features_dir = File.join(File.dirname(__FILE__), "..", "..", "features")
-      @cfg_dir = File.join(File.dirname(__FILE__), "..", "..", "config")
-      @cv_dir = File.join(@cfg_dir, "cloud_variables")
-      @ci_dir = File.join(@cfg_dir, "common_inputs")
+      @@command = ARGV.shift
+      @@global_state_dir = File.join(File.dirname(__FILE__), "..", "..", "test_states")
+      @@features_dir = File.join(File.dirname(__FILE__), "..", "..", "features")
+      @@cfg_dir = File.join(File.dirname(__FILE__), "..", "..", "config")
+      @@cv_dir = File.join(@@cfg_dir, "cloud_variables")
+      @@ci_dir = File.join(@@cfg_dir, "common_inputs")
 
-      case @command
+      case @@command
         when "create"
           VirtualMonkey::Command.create
         when "destroy"
@@ -37,65 +37,65 @@ module VirtualMonkey
           puts "Help usage: monkey <command> --help"
           puts "Valid commands for monkey: create, destroy, list, run, troop, clone or help"
         else
-          STDERR.puts "Invalid command #{@command}: You need to specify a command for monkey: create, destroy, list, run, troop, clone or help\n"
+          STDERR.puts "Invalid command #{@@command}: You need to specify a command for monkey: create, destroy, list, run, troop, clone or help\n"
           exit(1)
       end
     end
 
     def create_logic
-      @dm.variables_for_cloud = JSON::parse(IO.read(@options[:cloud_variables]))
-      @options[:common_inputs].each { |cipath| @dm.load_common_inputs(cipath) }
-      @dm.generate_variations(options)
+      @@dm.variables_for_cloud = JSON::parse(IO.read(@@options[:cloud_variables]))
+      @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
+      @@dm.generate_variations(options)
     end
 
     def run_logic
       begin
-        eval("VirtualMonkey::#{@options[:terminate]}.new('fgasvgreng243o520sdvnsals')") if @options[:terminate]
+        eval("VirtualMonkey::#{@@options[:terminate]}.new('fgasvgreng243o520sdvnsals')") if @@options[:terminate]
       rescue Exception => e
         unless e.message =~ /Could not find a deployment named/
-          puts "WARNING: VirtualMonkey::#{@options[:terminate]} is not a valid class. Defaulting to SimpleRunner."
-          @options[:terminate] = "SimpleRunner"
+          puts "WARNING: VirtualMonkey::#{@@options[:terminate]} is not a valid class. Defaulting to SimpleRunner."
+          @@options[:terminate] = "SimpleRunner"
         end 
       end
 
       EM.run {
-        @gm = GrinderMonk.new
-        @dm = DeploymentMonk.new(@options[:tag]) unless @dm
-        @do_these = @dm.deployments unless @do_these
-        if @options[:only]
-          @do_these = @do_these.select { |d| d.nickname =~ /#{@options[:only]}/ }
+        @@gm = GrinderMonk.new
+        @@dm = DeploymentMonk.new(@@options[:tag]) unless @@dm
+        @@do_these = @@dm.deployments unless @@do_these
+        if @@options[:only]
+          @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ }
         end 
 
-        unless @options[:no_resume]
-          temp = @do_these.select do |d| 
-            File.exist?(File.join(global_state_dir, d.nickname, File.basename(@options[:feature])))
+        unless @@options[:no_resume]
+          temp = @@do_these.select do |d| 
+            File.exist?(File.join(global_state_dir, d.nickname, File.basename(@@options[:feature])))
           end 
-          @do_these = temp if temp.length > 0 
+          @@do_these = temp if temp.length > 0 
         end 
 
-        @gm.options = @options
-        raise "No deployments matched!" unless @do_these.length > 0 
-        @do_these.each { |d| say d.nickname }
+        @@gm.options = @@options
+        raise "No deployments matched!" unless @@do_these.length > 0 
+        @@do_these.each { |d| say d.nickname }
 
-        unless @options[:yes] or @command == "troop"
-          confirm = ask("Run tests on these #{@do_these.length} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
+        unless @@options[:yes] or @@command == "troop"
+          confirm = ask("Run tests on these #{@@do_these.length} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
           raise "Aborting." unless confirm
         end
 
-        @remaining_jobs = @gm.jobs.dup
-        @do_these.each do |deploy|
-          @gm.run_test(deploy, @options[:feature])
+        @@remaining_jobs = @@gm.jobs.dup
+        @@do_these.each do |deploy|
+          @@gm.run_test(deploy, @@options[:feature])
         end
 
         watch = EM.add_periodic_timer(10) {
-          @gm.watch_and_report
-          if @gm.all_done?
+          @@gm.watch_and_report
+          if @@gm.all_done?
             watch.cancel
           end
-          if @options[:terminate]
-            @remaining_jobs.each do |job|
+          if @@options[:terminate]
+            @@remaining_jobs.each do |job|
               if job.status == 0
-                if @command != "troop" or @options[:step] =~ /all/
+                if @@command != "troop" or @@options[:step] =~ /all/
                   destroy_job_logic(job)
                 end
               end
@@ -106,19 +106,19 @@ module VirtualMonkey
     end
 
     def destroy_job_logic(job)
-      runner = eval("VirtualMonkey::#{@options[:terminate]}.new(job.deployment.nickname)")
+      runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(job.deployment.nickname)")
       puts "Destroying successful deployment: #{runner.deployment.nickname}"
       runner.behavior(:stop_all, false)
-      runner.deployment.destroy unless @options[:no_delete] or @command =~ /run|clone/
-      @remaining_jobs.delete(job)
-      runner.behavior(:release_dns) if runner.respond_to?(:release_dns) and not @options[:no_delete]
+      runner.deployment.destroy unless @@options[:no_delete] or @@command =~ /run|clone/
+      @@remaining_jobs.delete(job)
+      runner.behavior(:release_dns) if runner.respond_to?(:release_dns) and not @@options[:no_delete]
     end
 
     def destroy_all_logic
-      @dm.deployments.each do |deploy|
-        runner = eval("VirtualMonkey::#{@options[:terminate]}.new(deploy.nickname)")
+      @@dm.deployments.each do |deploy|
+        runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(deploy.nickname)")
         runner.behavior(:stop_all, false)
-        state_dir = File.join(@global_state_dir, deploy.nickname)
+        state_dir = File.join(@@global_state_dir, deploy.nickname)
         if File.directory?(state_dir)
           puts "Deleting state files for #{deploy.nickname}..."
           Dir.new(state_dir).each do |state_file|
@@ -128,10 +128,10 @@ module VirtualMonkey
           end 
           Dir.rmdir(state_dir)
         end 
-        runner.behavior(:release_dns) if runner.respond_to?(:release_dns) and not @options[:no_delete]
+        runner.behavior(:release_dns) if runner.respond_to?(:release_dns) and not @@options[:no_delete]
       end 
 
-      @dm.destroy_all unless @options[:no_delete]
+      @@dm.destroy_all unless @@options[:no_delete]
     end
   end
 end

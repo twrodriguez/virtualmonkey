@@ -6,7 +6,7 @@ module VirtualMonkey
 
 # monkey run --feature --tag --only <regex to match on deploy nickname>
     def self.run
-      @options = Trollop::options do
+      @@options = Trollop::options do
         opt :feature, "path to feature(s) to run against the deployments", :type => :string, :required => true
         opt :breakpoint, "feature file line to stop at", :type => :integer, :short => '-b'
         opt :tag, "Tag to match prefix of the deployments.", :type => :string, :required => true, :short => "-t"
