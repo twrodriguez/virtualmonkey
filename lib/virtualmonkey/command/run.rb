@@ -6,7 +6,7 @@ module VirtualMonkey
 
 # monkey run --feature --tag --only <regex to match on deploy nickname>
     def self.run
-      options = Trollop::options do
+      @options = Trollop::options do
         opt :feature, "path to feature(s) to run against the deployments", :type => :string, :required => true
         opt :breakpoint, "feature file line to stop at", :type => :integer, :short => '-b'
         opt :tag, "Tag to match prefix of the deployments.", :type => :string, :required => true, :short => "-t"
@@ -17,63 +17,7 @@ module VirtualMonkey
         opt :verbose, "Print all output to STDOUT as well as the log files", :short => "-v"
       end
 
-      global_state_dir = File.join(File.dirname(__FILE__), "..", "..", "..", "test_states")
-      begin
-        eval("VirtualMonkey::#{options[:terminate]}.new('fgasvgreng243o520sdvnsals')") if options[:terminate]
-      rescue Exception => e
-        unless e.message =~ /Could not find a deployment named/
-          puts "WARNING: VirtualMonkey::#{options[:terminate]} is not a valid class. Defaulting to SimpleRunner."
-          options[:terminate] = "SimpleRunner"
-        end
-      end
-      EM.run {
-        gm = GrinderMonk.new
-        dm = DeploymentMonk.new(options[:tag])
-        if options[:only]
-          do_these = dm.deployments.select { |d| d.nickname =~ /#{options[:only]}/ }
-        else
-          do_these = dm.deployments
-        end
-
-        unless options[:no_resume]
-          temp = do_these.select do |d|
-            File.exist?(File.join(global_state_dir, d.nickname, File.basename(options[:feature])))
-          end
-          do_these = temp if temp.length > 0
-        end
-
-        gm.options = options
-        raise "No deployments matched!" unless do_these.length > 0
-        do_these.each { |d| say d.nickname }
-
-        unless options[:yes]
-          confirm = ask("Run tests on these #{do_these.length} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
-          raise "Aborting." unless confirm
-        end
-
-        remaining_jobs = gm.jobs.dup
-        do_these.each do |deploy|
-          gm.run_test(deploy, options[:feature])
-        end
-
-        watch = EM.add_periodic_timer(10) {
-          gm.watch_and_report
-          if gm.all_done?
-            watch.cancel
-          end
-          if options[:terminate]
-            remaining_jobs.each do |job|
-              if job.status == 0
-                @runner = eval("VirtualMonkey::#{options[:terminate]}.new(job.deployment.nickname)")
-                puts "destroying successful deployment: #{@runner.deployment.nickname}"
-                @runner.behavior(:stop_all, false)
-                remaining_jobs.delete(job)
-              end
-            end
-          end
-        }
-
-      }
+      run_logic
     end
   end
 end

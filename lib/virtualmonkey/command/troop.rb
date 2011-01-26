@@ -2,7 +2,7 @@ module VirtualMonkey
   module Command
     # This command does all the steps create/run/conditionaly destroy
     def self.troop
-      options = Trollop::options do
+      @options = Trollop::options do
         text "This command performs all the operations of the monkey in one execution.  Create/Run/Destroy"
         opt :file, "troop config, see config/troop/*sample.json for example format", :type => :string, :required => true
         opt :no_spot, "do not use spot instances"
@@ -15,21 +15,12 @@ module VirtualMonkey
       end
 
       # PATHs SETUP
-      features_dir = File.join(File.dirname(__FILE__), "..", "..", "..", "features")
-      features_glob = Dir.glob(File.join(features_dir, "**"))
-      features_glob = features_glob.collect { |c| File.basename(c) }
-
-      config_dir = File.join(File.dirname(__FILE__), "..", "..", "..", "config")
-      cloud_variables_glob = Dir.glob(File.join(config_dir, "cloud_variables", "**"))
-      cloud_variables_glob = cloud_variables_glob.collect { |c| File.basename(c) }
-      common_inputs_glob = Dir.glob(File.join(config_dir, "common_inputs", "**"))
-      common_inputs_glob = common_inputs_glob.collect { |c| File.basename(c) }
-      global_state_dir = File.join(File.dirname(__FILE__), "..", "..", "..", "test_states")
-      options[:tag] += "-" if options[:tag]
-      options[:tag] = "" unless options[:tag]
+      features_glob = Dir.glob(@features_dir, "**").collect { |c| File.basename(c) }
+      cloud_variables_glob = Dir.glob(@cv_dir, "**").collect { |c| File.basename(c) }
+      common_inputs_glob = Dir.glob(@ci_dir, "**").collect { |c| File.basename(c) }
       
       # CREATE NEW CONFIG
-      if options[:create]
+      if @options[:create]
         troop_config = {}
         troop_config[:tag] = ask("What tag to use for creating the deployments?")
         troop_config[:server_template_ids] = ask("What Server Template ids would you like to use to create the deployments (comma delimited)?").split(",")
@@ -67,89 +58,44 @@ module VirtualMonkey
         write_out = troop_config.to_json( :indent => "  ", 
                                           :object_nl => "\n",
                                           :array_nl => "\n" )
-        File.open(options[:file], "w") { |f| f.write(write_out) }
-        say("created config file #{options[:file]}")
+        File.open(@options[:file], "w") { |f| f.write(write_out) }
+        say("created config file #{@options[:file]}")
         say("Done.")
       else
         # Execute Main
-        config = JSON::parse(IO.read(options[:file]))
-        options[:step] = "all" unless options[:step]
-        tag = options[:tag] + config['tag']
+        config = JSON::parse(IO.read(@options[:file]))
+        @options[:tag] += "-" if @options[:tag]
+        @options[:tag] = "" unless @options[:tag]
+        @options[:tag] += config['tag']
+        @options[:step] = "all" unless @options[:step]
+        @options[:cloud_variables] = File.join(@cv_dir, config['cloud_variables'])
+        @options[:common_inputs] = config['common_inputs'].map { |cipath| File.join(@ci_dir, cipath) }
+        @options[:feature] = File.join(@feature_dir, config['feature'])
+        @options[:terminate] = config['runner']
+        unless @options[:step] =~ /(all)|(create)|(run)|(destroy)/
+          raise "Invalid --step argument. Valid steps are: 'all', 'create', 'run', or 'destroy'"
+        end
 
         # CREATE PHASE
-        if options[:step] =~ /((all)|(create))/
-          @dm = DeploymentMonk.new(tag, config['server_template_ids'])
+        if @options[:step] =~ /((all)|(create))/
+          @dm = DeploymentMonk.new(@options[:tag], config['server_template_ids'])
           unless @dm.deployments.size > 0
-            @dm.variables_for_cloud = JSON::parse(IO.read(File.join(config_dir, "cloud_variables", config['cloud_variables'])))
-            config['common_inputs'].each do |cipath|
-              @dm.load_common_inputs(File.join(config_dir, "common_inputs", cipath))
-            end  
-            @dm.generate_variations(options)
+            create_logic # NEW INTERNAL COMMAND
+          else
+            puts "Existing deployments matching --tag #{@options[:tag]} found. Skipping deployment creation."
           end
         end
 
         # RUN PHASE
-        if options[:step] =~ /((all)|(run))/
-          @dm = DeploymentMonk.new(tag) if options[:step] =~ /run/
-          EM.run {
-            @gm = GrinderMonk.new
-            @gm.options = options
-            remaining_jobs = @gm.jobs.dup
-            do_these = @dm.deployments
-
-            unless options[:no_resume]
-              temp = do_these.select do |d|
-                File.exist?(File.join(global_state_dir, d.nickname, File.basename(options[:feature])))
-              end
-              do_these = temp if temp.length > 0
-            end
-
-            do_these.each do |deploy|
-              @gm.run_test(deploy, File.join(features_dir, config['feature']))
-            end
-
-            watch = EM.add_periodic_timer(10) {
-              @gm.watch_and_report
-              if @gm.all_done?
-                watch.cancel 
-              end
-              remaining_jobs.each do |job|
-                # destroy on success only (keep failed deploys)
-                if job.status == 0 and options[:step] =~ /all/
-                  runner = eval("VirtualMonkey::#{config['runner']}.new(job.deployment.nickname)")
-                  puts "destroying successful deployment: #{runner.deployment.nickname}"
-                  runner.behavior(:stop_all, false)
-                  runner.deployment.destroy unless options[:no_delete]
-                  remaining_jobs.delete(job)
-                  if runner.respond_to?(:release_dns) and not options[:no_delete]
-                    runner.behavior(:release_dns)
-                  end
-                end
-              end
-            }
-          }
+        if @options[:step] =~ /((all)|(run))/
+          @dm = DeploymentMonk.new(@options[:tag]) if @options[:step] =~ /run/
+          run_logic # NEW INTERNAL COMMAND
         end
 
-        if options[:step] =~ /destroy/
-          @dm = DeploymentMonk.new(tag)
-          @dm.deployments.each do |deploy|
-            runner = eval("VirtualMonkey::#{config['runner']}.new(deploy.nickname)")
-            runner.behavior(:stop_all, false)
-            state_dir = File.join(global_state_dir, deploy.nickname)
-            if File.directory?(state_dir)
-              puts "Deleting state files for #{deploy.nickname}..."
-              Dir.new(state_dir).each do |state_file|
-                if File.extname(state_file) =~ /((rb)|(feature))/
-                   File.delete(File.join(state_dir, state_file))
-                end 
-              end 
-              Dir.rmdir(state_dir)
-            end
-            if runner.respond_to?(:release_dns) and not options[:no_delete]
-              runner.behavior(:release_dns)
-            end
-          end
-          @dm.destroy_all unless options[:no_delete]
+        # DESTROY PHASE
+        if @options[:step] =~ /destroy/
+          @dm = DeploymentMonk.new(@options[:tag])
+          destroy_all_logic # NEW INTERNAL COMMAND
         end
       end
       puts "Troop done."

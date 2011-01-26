@@ -15,9 +15,6 @@ class DeploymentMonk
 
   def initialize(tag, server_templates = [], extra_images = [])
     @clouds = []
-    @cloud_names = {  "1" => "ec2-east", "2" => "ec2-eu", "3" => "ec2-west", "4" => "ec2-ap",
-                      "232" => "rackspace",
-                      "850" => "cloud.com" }
     @tag = tag
     @deployments = from_tag
     @server_templates = []
@@ -62,9 +59,9 @@ class DeploymentMonk
           puts "variables not found for cloud #{cloud} skipping.."
           next
         end
-        dep_tempname = "#{@tag}-#{@cloud_names[cloud]}-#{rand(1000000)}-"
+        dep_tempname = "#{@tag}-cloud_#{cloud}-#{rand(1000000)}-"
         dep_image_list = []
-        new_deploy = Deployment.create({:nickname => dep_tempname, :cloud_id => cloud})
+        new_deploy = Deployment.create(:nickname => dep_tempname)
         @deployments << new_deploy
         @server_templates.each do |st|
           #Select an MCI to use
@@ -83,15 +80,18 @@ class DeploymentMonk
           end
           #Set Server Creation Parameters
           server_params = { :nickname => "tempserver-#{rand(1000000)}-#{st.nickname}", 
-                            :deployment_href => new_deploy.href, 
-                            :server_template_href => st.href, 
+                            :deployment_href => new_deploy.href.dup, 
+                            :server_template_href => st.href.dup, 
                             :cloud_id => cloud,
                             :inputs => inputs,
                             :mci_href => use_this_image
                             #:ec2_image_href => image['image_href'], 
                             #:instance_type => image['aws_instance_type'] 
                           }
-          server = McServer.create(server_params.merge(@variables_for_cloud[cloud])) if cloud.to_i >= 10
+          begin
+            server = ServerInterface.new(cloud).create(server_params.merge(@variables_for_cloud[cloud]))
+          rescue
+          end
           #AWS Cloud-specific Code XXX LEGACY XXX
           if cloud.to_i < 10
             server = Server.create(server_params.merge(@variables_for_cloud[cloud]))
