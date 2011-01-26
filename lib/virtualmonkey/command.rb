@@ -45,7 +45,7 @@ module VirtualMonkey
     def self.create_logic
       @@dm.variables_for_cloud = JSON::parse(IO.read(@@options[:cloud_variables]))
       @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
-      @@dm.generate_variations(options)
+      @@dm.generate_variations(@@options)
     end
 
     def self.run_logic
