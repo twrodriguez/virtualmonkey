@@ -42,13 +42,13 @@ module VirtualMonkey
       end
     end
 
-    def create_logic
+    def self.create_logic
       @@dm.variables_for_cloud = JSON::parse(IO.read(@@options[:cloud_variables]))
       @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
       @@dm.generate_variations(options)
     end
 
-    def run_logic
+    def self.run_logic
       begin
         eval("VirtualMonkey::#{@@options[:terminate]}.new('fgasvgreng243o520sdvnsals')") if @@options[:terminate]
       rescue Exception => e
@@ -105,7 +105,7 @@ module VirtualMonkey
       }
     end
 
-    def destroy_job_logic(job)
+    def self.destroy_job_logic(job)
       runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(job.deployment.nickname)")
       puts "Destroying successful deployment: #{runner.deployment.nickname}"
       runner.behavior(:stop_all, false)
@@ -114,7 +114,7 @@ module VirtualMonkey
       runner.behavior(:release_dns) if runner.respond_to?(:release_dns) and not @@options[:no_delete]
     end
 
-    def destroy_all_logic
+    def self.destroy_all_logic
       @@dm.deployments.each do |deploy|
         runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(deploy.nickname)")
         runner.behavior(:stop_all, false)
