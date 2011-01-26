@@ -13,7 +13,8 @@ module VirtualMonkey
         eval("VirtualMonkey::#{@options[:terminate]}.new('fgasvgreng243o520sdvnsals')") if @options[:terminate]
       rescue Exception => e
         unless e.message =~ /Could not find a deployment named/
-        @options[:terminate] = "SimpleRunner" if @options[:terminate]
+          @options[:terminate] = "SimpleRunner" if @options[:terminate]
+        end
       end
       @dm = DeploymentMonk.new(@options[:tag])
       @dm.deployments.each { |d| say d.nickname }
