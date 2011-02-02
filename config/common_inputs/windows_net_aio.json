@@ -4,11 +4,13 @@
   "utilities/admin_password":"text:miramar",
   "sys_monitoring/monitor_processes":"text:w3wp.exe, ruby.exe",
   "sys_monitoring/monitor_files":"text:c\:/pagefile.sys",
-  "svn/username":"ignore:$ignore",
-  "svn/repo_path":"text:http://svn.github.com/alexpop/sample_www.git",
-  "svn/password":"ignore:$ignore",
+  "svn/username":"cred:raphael_svn_username",
+  "svn/repo_path":"text:https://wush.net/svn/rightscale/qa_test/sample_www/",
+  "svn/password":"cred:raphael_svn_password",
   "schtasks/hourly_frequency":"text:8",
   "s3/file_dump":"text:app_test_mssql.sql.zip",
   "s3/bucket_dump":"text:rightscale-us-east-dev",
-  "s3/bucket":"text:myBucket"
+  "s3/bucket_backups":"text:rightscale-us-east-dev",
+  "aws/elb_name":"text:MDWindows",
+  "db_sqlserver/restore/force_restore":"text:true"
 }
