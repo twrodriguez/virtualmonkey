@@ -59,16 +59,16 @@ module VirtualMonkey
       end
 
       EM.run {
-        @@gm = GrinderMonk.new
-        @@dm = DeploymentMonk.new(@@options[:tag]) unless @@dm
-        @@do_these = @@dm.deployments unless @@do_these
+        @@gm ||= GrinderMonk.new
+        @@dm ||= DeploymentMonk.new(@@options[:tag])
+        @@do_these ||= @@dm.deployments
         if @@options[:only]
           @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ }
         end 
 
         unless @@options[:no_resume]
           temp = @@do_these.select do |d| 
-            File.exist?(File.join(global_state_dir, d.nickname, File.basename(@@options[:feature])))
+            File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(@@options[:feature])))
           end 
           @@do_these = temp if temp.length > 0 
         end 
