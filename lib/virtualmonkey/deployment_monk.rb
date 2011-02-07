@@ -23,6 +23,7 @@ class DeploymentMonk
     raise "Need either populated deployments or passed in server_template ids" if server_templates.empty? && @deployments.empty?
     if server_templates.empty?
       puts "loading server templates from servers in the first deployment"
+      @deployments.each { |d| d.reload }
       @deployments.first.servers.each do |s|
         server_templates << s.server_template_href.split(/\//).last.to_i
       end
@@ -56,7 +57,27 @@ class DeploymentMonk
     @image_count.times do |index|
       @clouds.each do |cloud|
         if @variables_for_cloud[cloud] == nil
-          puts "variables not found for cloud #{cloud} skipping.."
+          puts "Variables not found for cloud #{cloud}. Skipping..."
+          next
+        end
+        mci_supports_cloud = true
+        @server_templates.each do |st|
+          new_st = ServerTemplateInternal.new(:href => st.href)
+          if options[:mci_override] && !options[:mci_override].empty?
+            mci = MultiCloudImageInternal.new(:href => options[:mci_override][index])
+          elsif new_st.multi_cloud_images[index]
+            mci = new_st.multi_cloud_images[index]
+          else
+            mci = new_st.multi_cloud_images[0]
+          end
+          mci_check = false
+          mci["multi_cloud_image_cloud_settings"].each { |setting|
+            mci_check ||= (setting["cloud_id"].to_i == cloud.to_i)
+          }
+          mci_supports_cloud &&= mci_check
+        end
+        unless mci_supports_cloud
+          puts "MCI doesn't contain an image that supports cloud #{cloud}. Skipping..."
           next
         end
         dep_tempname = "#{@tag}-cloud_#{cloud}-#{rand(1000000)}-"
@@ -88,13 +109,16 @@ class DeploymentMonk
                             #:ec2_image_href => image['image_href'], 
                             #:instance_type => image['aws_instance_type'] 
                           }
+          #This rescue block can be removed after the VM ServerTemplate defaults to multicloud rest_connection
           begin
             server = ServerInterface.new(cloud).create(server_params.merge(@variables_for_cloud[cloud]))
-          rescue
+          rescue Exception => e
+            puts "Got exception: #{e.message}"
+            puts "Backtrace: #{e.backtrace.join("\n")}"
           end
           #AWS Cloud-specific Code XXX LEGACY XXX
           if cloud.to_i < 10
-            server = Server.create(server_params.merge(@variables_for_cloud[cloud]))
+            server = Server.create(server_params.merge(@variables_for_cloud[cloud])) unless server
             # since the create call does not set the parameters, we need to set them separate
             if server.respond_to?(:set_inputs)
               server.set_inputs(@variables_for_cloud[cloud]['parameters'])

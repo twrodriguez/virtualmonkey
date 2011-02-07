@@ -3,7 +3,7 @@
     "parameters":{
       "PRIVATE_SSH_KEY":"key:publish-test:1"
     },
-    "security_groups_href":"https://my.rightscale.com/api/acct/2901/security_groups/126284"
-    "_comment" : "The above line is likely WRONG."
+    "security_group_hrefs":["https://my.rightscale.com/api/clouds/850/security_groups/94FG3E8TUGBUO"],
+    "datacenter_href": "https://my.rightscale.com/api/clouds/850/datacenters/6D17SF55U9GFP"
   }
 }

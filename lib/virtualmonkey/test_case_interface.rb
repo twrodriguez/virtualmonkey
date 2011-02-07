@@ -67,7 +67,8 @@ module VirtualMonkey
 
     def dev_mode?(e)
       if not ENV['MONKEY_NO_DEBUG'] =~ /true/i
-        puts e
+        puts "Got exception: #{e.message}"
+        puts "Backtrace: #{e.backtrace.join("\n")}"
         puts "Pausing for debugging..."
         debugger
       else
