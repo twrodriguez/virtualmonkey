@@ -18,7 +18,7 @@ module VirtualMonkey
       end
       @@dm = DeploymentMonk.new(@@options[:tag])
       @@dm.deployments.each { |d| say d.nickname }
-      unless options[:yes]
+      unless @@options[:yes]
         confirm = ask("Really destroy these #{@@dm.deployments.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
         raise "Aborting." unless confirm
       end
