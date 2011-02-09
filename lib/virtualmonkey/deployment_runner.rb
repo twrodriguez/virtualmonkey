@@ -10,8 +10,8 @@ module VirtualMonkey
       @servers = @deployment.servers_no_reload
       @scripts_to_run = {}
       @rerun_last_command = []
-      lookup_scripts
       @servers.each { |s| s.settings }
+      lookup_scripts
     end
 
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should
