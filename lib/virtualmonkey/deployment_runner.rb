@@ -265,7 +265,7 @@ module VirtualMonkey
         unless server.multicloud
           sleep 60 # This is to allow monitoring data to accumulate
           monitor = server.get_sketchy_data({'start' => -60,
-                                             'end '=> -20,
+                                             'end' => -20,
                                              'plugin_name' => "cpu-0",
                                              'plugin_type' => "cpu-idle"})
           idle_values = monitor['data']['value']
