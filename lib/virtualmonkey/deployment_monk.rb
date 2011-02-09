@@ -124,9 +124,7 @@ class DeploymentMonk
           end
           new_deploy.nickname = dep_tempname + dep_image_list.uniq.join("_AND_")
           new_deploy.save
-          @common_inputs.each do |key,val|
-            new_deploy.set_input(key,val)
-          end
+          new_deploy.set_inputs(@common_inputs)
         end
       end
     end
@@ -137,10 +135,6 @@ class DeploymentMonk
   end
 
   def destroy_all
-    @deployments.each do |v|
-      v.reload
-      v.servers.each { |s| s.stop }
-    end 
     @deployments.each { |v| v.destroy }
     @deployments = []
   end
