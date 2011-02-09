@@ -1,0 +1,10 @@
+{
+  "tag":"MC_BASE_TROOP",
+  "feature":"base.rb",
+  "cloud_variables":"multicloud.json",
+  "runner":"SimpleRunner",
+  "common_inputs":"base.json",
+  "server_template_ids":[
+    "91124"
+  ]
+}
