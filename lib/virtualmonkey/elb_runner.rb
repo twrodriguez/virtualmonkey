@@ -115,7 +115,7 @@ puts "USING EP: #{endpoint_url}"
 #      @scripts_to_run = {}
       server = @servers.first
       server.settings 
-      st = ServerTemplate.find(server.server_template_href)
+      st = ServerTemplate.find(server.server_template_href.split(/\//).last.to_i)
       lookup_scripts_table(st,scripts)
 #      @scripts_to_run['connect'] = st.executables.detect { |ex| ex.name =~  /ELB connect/i }
 #      @scripts_to_run['disconnect'] = st.executables.detect { |ex| ex.name =~  /ELB disconnect/i }

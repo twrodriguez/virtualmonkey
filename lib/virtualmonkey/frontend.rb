@@ -103,9 +103,9 @@ module VirtualMonkey
                      [ 'connect', 'LB [app|mongrels]+ to HA proxy connect' ]
                     ]
 #      @scripts_to_run = {}
-      st = ServerTemplate.find(fe_servers.first.server_template_href)
+      st = ServerTemplate.find(fe_servers.first.server_template_href.split(/\//).last.to_i)
       lookup_scripts_table(st,fe_scripts)
-      st = ServerTemplate.find(app_servers.first.server_template_href)
+      st = ServerTemplate.find(app_servers.first.server_template_href.split(/\//).last.to_i)
       lookup_scripts_table(st,app_scripts)
 #      @scripts_to_run['connect'] = st.executables.detect { |ex| ex.name =~  /LB [app|mongrels]+ to HA proxy connect/i }
 #      @scripts_to_run['apache_restart'] = st.executables.detect { |ex| ex.name =~  /WEB apache \(re\)start v2/i }

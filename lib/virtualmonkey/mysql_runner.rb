@@ -63,7 +63,7 @@ puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1.b1"
                               [ 'create_mysql_ebs_stripe' , 'DB Create MySQL EBS stripe volume - 11H1.b1' ],
                               [ 'create_migrate_script' , 'DB EBS create migrate script from MySQL EBS v1' ]
                             ]
-      st = ServerTemplate.find(s_two.server_template_href)
+      st = ServerTemplate.find(s_two.server_template_href.split(/\//).last.to_i)
       lookup_scripts_table(st,scripts)
       @scripts_to_run['master_init'] = RightScript.new('href' => "/api/acct/2901/right_scripts/195053")
       #This does not work - does not create the same type as call above does.

@@ -25,7 +25,7 @@ module VirtualMonkey
                               [ 'grow_volume', 'DB EBS slave init and grow stripe volume' ],
                               [ 'restore', 'DB EBS restore stripe volume' ]
                             ]
-      st = ServerTemplate.find(s_one.server_template_href)
+      st = ServerTemplate.find(s_one.server_template_href.split(/\//).last.to_i)
       lookup_scripts_table(st,scripts_mysql)
       # hardwired script! (this is an 'anyscript' that users typically use to setup the master dns)
       # This a special version of the register that uses MASTER_DB_DNSID instead of a test DNSID

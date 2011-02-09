@@ -26,7 +26,7 @@ module VirtualMonkey
                  [ 'script_ref1', 'name' ],
                  [ 'script_ref2', 'name' ]
                ]
-#      st = ServerTemplate.find(s_two.server_template_href)
+#      st = ServerTemplate.find(s_two.server_template_href.split(/\//).last.to_i)
 #      lookup_scripts_table(st,scripts)
     end
 

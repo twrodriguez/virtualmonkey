@@ -55,7 +55,7 @@ module VirtualMonkey
 
     def lookup_scripts
       @scripts_to_run = {}
-      st = ServerTemplate.find(fe_servers.first.server_template_href)
+      st = ServerTemplate.find(fe_servers.first.server_template_href.split(/\//).last.to_i)
       @scripts_to_run["attach"] = st.executables.detect { |d| d.recipe == "lb_haproxy::do_attach_request" }
     end
 

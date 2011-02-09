@@ -23,7 +23,7 @@ module VirtualMonkey
                  [ 'grow_volume', 'EBS stripe volume grow and restore' ],
                  [ 'terminate', 'TERMINATE' ]
                ]
-      st = ServerTemplate.find(s_one.server_template_href)
+      st = ServerTemplate.find(s_one.server_template_href.split(/\//).last.to_i)
       lookup_scripts_table(st,scripts)
     end
     

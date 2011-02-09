@@ -46,7 +46,7 @@ module VirtualMonkey
 
     def lookup_scripts
       @scripts_to_run = {}
-      st = ServerTemplate.find(@servers.first.server_template_href)
+      st = ServerTemplate.find(@servers.first.server_template_href.split(/\//).last.to_i)
       @scripts_to_run['apache_restart'] = st.executables.detect { |ex| ex.name =~  /WEB apache \(re\)start v2/i }
     end 
 

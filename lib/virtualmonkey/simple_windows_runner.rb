@@ -18,7 +18,7 @@ module VirtualMonkey
                  [ 'drop_database', 'drop_database' ],
                  [ 'restore_database', 'restore_database' ],
                ]
-      st = ServerTemplate.find(s_one.server_template_href)
+      st = ServerTemplate.find(s_one.server_template_href.split(/\//).last.to_i)
       lookup_scripts_table(st,scripts)
       @scripts_to_run['backup_database_check'] = RightScript.new('href' => "/api/acct/2901/right_scripts/310407")
     end
