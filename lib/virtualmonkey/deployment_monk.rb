@@ -159,7 +159,12 @@ class DeploymentMonk
   end
 
   def destroy_all
-    @deployments.each { |v| v.destroy }
+    @deployments.each { |v|
+      v.servers_no_reload.each { |s|
+        s.wait_for_state("stopped")
+      }
+      v.destroy
+    }
     @deployments = []
   end
 
