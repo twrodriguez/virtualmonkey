@@ -1,0 +1,13 @@
+{
+  "APPLICATION":"text:app_test",
+  "DBAPPLICATION_PASSWORD":"cred:DBAPPLICATION_PASSWORD",
+  "DBAPPLICATION_USER":"cred:DBAPPLICATION_USER",
+  "DB_BINLOG_PREFIX":"text:/mnt/mysql-binlogs/mysql-bin",
+  "DB_MYSQLDUMP_BUCKET":"text:lamp-feature-bucket-ap",
+  "DB_MYSQLDUMP_PREFIX":"text:app_test",
+  "DB_SCHEMA_NAME":"text:app_test",
+  "OPT_SVN_USERNAME":"text:cary",
+  "OPT_SVN_PASSWORD":"cred:cary_wush_svn",
+  "SVN_APP_REPOSITORY":"text:https://wush.net/svn/rightscale/unified_test_app/rails",
+  "WEBSITE_DNS":"env:EC2_PUBLIC_HOSTNAME"
+}
