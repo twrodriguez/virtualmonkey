@@ -8,6 +8,7 @@ require 'virtualmonkey/command/run'
 require 'virtualmonkey/command/list'
 require 'virtualmonkey/command/troop'
 require 'virtualmonkey/command/clone'
+require 'uri'
 
 module VirtualMonkey
   module Command
@@ -116,7 +117,8 @@ module VirtualMonkey
 
     def self.destroy_all_logic
       @@dm.deployments.each do |deploy|
-        runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(deploy.nickname)")
+	nickname = val = URI.escape(deploy.nickname, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
+        runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(nickname)")
         runner.behavior(:stop_all, false)
         state_dir = File.join(@@global_state_dir, deploy.nickname)
         if File.directory?(state_dir)
