@@ -7,11 +7,11 @@ module VirtualMonkey
     def initialize(deployment)
       @deployment = Deployment.find_by_nickname_speed(deployment).first
       raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
-      @servers = @deployment.servers_no_reload
+      @servers = object_behavior(@deployment, :servers_no_reload)
       @scripts_to_run = {}
       @rerun_last_command = []
-      @servers.each { |s| s.settings }
-      lookup_scripts
+      @servers.each { |s| object_behavior(s, :settings) }
+      behavior(:lookup_scripts)
     end
 
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should

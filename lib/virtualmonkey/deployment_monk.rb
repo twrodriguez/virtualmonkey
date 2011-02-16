@@ -41,7 +41,9 @@ class DeploymentMonk
         @clouds.concat( mci["multi_cloud_image_cloud_settings"].map { |s| [ "#{s["cloud_id"]}" ] } )
       }
     end
-    @clouds.flatten!.uniq!
+    if @clouds.flatten!
+      @clouds.uniq!
+    end
   end
 
 #mci = MultiCloudImageInternal.find(mci_id)
