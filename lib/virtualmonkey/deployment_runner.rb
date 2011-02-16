@@ -5,11 +5,11 @@ module VirtualMonkey
     attr_accessor :scripts_to_run
     
     def initialize(deployment)
+      @scripts_to_run = {}
+      @rerun_last_command = []
       @deployment = Deployment.find_by_nickname_speed(deployment).first
       raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
       @servers = object_behavior(@deployment, :servers_no_reload)
-      @scripts_to_run = {}
-      @rerun_last_command = []
       @servers.each { |s| object_behavior(s, :settings) }
       behavior(:lookup_scripts)
     end
