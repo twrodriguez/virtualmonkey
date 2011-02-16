@@ -100,7 +100,7 @@ module VirtualMonkey
                     [ 'apache_restart', 'WEB apache \(re\)start' ]
                    ]
       app_scripts = [
-                     [ 'connect', 'LB [app|mongrels]+ to HA proxy connect' ]
+                     [ 'connect', 'LB [app|mongrels]+ to HA[ pP]+roxy connect' ]
                     ]
 #      @scripts_to_run = {}
       st = ServerTemplate.find(fe_servers.first.server_template_href.split(/\//).last.to_i)
