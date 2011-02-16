@@ -9,8 +9,8 @@ module VirtualMonkey
       @rerun_last_command = []
       @deployment = Deployment.find_by_nickname_speed(deployment).first
       raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
-      @servers = object_behavior(@deployment, :servers_no_reload)
-      @servers.each { |s| object_behavior(s, :settings) }
+      @servers = @deployment.servers_no_reload
+      @servers.each { |s| s.settings }
       behavior(:lookup_scripts)
     end
 
