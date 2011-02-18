@@ -8,6 +8,7 @@
   "DB_SCHEMA_NAME":"text:app_test",
   "OPT_SVN_USERNAME":"text:cary",
   "OPT_SVN_PASSWORD":"cred:cary_wush_svn",
+  "RAILS_VERSION":"text:2.1.2",
   "SVN_APP_REPOSITORY":"text:https://wush.net/svn/rightscale/unified_test_app/rails",
   "WEBSITE_DNS":"env:EC2_PUBLIC_HOSTNAME"
 }
