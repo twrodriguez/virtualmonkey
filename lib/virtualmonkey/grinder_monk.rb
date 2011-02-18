@@ -144,7 +144,7 @@ class GrinderMonk
     running = @jobs.select { |s| s.status == nil }
     report_on = @jobs.select { |s| s.status == 0 || s.status == 1 }
     index = ERB.new  File.read(File.dirname(__FILE__)+"/index.html.erb")
-    bucket_name = "virtual_monkey"
+    bucket_name = (Fog.credentials[:s3_bucket] ? Fog.credentials[:s3_bucket] : "virtual_monkey")
 
     ## upload to s3
     # setup credentials in ~/.fog

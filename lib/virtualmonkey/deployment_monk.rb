@@ -150,7 +150,13 @@ class DeploymentMonk
           end
           new_deploy.nickname = dep_tempname + dep_image_list.uniq.join("_AND_")
           new_deploy.save
-          new_deploy.set_inputs(@common_inputs)
+          if new_deploy.respond_to?(:set_inputs)
+            new_deploy.set_inputs(@common_inputs)
+          else
+            @common_inputs.each do |key,val|
+              new_deploy.set_input(key,val)
+            end
+          end
         end
       end
     end
