@@ -6,7 +6,7 @@
 #Scenario: Nginx Passenger AIO Server Template Test
 #
 # Given A AIO deployment
-  @runner = VirtualMonkey::LampRunner.new(ENV['DEPLOYMENT'])
+  @runner = VirtualMonkey::OnboardingRunner.new(ENV['DEPLOYMENT'])
 
 # Then I should stop the servers
   @runner.behavior(:stop_all)
@@ -17,8 +17,8 @@
 # Then I should wait for the state of "all" servers to be "operational"
   @runner.behavior(:wait_for_all, "operational")
 
-# Then I should run LAMP checks
-  @runner.behavior(:run_lamp_checks)
+# Then I should run Onboarding checks
+  @runner.behavior(:run_onboarding_checks)
 
 # Then I should run mysql checks
   @runner.behavior(:run_checks)
