@@ -26,5 +26,12 @@
       "PRIVATE_SSH_KEY":"key:publish-test-ap:4"
     },
     "ec2_security_groups_href":"https://my.rightscale.com/api/acct/2901/ec2_security_groups/126284"
+  },
+  "5":{
+    "ec2_ssh_key_href":"https://my.rightscale.com/api/acct/2901/ec2_ssh_keys/262414",
+    "parameters":{
+      "PRIVATE_SSH_KEY":"key:publish-test-ap-northeast:5"
+    },
+    "ec2_security_groups_href":"https://my.rightscale.com/api/acct/2901/ec2_security_groups/162959"
   }
 }
