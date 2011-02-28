@@ -121,7 +121,7 @@ class DeploymentMonk
             inputs << { :name => key, :value => val }
           end
           #Set Server Creation Parameters
-          server_params = { :nickname => "tempserver-#{rand(1000000)}-#{st.nickname}", 
+          server_params = { :nickname => "#{@tag}-tempserver-#{rand(1000000)}-#{st.nickname}", 
                             :deployment_href => new_deploy.href.dup, 
                             :server_template_href => st.href.dup, 
                             :cloud_id => cloud,

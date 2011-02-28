@@ -112,7 +112,18 @@ module VirtualMonkey
       runner.behavior(:stop_all, false)
       runner.deployment.destroy unless @@options[:no_delete] or @@command =~ /run|clone/
       @@remaining_jobs.delete(job)
-      runner.behavior(:release_dns) if runner.respond_to?(:release_dns) and not @@options[:no_delete]
+      #Release DNS logic
+      if runner.respond_to?(:release_dns) and not @@options[:no_delete]
+        ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
+          begin
+            dns = SharedDns.new(domain)
+            raise "Unable to reserve DNS" unless dns.reserve_dns(deploy.href)
+            dns.release_dns
+          rescue Exception => e
+            raise e unless e.message =~ /Unable to reserve DNS/
+          end
+        }
+      end
     end
 
     def self.destroy_all_logic
@@ -130,7 +141,18 @@ module VirtualMonkey
           end 
           Dir.rmdir(state_dir)
         end 
-        runner.behavior(:release_dns) if runner.respond_to?(:release_dns) and not @@options[:no_delete]
+        #Release DNS logic
+        if runner.respond_to?(:release_dns) and not @@options[:no_delete]
+          ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
+            begin
+              dns = SharedDns.new(domain)
+              raise "Unable to reserve DNS" unless dns.reserve_dns(deploy.href)
+              dns.release_dns
+            rescue Exception => e
+              raise e unless e.message =~ /Unable to reserve DNS/
+            end
+          }
+        end
       end 
 
       @@dm.destroy_all unless @@options[:no_delete]
