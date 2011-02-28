@@ -29,7 +29,13 @@ class DeploymentMonk
       end
     end
     server_templates.each do |st|
-      @server_templates << ServerTemplate.find(st.to_i)
+      if st =~ /[^0-9]/
+        sts_found << ServerTemplate.find_by(:nickname) { |n| n =~ /#{st}/ } #ServerTemplate Name was given
+        raise "Found more than one ServerTemplate matching '#{st}'." unless sts_found.size == 1
+        @server_templates << sts_found.first
+      else
+        @server_templates << ServerTemplate.find(st.to_i) #ServerTemplate ID was given
+      end
     end
 
     @image_count = 0
