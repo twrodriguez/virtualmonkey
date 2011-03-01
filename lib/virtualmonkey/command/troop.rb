@@ -23,7 +23,7 @@ module VirtualMonkey
       if @@options[:create]
         troop_config = {}
         troop_config[:tag] = ask("What tag to use for creating the deployments?")
-        troop_config[:server_template_ids] = ask("What Server Template ids would you like to use to create the deployments (comma delimited)?").split(",")
+        troop_config[:server_template_ids] = ask("What Server Template ids (or names) would you like to use to create the deployments (comma delimited)?").split(",")
         troop_config[:server_template_ids].each {|st| st.strip!}
 
         troop_config[:runner] = 

@@ -19,7 +19,7 @@
   @runner.set_var(:set_variation_stripe_count, 1)
 
 # Then I should set a variation MySQL DNS
-  @runner.set_var(:setup_dns, "virtualmonkey_awsdns") # DNSMadeEasy
+  @runner.set_var(:setup_dns, "virtualmonkey_dyndns") # DynDNS
 
 # Then I should launch all servers
   @runner.behavior(:launch_all)
