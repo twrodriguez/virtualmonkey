@@ -15,7 +15,6 @@
   "DB_SERVER_USAGE":"text:dedicated",
   "OPT_DB_MYSQL_TIMEOUT":"ignore:$ignore",
   "DBAPPLICATION_USER":"cred:DBAPPLICATION_USER",
-  "APPLICATION":"text:mephisto",
   "APPLICATION_CODE_PACKAGE":"text:php_unified.tgz",
   "DB_MYSQLDUMP_PREFIX":"text:app_test",
   "OPT_EXPLODE_WAR_FILES_IN_ARCHIVE":"text:false",
