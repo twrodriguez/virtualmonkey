@@ -3,7 +3,7 @@ require 'rest_connection'
 
 class DeploymentMonk
   attr_accessor :common_inputs
-  attr_accessor :variables_for_cloud
+  attr_accessor :variables_for_cloud, :ec2_ssh_keys
   attr_accessor :deployments
   attr_reader :tag
 
@@ -20,6 +20,7 @@ class DeploymentMonk
     @server_templates = []
     @common_inputs = {}
     @variables_for_cloud = {}
+    @ec2_ssh_keys = {}
     raise "Need either populated deployments or passed in server_template ids" if server_templates.empty? && @deployments.empty?
     if server_templates.empty?
       puts "loading server templates from servers in the first deployment"
@@ -117,7 +118,9 @@ class DeploymentMonk
             use_this_image = st.multi_cloud_images[0]['href']
           end
           inputs = []
-          @common_inputs.merge(@variables_for_cloud[cloud]['parameters']).each do |key,val|
+          @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud])
+          @common_inputs.merge!(@variables_for_cloud[cloud]['parameters'])
+          @common_inputs.each do |key,val|
             inputs << { :name => key, :value => val }
           end
           #Set Server Creation Parameters
