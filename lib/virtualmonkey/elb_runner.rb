@@ -40,7 +40,7 @@ module VirtualMonkey
 
     def initialize(args)
       super(args)
-      endpoint_url=ELBS[get_cloud_id][:endpoint]
+      endpoint_url=ELBS[@deployment.cloud_id][:endpoint]
 puts "USING EP: #{endpoint_url}"
       @elb = RightAws::ElbInterface.new(AWS_ID, AWS_KEY, { :endpoint_url => endpoint_url } )
 #      @elb_name = "#{ELB_PREFIX}-#{rand(1000000)}"
@@ -137,7 +137,7 @@ puts "USING EP: #{endpoint_url}"
       begin
         array = retry_elb_fn("describe_load_balancers",@elb_name)
       rescue Exception => e
-        if e.message =~ /Cannot find Load Balancer/
+        if e.message =~ /Cannot find Load Balancer|LoadBalancerNotFound/
           array = []
         else
           raise e
@@ -147,7 +147,7 @@ puts "USING EP: #{endpoint_url}"
         @elb_dns = array.first[:dns_name]
       else
         raise "ERROR: More than one ELB with name \"#{@elb_name}\" found." if array.length > 1
-        az = ELBS[get_cloud_id][:azs]
+        az = ELBS[@deployment.cloud_id][:azs]
 puts "Using az: #{az}"
         @elb_dns = retry_elb_fn("create_load_balancer",@elb_name,
                                  az,
@@ -164,20 +164,6 @@ puts "Using az: #{az}"
    
     def elb_href
       "http:\/\/#{@elb_dns}"
-    end
-    
-    # What cloud is the first server in?
-    def get_cloud_id
-      case ENV['DEPLOYMENT']
-      when /ec2-east/
-        return 1
-      when /ec2-eu/
-        return 2
-      when /ec2-west/
-        return 3
-      when /ec2-ap/
-        return 4
-      end
     end
     
     # run the ELB connect script
