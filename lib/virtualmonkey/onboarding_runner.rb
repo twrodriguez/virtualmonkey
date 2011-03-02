@@ -20,7 +20,7 @@ module VirtualMonkey
       # check that the standard unified app is responding on port 80
       @servers.each do |server| 
         url_base = "#{server.dns_name}:#{80}"
-        behavior(:test_http_response, "200 OK", "#{url_base}/index.html", 80)
+        behavior(:test_http_response, "Congratulations", "#{url_base}", 80)
       end
     end
 

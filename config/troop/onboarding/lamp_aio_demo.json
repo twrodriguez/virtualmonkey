@@ -1,0 +1,10 @@
+{
+  "tag":"LAMP_AIO_TRIAL_TROOP",
+  "feature":"nginx_pass_aio.rb",
+  "cloud_variables":"east.json",
+  "runner":"SimpleRunner",
+  "common_inputs":"lamp_aio_trial.json",
+  "server_template_ids":[
+    "96057"
+  ]
+}
