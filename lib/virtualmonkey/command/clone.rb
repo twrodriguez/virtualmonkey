@@ -22,7 +22,7 @@ module VirtualMonkey
       origin = @@dm.deployments.first
       @@do_these ||= []
       # clone deployment
-      for i in 1 .. options[:copies]
+      for i in 1 .. @@options[:copies]
         new_deploy = origin.clone
         new_deploy.nickname = "#{origin.nickname}-clone-#{i}"
         new_deploy.save
