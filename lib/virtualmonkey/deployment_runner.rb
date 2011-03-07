@@ -14,6 +14,14 @@ module VirtualMonkey
       behavior(:lookup_scripts)
     end
 
+    def run_script_on_all(friendly_name, wait = true)
+      audits = Array.new() 
+      @servers.each do |s|
+        audits << s.run_executable(@scripts_to_run[friendly_name])
+      end
+      audits.each { |a| a.wait_for_completed } if wait
+    end
+
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should
     # not be calling the following methods directly. Instead, they should use the
     # TestCaseInterface methods (behavior, verify, probe) to access these functions.
