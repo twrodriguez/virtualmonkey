@@ -104,5 +104,53 @@ puts "USING MySQL 5.0 toolbox"
       audit = object_behavior(s_one, :run_executable, @scripts_to_run['restore'], { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" } )
       audit.wait_for_completed
     end
+
+# Check for specific MySQL data.
+    def check_mysql_monitoring
+      mysql_plugins = [
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-delete"},
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_db"},
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_table"},
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-insert"},
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-show_databases"}
+                      ]
+      @servers.each do |server|
+        unless server.multicloud
+#mysql commands to generate data for collectd to return
+          for ii in 1...100
+#TODO: have to select db with every call.  figure a better way to do this and get rid of fast and ugly
+# cut and past hack.
+            behavior(:run_query, "show databases", server)
+            behavior(:run_query, "create database test#{ii}", server)
+            behavior(:run_query, "use test#{ii}; create table test#{ii}(test text)", server)
+            behavior(:run_query, "use test#{ii};show tables", server)
+            behavior(:run_query, "use test#{ii};insert into test#{ii} values ('1')", server)
+            behavior(:run_query, "use test#{ii};update test#{ii} set test='2'", server)
+            behavior(:run_query, "use test#{ii};select * from test#{ii}", server)
+            behavior(:run_query, "use test#{ii};delete from test#{ii}", server)
+            behavior(:run_query, "show variables", server)
+            behavior(:run_query, "show status", server)
+            behavior(:run_query, "use test#{ii};grant select on test.* to root", server)
+            behavior(:run_query, "use test#{ii};alter table test#{ii}rename to test2#{ii}", server)
+          end
+          mysql_plugins.each do |plugin|
+            monitor = server.get_sketchy_data({'start' => -60,
+                                               'end' => -20,
+                                               'plugin_name' => plugin['plugin_name'],
+                                               'plugin_type' => plugin['plugin_type']})
+            value = monitor['data']['value']
+            raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} data" unless value.length > 0
+            # Need to check for that there is at least one non 0 value returned.
+            for nn in 0...value.length
+              if value[nn] > 0
+                break
+              end
+            end
+            raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} time" unless nn < value.length
+            puts "Monitoring is OK for #{plugin['plugin_name']}-#{plugin['plugin_type']}"
+          end
+        end
+      end
+    end
   end
 end
