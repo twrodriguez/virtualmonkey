@@ -82,7 +82,7 @@ class DeploymentMonk
           new_st = ServerTemplateInternal.new(:href => st.href)
           if options[:mci_override] && !options[:mci_override].empty?
             mci = MultiCloudImageInternal.new(:href => options[:mci_override][index])
-	    mci.reload
+	          mci.reload
           elsif new_st.multi_cloud_images[index]
             mci = new_st.multi_cloud_images[index]
           else
@@ -118,7 +118,7 @@ class DeploymentMonk
             use_this_image = st.multi_cloud_images[0]['href']
           end
           inputs = []
-          @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud])
+          @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud]) if cloud.to_i <= 10
           @common_inputs.merge!(@variables_for_cloud[cloud]['parameters'])
           @common_inputs.each do |key,val|
             inputs << { :name => key, :value => val }
