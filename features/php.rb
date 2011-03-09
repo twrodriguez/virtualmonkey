@@ -47,6 +47,9 @@
 # Then I should run log rotation checks
   @runner.behavior(:log_rotation_checks)
 
+# Test setup of SSL vhost
+  @runner.behavior(:setup_https_vhost)
+
 # Then I should test reboot operations on the deployment
   @runner.behavior(:run_reboot_operations)
 

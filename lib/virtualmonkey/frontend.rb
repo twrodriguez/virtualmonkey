@@ -95,9 +95,16 @@ module VirtualMonkey
       statuses.each_with_index { |s,i| s.wait_for_completed }
     end
 
+    def setup_https_vhost
+      statuses = Array.new
+      fe_servers.each { |s| statuses << object_behavior(s, :run_executable, @scripts_to_run['https_vhost']) }
+      statuses.each_with_index { |s,i| s.wait_for_completed }
+    end
+
     def lookup_scripts
       fe_scripts = [
-                    [ 'apache_restart', 'WEB apache \(re\)start' ]
+                    [ 'apache_restart', 'WEB apache \(re\)start' ],
+		    [ 'https_vhost', 'WEB apache FrontEnd https vhost' ]
                    ]
       app_scripts = [
                      [ 'connect', 'LB [app|mongrels]+ to HA[ pP]+roxy connect' ]
