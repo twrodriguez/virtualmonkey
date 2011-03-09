@@ -84,10 +84,10 @@ module VirtualMonkey
           raise "Aborting." unless confirm
         end
 
-        @@remaining_jobs = @@gm.jobs.dup
         @@do_these.each do |deploy|
           @@gm.run_test(deploy, @@options[:feature])
         end
+        @@remaining_jobs = @@gm.jobs.dup
 
         watch = EM.add_periodic_timer(10) {
           @@gm.watch_and_report
@@ -97,7 +97,7 @@ module VirtualMonkey
           if @@options[:terminate]
             @@remaining_jobs.each do |job|
               if job.status == 0
-                if @@command != "troop" or @@options[:step] =~ /all/
+                if @@command !~ /troop/ or @@options[:step] =~ /all/
                   destroy_job_logic(job)
                 end
               end
