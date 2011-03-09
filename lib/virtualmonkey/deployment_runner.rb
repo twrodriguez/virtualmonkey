@@ -113,34 +113,27 @@ module VirtualMonkey
     # Wait for server(s) matching nickname_substr to enter state
     # * nickname_substr<~String> - regex compatible string to match
     # * state<~String> - state to wait for, eg. operational
-    def wait_for_set(nickname_substr, state)
-      set = select_set(nickname_substr)  
-      state_wait(set, state)
-    end
-
-    # Wait for server(s) matching nickname_substr to enter state
-    # * servers<~Array> - Array of Servers to wait on
-    # * state<~String> - state to wait for, eg. operational
-    def wait_for_servers(servers, state)
-      state_wait(set, state)
+    def wait_for_set(nickname_substr, state, timeout=1200)
+      set = select_set(nickname_substr)
+      state_wait(set, state, timeout)
     end
 
     # Helper method, waits for state on a set of servers.
     # * set<~Array> of servers to operate on
     # * state<~String> state to wait for
-    def state_wait(set, state)
+    def state_wait(set, state, timeout=1200)
       # do a special wait, if waiting for operational (for dns)
       if state == "operational"
-        set.each { |server| server.wait_for_operational_with_dns }
+        set.each { |server| server.wait_for_operational_with_dns(timeout) }
       else
-        set.each { |server| server.wait_for_state(state) }
+        set.each { |server| server.wait_for_state(state, timeout) }
       end
     end
     
     # Wait for all server(s) to enter state.
     # * state<~String> - state to wait for, eg. operational
-    def wait_for_all(state)
-      state_wait(@servers, state)
+    def wait_for_all(state, timeout=1200)
+      state_wait(@servers, state, timeout)
     end
 
     def start_ebs_all(wait=true)
