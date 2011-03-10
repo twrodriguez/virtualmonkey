@@ -99,6 +99,9 @@ module VirtualMonkey
       statuses = Array.new
       fe_servers.each { |s| statuses << object_behavior(s, :run_executable, @scripts_to_run['https_vhost']) }
       statuses.each_with_index { |s,i| s.wait_for_completed }
+      fe_servers.each_with_index do |server,i|
+        behavior(:test_http_response, "html serving succeeded", "https://" + server.dns_name + "/index.html", "443")
+      end
     end
 
     def lookup_scripts
