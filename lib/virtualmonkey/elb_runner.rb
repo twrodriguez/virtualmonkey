@@ -29,6 +29,10 @@ module VirtualMonkey
              4 => {
                 :endpoint => "https://elasticloadbalancing.ap-southeast-1.amazonaws.com",
                 :azs => [ "ap-southeast-1a", "ap-southeast-1a" ] 
+                },
+             5 => {
+                :endpoint => "https://elasticloadbalancing.ap-northeast-1.amazonaws.com",
+                :azs => [ "ap-northeast-1a", "ap-northeast-1a" ]
                 }
           }
     
