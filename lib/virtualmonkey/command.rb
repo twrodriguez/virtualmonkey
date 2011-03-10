@@ -118,7 +118,7 @@ module VirtualMonkey
         ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
           begin
             dns = SharedDns.new(domain)
-            raise "Unable to reserve DNS" unless dns.reserve_dns(deployment.href)
+            raise "Unable to reserve DNS" unless dns.reserve_dns(runner.deployment.href)
             dns.release_dns
           rescue Exception => e
             raise e unless e.message =~ /Unable to reserve DNS/
