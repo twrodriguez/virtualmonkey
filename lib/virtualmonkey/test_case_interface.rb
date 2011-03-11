@@ -79,8 +79,11 @@ module VirtualMonkey
     def exception_handle(e)
       puts "ATTENTION: Using default exception_handle(e). This can be overridden in mixin classes."
       if e.message =~ /Insufficient capacity/
-        puts "Got \"#{e.message}\". Retrying...."
+        puts "Got \"Insufficient capacity\". Retrying...."
         sleep 60
+      elsif e.message =~ /Service Temporarily Unavailable/
+        puts "Got \"Service Temporarily Unavailable\". Retrying...."
+        sleep 10
       else
         raise e
       end

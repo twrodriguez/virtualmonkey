@@ -1,0 +1,10 @@
+{
+  "tag":"MONKEY_SELF_TEST",
+  "feature":"monkey_self_test.rb",
+  "cloud_variables":"east.json",
+  "runner":"SimpleRunner",
+  "common_inputs":"monkey_self_test_pass.json",
+  "server_template_ids":[
+    "98231"
+  ]
+}

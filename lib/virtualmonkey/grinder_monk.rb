@@ -18,7 +18,7 @@ class GrinderJob
 #    @output << data
     data = timestamp + data
     File.open(@logfile, "a") { |f| f.write(data) }
-    $stdout.syswrite("<#{deployment.nickname}>#{data}") if @verbose
+    $stdout.syswrite("<#{deploy_id}>#{data}") if @verbose
   end
 
   def on_read_stderr(data)
@@ -26,19 +26,24 @@ class GrinderJob
 #    @output << data
     data = timestamp + data
     File.open(@logfile, "a") { |f| f.write(data) }
-    $stdout.syswrite("<#{deployment.nickname}>#{data}") if @verbose
+    $stdout.syswrite("<#{deploy_id}>#{data}") if @verbose
   end
 
   def timestamp
     t = Time.now
     "#{t.strftime("[%m/%d/%Y %H:%M:%S.")}%-6d] " % t.usec
   end
+
+  def deploy_id
+    @id = deployment.nickname.match(/-[0-9]+-/)[0].match(/[0-9]+/)[0] unless @id
+    @id
+  end
     
   def receive_data data
 #    @output += data
     data = timestamp + data
     File.open(@logfile, "a") { |f| f.write(data) }
-    $stdout.syswrite("<#{deployment.nickname}>#{data}") if @verbose
+    $stdout.syswrite("<#{deploy_id}>#{data}") if @verbose
   end
 
   def unbind
@@ -164,7 +169,7 @@ class GrinderMonk
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.rest_log)}", IO.read(j.rest_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         done = 1
       rescue Exception => e
-        unless e.message =~ /Bad file descriptor/i
+        unless e.message =~ /Bad file descriptor|no such file or directory/i
           raise e
         end
         sleep 1
