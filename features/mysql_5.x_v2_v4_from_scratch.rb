@@ -45,6 +45,7 @@
 
 # Then I should check that monitoring is enabled
   @runner.behavior(:check_monitoring)
+  @runner.behavior(:check_mysql_monitoring)
 
 #
 # PHASE 2) Reboot
