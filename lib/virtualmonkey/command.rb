@@ -115,21 +115,14 @@ module VirtualMonkey
       @@remaining_jobs.delete(job)
       #Release DNS logic
       if runner.respond_to?(:release_dns) and not @@options[:no_delete]
-        ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
-          begin
-            dns = SharedDns.new(domain)
-            raise "Unable to reserve DNS" unless dns.reserve_dns(deploy.href)
-            dns.release_dns
-          rescue Exception => e
-            raise e unless e.message =~ /Unable to reserve DNS/
-          end
-        }
+        release_all_dns_domains(runner.deployment.href)
       end
     end
 
     def self.destroy_all_logic
       @@dm.deployments.each do |deploy|
-	nickname = val = URI.escape(deploy.nickname, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
+        # TODO: Move the following escape into rest_connection
+        nickname = val = URI.escape(deploy.nickname, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
         runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(nickname)")
         runner.behavior(:stop_all, false)
         state_dir = File.join(@@global_state_dir, deploy.nickname)
@@ -144,19 +137,23 @@ module VirtualMonkey
         end 
         #Release DNS logic
         if runner.respond_to?(:release_dns) and not @@options[:no_delete]
-          ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
-            begin
-              dns = SharedDns.new(domain)
-              raise "Unable to reserve DNS" unless dns.reserve_dns(deploy.href)
-              dns.release_dns
-            rescue Exception => e
-              raise e unless e.message =~ /Unable to reserve DNS/
-            end
-          }
+          release_all_dns_domains(deploy.href)
         end
       end 
 
       @@dm.destroy_all unless @@options[:no_delete]
+    end
+
+    def release_all_dns_domains(deploy_href)
+      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
+        begin
+          dns = SharedDns.new(domain)
+          raise "Unable to reserve DNS" unless dns.reserve_dns(deploy_href)
+          dns.release_dns
+        rescue Exception => e
+          raise e unless e.message =~ /Unable to reserve DNS/
+        end
+      }
     end
   end
 end
