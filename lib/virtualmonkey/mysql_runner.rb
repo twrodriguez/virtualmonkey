@@ -131,7 +131,7 @@ puts "USING MySQL 5.0 toolbox"
             behavior(:run_query, "show variables", server)
             behavior(:run_query, "show status", server)
             behavior(:run_query, "use test#{ii};grant select on test.* to root", server)
-            behavior(:run_query, "use test#{ii};alter table test#{ii}rename to test2#{ii}", server)
+            behavior(:run_query, "use test#{ii};alter table test#{ii} rename to test2#{ii}", server)
           end
           mysql_plugins.each do |plugin|
             monitor = server.get_sketchy_data({'start' => -60,

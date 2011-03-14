@@ -271,7 +271,7 @@ module VirtualMonkey
                                              'plugin_type' => "cpu-idle"})
           idle_values = monitor['data']['value']
           raise "No cpu idle data" unless idle_values.length > 0
-          raise "No idle time" unless idle_values[0] > 0
+          raise "CPU idle time is < 0: #{idle_values}" unless idle_values[0] > 0
           puts "Monitoring is OK for #{server.nickname}"
         end
       end
