@@ -144,7 +144,7 @@ module VirtualMonkey
       @@dm.destroy_all unless @@options[:no_delete]
     end
 
-    def release_all_dns_domains(deploy_href)
+    def self.release_all_dns_domains(deploy_href)
       ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
         begin
           dns = SharedDns.new(domain)
