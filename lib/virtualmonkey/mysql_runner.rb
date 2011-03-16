@@ -12,6 +12,17 @@ module VirtualMonkey
     # Trust me, I know what's good for you. -- Tim R.
     private
 
+    def init_slave_from_slave_backup
+      behavior(:config_master_from_scratch, s_one)
+      behavior(:run_script, "freeze_backups", s_one)
+      behavior(:slave_init_server, s_two)
+      behavior(:run_script, "backup", s_two)
+      s_two.relaunch
+      s_two.wait_for_operational
+      behavior(:slave_init_server, s_two)
+
+    end
+
     def run_promotion_operations
       behavior(:config_master_from_scratch, s_one)
       object_behavior(s_one, :relaunch)
@@ -54,7 +65,8 @@ puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1.b1"
                  [ 'slave_init', 'slave init' ],
                  [ 'promote', 'EBS promote to master' ],
                  [ 'backup', 'EBS backup' ],
-                 [ 'terminate', 'TERMINATE SERVER' ]
+                 [ 'terminate', 'TERMINATE SERVER' ],
+                 [ 'freeze_backups', 'DB freeze' ]
                ]
       ebs_toolbox_scripts = [
                               [ 'create_stripe' , 'EBS stripe volume create - 11H1.b1' ]
@@ -76,10 +88,12 @@ puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1.b1"
       lookup_scripts_table(tbx[0],ebs_toolbox_scripts)
 #      @scripts_to_run['create_stripe'] = RightScript.new('href' => "/api/acct/2901/right_scripts/198381")
 #TODO - does not account for 5.0/5.1 toolbox differences
-puts "USING MySQL 5.0 toolbox"
-      tbx = ServerTemplate.find_by(:nickname) { |n| n =~ /Database Manager with MySQL 5.0 Toolbox - 11H1.b1/ }
-      raise "Did not find toolbox template" unless tbx[0]
-      lookup_scripts_table(tbx[0],mysql_toolbox_scripts)
+      #tbx = ServerTemplate.find_by(:nickname) { |n| n =~ /Database Manager with MySQL 5.0 Toolbox - 11H1.b1/ }
+      #use_tbx = tbx.detect { |t| t.is_head_version }
+      use_tbx = ServerTemplate.find 84657
+      raise "Did not find toolbox template" unless use_tbx
+      puts "USING Toolbox Template: #{use_tbx.nickname}"
+      lookup_scripts_table(use_tbx,mysql_toolbox_scripts)
 #      @scripts_to_run['create_mysql_ebs_stripe'] = RightScript.new('href' => "/api/acct/2901/right_scripts/212492")
 #      @scripts_to_run['create_migrate_script'] = tbx[0].executables.detect { |ex| ex.name =~ /DB EBS create migrate script from MySQL EBS v1 master/ }
      raise "FATAL: Need 2 MySQL servers in the deployment" unless @servers.size == 2
