@@ -117,7 +117,7 @@ module VirtualMonkey
       error_range = 0.05
       puts "Testing with a +/- #{error_range * 100}% margin of error: #{@mount_point} #{expected_size}GB"
       expected_size *= 1048576 # expected_size is given in GB, df is given in KB
-      probe(server, "df -k | grep #{@mount_point}") { |response|
+      probe(server.nickname, "df -k | grep #{@mount_point}") { |response|
         val = response.match(/[0-9]+/)[0].to_i
         ret = (val < (expected_size * (1.0 + error_range)) and val > (expected_size * (1.0 - error_range)))
         ret
