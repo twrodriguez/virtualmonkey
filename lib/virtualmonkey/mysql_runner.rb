@@ -15,12 +15,15 @@ module VirtualMonkey
     def init_slave_from_slave_backup
       behavior(:config_master_from_scratch, s_one)
       behavior(:run_script, "freeze_backups", s_one)
+      behavior(:wait_for_snapshots)
       behavior(:slave_init_server, s_two)
       behavior(:run_script, "backup", s_two)
       s_two.relaunch
-      s_two.wait_for_operational
+      s_one['dns-name'] = nil
+      s_two.wait_for_operational_with_dns
+      behavior(:wait_for_snapshots)
+      #sleep 300
       behavior(:slave_init_server, s_two)
-
     end
 
     def run_promotion_operations
