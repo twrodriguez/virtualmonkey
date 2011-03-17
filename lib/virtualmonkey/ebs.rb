@@ -108,13 +108,20 @@ module VirtualMonkey
       server.spot_check_command("test -f #{@mount_point}/data.txt")
     end
 
-    # Verify that the volume is the expected size
+    # Verify that the volume is the expected size TODO
     def test_volume_size(server,expected_size)
-      puts "Testing with: #{@mount_point} #{expected_size}"
-puts "THIS DOES NOT WORK - cause of rounding errors during volume size determination, FS overhead  and df's output"
-puts "Need to query the volumes attached to the server and verify that they #{expected_size}/#{@stripe_count}"
-puts "Check that the server's volumes are #{expected_size}"
+#puts "THIS DOES NOT WORK - cause of rounding errors during volume size determination, FS overhead  and df's output"
+#puts "Need to query the volumes attached to the server and verify that they #{expected_size}/#{@stripe_count}"
+#puts "Check that the server's volumes are #{expected_size}"
 #      server.spot_check_command("df -kh | awk -F\" \" -v -v size=#{expected_size}G '/#{@mount_point}/ {exit $2!=size}'")
+      error_range = 0.05
+      puts "Testing with a +/- #{error_range * 100}% margin of error: #{@mount_point} #{expected_size}GB"
+      expected_size *= 1048576 # expected_size is given in GB, df is given in KB
+      probe(server, "df -k | grep #{@mount_point}") { |response|
+        val = response.match(/[0-9]+/)[0].to_i
+        ret = (val < (expected_size * (1.0 + error_range)) and val > (expected_size * (1.0 - error_range)))
+        ret
+      }
     end
 
     # Writes data to the EBS volume so snapshot restores can be verified
