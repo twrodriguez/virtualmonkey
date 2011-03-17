@@ -24,9 +24,6 @@
 # Then I should launch all servers
   @runner.behavior(:launch_all)
 
-# Then I should wait for the state of "all" servers to be "booting"
-  @runner.behavior(:wait_for_all, "booting")
-
 # Then I should wait for the state of "all" servers to be "operational"
   @runner.behavior(:wait_for_all, "operational")
 

@@ -25,7 +25,7 @@
   @runner.behavior(:launch_all)
 
 # Then I should wait for the state of "all" servers to be "booting"
-  @runner.behavior(:wait_for_all, "booting")
+#  @runner.behavior(:wait_for_all, "booting")
 
 # Then I should wait for the state of "all" servers to be "operational"
   @runner.behavior(:wait_for_all, "operational")
@@ -45,7 +45,7 @@
 
 # Then I should check that monitoring is enabled
   @runner.behavior(:check_monitoring)
-  @runner.behavior(:check_mysql_monitoring)
+#  @runner.behavior(:check_mysql_monitoring)
 
 #
 # PHASE 2) Reboot

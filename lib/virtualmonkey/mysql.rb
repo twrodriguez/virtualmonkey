@@ -150,7 +150,24 @@ module VirtualMonkey
       @servers.each do |server|
         server.spot_check(query_command) { |result| raise "Failure: tmpdir was unset#{result}" unless result.include?("/mnt/mysqltmp") }
       end
+
+      # check that mysql cron script exits success
+      @servers.each do |server|
+        chk1 = server.spot_check_command?("/usr/local/bin/mysql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+
+        chk2 = server.spot_check_command?("/usr/local/bin/mysql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+
+        raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2) 
+      end
+
+      # check that logrotate has mysqlslow in it
+      @servers.each do |server|
+        res = server.spot_check_command("logrotate --force -v /etc/logrotate.d/mysql-server")
+        raise "LOGROTATE FAILURE, exited with non-zero status" if res[:status] != 0
+        raise "DID NOT FIND mysqlslow.log in the log rotation!" if res[:output] !~ /mysqlslow/
+      end
     end
+
 
     # check that mysql can handle 5000 concurrent connections (file limits, etc.)
     def run_mysqlslap_check
