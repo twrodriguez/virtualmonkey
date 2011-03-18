@@ -12,35 +12,45 @@ end
 #Server.find_by(:state) { |s| s == "operational" }.each { |s| s.settings }.select { |s| s.dns_name =~ /#{ENV['EC2_PUBLIC_HOSTNAME']}/ }
 # XXX DO NOT DELETE THIS COMMENT XXX
 
+cloud_ids = []
+for i in 1..5
+  cloud_ids << i
+end
+ARGV.each { |id| cloud_ids << id.to_i }
+
 keys_file = File.join("..", "config", "cloud_variables", "ec2_keys.json")
 ssh_dir = File.join(File.expand_path("~"), ".ssh")
 rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
 rest_settings = YAML::load(IO.read(rest_yaml))
 rest_settings[:ssh_keys] = []
-
-id_files = ["0-is-not-a-valid-cloud-id",
-            "monkey-east",
-            "monkey-eu",
-            "monkey-west",
-            "monkey-ap",
-            "monkey-ap-northeast"]
+specific_key_file = File.join(ssh_dir, "specific_keys")
+specific_key_names = YAML::load(IO.read(specific_key_file)) if File.exists?(specific_key_file)
 
 keys = {}
-id_files.each_index { |cloud|
+cloud_ids.each { |cloud|
   next if cloud == 0
-  key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
-  found = Ec2SshKeyInternal.find_by_cloud_id("#{cloud}").select { |obj| obj.aws_key_name =~ /#{key_name}/ }.first
-  if found
-    k = found
+  if File.exists?(specific_key_file)
+    key_name = specific_key_names[:names][cloud - 1]
   else
-    k = Ec2SshKey.create('aws_key_name' => key_name, 'cloud_id' => "#{cloud}")
+    key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
   end
-  keys["#{cloud}"] = {"ec2_ssh_key_href" => k.href,
-                      "parameters" =>
-                        {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
-                      }
+  if cloud <= 10
+    found = Ec2SshKeyInternal.find_by_cloud_id("#{cloud}").select { |obj| obj.aws_key_name =~ /#{key_name}/ }.first
+    k = (found ? found : Ec2SshKey.create('aws_key_name' => key_name, 'cloud_id' => "#{cloud}"))
+    keys["#{cloud}"] = {"ec2_ssh_key_href" => k.href,
+                        "parameters" =>
+                          {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
+                        }
+  else
+    found = Ec2SshKeyInternal.find_by_cloud_id("1").select { |obj| obj.aws_key_name =~ /#{key_name}/ }.first
+    k = (found ? found : SshKey.create('aws_key_name' => key_name, 'cloud_id' => "1"))
+    keys["#{cloud}"] = {"ec2_ssh_key_href" => k.href,
+                        "parameters" =>
+                          {"PRIVATE_SSH_KEY" => "key:#{key_name}:1"}
+                        }
+  end
   # Generate Private Key Files
-  priv_key_file = File.join(ssh_dir, id_files[cloud])
+  priv_key_file = File.join(ssh_dir, "monkey-cloud-#{cloud_ids[cloud]}")
   File.open(priv_key_file, "w") { |f| f.write(k.aws_material) }
   File.chmod(0700, priv_key_file)
   # Configure rest_connection config

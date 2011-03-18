@@ -118,7 +118,11 @@ class DeploymentMonk
             use_this_image = st.multi_cloud_images[0]['href']
           end
           inputs = []
-          @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud]) if cloud.to_i <= 10
+          unless @ec2_ssh_keys[cloud]
+            `$(cd #{File.join("..", "..", "spec")}; ruby generate_ec2_ssh_keys.rb #{cloud})`
+            @ec2_ssh_keys = JSON::parse(IO.read(File.join("..","..","config","cloud_variables","ec2_keys.json")))
+          end
+          @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud])
           @common_inputs.merge!(@variables_for_cloud[cloud]['parameters'])
           @common_inputs.each do |key,val|
             inputs << { :name => key, :value => val }
