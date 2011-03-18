@@ -16,7 +16,7 @@ cloud_ids = []
 for i in 1..5
   cloud_ids << i
 end
-ARGV.each { |id| cloud_ids << id.to_i }
+cloud_ids << ENV['ADD_CLOUD_SSH_KEY'].to_i if ENV['ADD_CLOUD_SSH_KEY']
 
 keys_file = File.join("..", "config", "cloud_variables", "ec2_keys.json")
 ssh_dir = File.join(File.expand_path("~"), ".ssh")
@@ -25,14 +25,22 @@ rest_settings = YAML::load(IO.read(rest_yaml))
 rest_settings[:ssh_keys] = []
 specific_key_file = File.join(ssh_dir, "specific_keys")
 specific_key_names = YAML::load(IO.read(specific_key_file)) if File.exists?(specific_key_file)
+if File.exists?(keys_file)
+  keys = JSON::parse(IO.read(keys_file))
+else
+  keys = {}
+end
 
-keys = {}
 cloud_ids.each { |cloud|
   next if cloud == 0
   if File.exists?(specific_key_file)
     key_name = specific_key_names[:names][cloud - 1]
   else
-    key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
+    if cloud <= 10
+      key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
+    else
+      key_name = "monkey-1-#{ENV['RS_API_URL'].split("/").last}"
+    end
   end
   if cloud <= 10
     found = Ec2SshKeyInternal.find_by_cloud_id("#{cloud}").select { |obj| obj.aws_key_name =~ /#{key_name}/ }.first
@@ -43,14 +51,14 @@ cloud_ids.each { |cloud|
                         }
   else
     found = Ec2SshKeyInternal.find_by_cloud_id("1").select { |obj| obj.aws_key_name =~ /#{key_name}/ }.first
-    k = (found ? found : SshKey.create('aws_key_name' => key_name, 'cloud_id' => "1"))
+    k = (found ? found : Ec2SshKey.create('aws_key_name' => key_name, 'cloud_id' => "1"))
     keys["#{cloud}"] = {"ec2_ssh_key_href" => k.href,
                         "parameters" =>
                           {"PRIVATE_SSH_KEY" => "key:#{key_name}:1"}
                         }
   end
   # Generate Private Key Files
-  priv_key_file = File.join(ssh_dir, "monkey-cloud-#{cloud_ids[cloud]}")
+  priv_key_file = File.join(ssh_dir, "monkey-cloud-#{cloud}")
   File.open(priv_key_file, "w") { |f| f.write(k.aws_material) }
   File.chmod(0700, priv_key_file)
   # Configure rest_connection config
