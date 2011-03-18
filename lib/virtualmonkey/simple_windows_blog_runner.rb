@@ -1,5 +1,5 @@
 module VirtualMonkey
-  class SimpleWindowsNetRunner
+  class SimpleWindowsBlogRunner
     include VirtualMonkey::DeploymentRunner
     include VirtualMonkey::Simple
     def exception_handle(e)
@@ -14,14 +14,9 @@ module VirtualMonkey
     end
     def lookup_scripts
      scripts = [
-                 [ 'backup', 'backup' ],
-                 [ 'restore', 'restore' ],
-                 [ 'backup_to_s3', 'backup_to_s3' ],
-                 [ 'create_scheduled_task', 'create_scheduled_task' ],
-                 [ 'delete_scheduled_task', 'delete_scheduled_task' ],
-                 [ 'register_with_elb', 'register_with_elb' ],
-                 [ 'deregister_from_elb', 'deregister_from_elb' ],
-                 [ 'update_code_svn', 'update_code_svn' ],
+                 [ 'backup_database', 'backup_database' ],
+                 [ 'drop_database', 'drop_database' ],
+                 [ 'restore_database', 'restore_database' ],
                ]
       st = ServerTemplate.find(s_one.server_template_href.split(/\//).last.to_i)
       lookup_scripts_table(st,scripts)
@@ -29,3 +24,4 @@ module VirtualMonkey
     end
   end
 end
+

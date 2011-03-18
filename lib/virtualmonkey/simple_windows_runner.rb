@@ -1,5 +1,5 @@
 module VirtualMonkey
-  class SimpleWindowsRunner
+  class SimpleBasicWindowsRunner
     include VirtualMonkey::DeploymentRunner
     include VirtualMonkey::Simple
     def exception_handle(e)
@@ -8,19 +8,12 @@ module VirtualMonkey
       if e.message =~ /timed out waiting for the state to be operational/
         puts "Got \"#{e.message}\". Retrying...."
         sleep 60
+      elsif e.message =~ /this server is stranded and needs to be operational/
+        puts "Got \"#{e.message}\". Retrying...."
+        sleep 60
       else
         raise e
       end
-    end
-    def lookup_scripts
-     scripts = [
-                 [ 'backup_database', 'backup_database' ],
-                 [ 'drop_database', 'drop_database' ],
-                 [ 'restore_database', 'restore_database' ],
-               ]
-      st = ServerTemplate.find(s_one.server_template_href.split(/\//).last.to_i)
-      lookup_scripts_table(st,scripts)
-      @scripts_to_run['backup_database_check'] = RightScript.new('href' => "/api/acct/2901/right_scripts/310407")
     end
   end
 end

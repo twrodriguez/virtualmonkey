@@ -1,5 +1,5 @@
 module VirtualMonkey
-  class SimpleWindowsNetRunner
+  class SimpleWindowsSQLRunner
     include VirtualMonkey::DeploymentRunner
     include VirtualMonkey::Simple
     def exception_handle(e)
@@ -8,24 +8,23 @@ module VirtualMonkey
       if e.message =~ /timed out waiting for the state to be operational/
         puts "Got \"#{e.message}\". Retrying...."
         sleep 60
+      elsif e.message =~ /this server is stranded and needs to be operational/
+        puts "Got \"#{e.message}\". Retrying...."
+        sleep 60
       else
         raise e
       end
     end
     def lookup_scripts
      scripts = [
-                 [ 'backup', 'backup' ],
-                 [ 'restore', 'restore' ],
-                 [ 'backup_to_s3', 'backup_to_s3' ],
-                 [ 'create_scheduled_task', 'create_scheduled_task' ],
-                 [ 'delete_scheduled_task', 'delete_scheduled_task' ],
-                 [ 'register_with_elb', 'register_with_elb' ],
-                 [ 'deregister_from_elb', 'deregister_from_elb' ],
-                 [ 'update_code_svn', 'update_code_svn' ],
+                 [ 'SYS EBS create data volume', 'SYS EBS create data volume' ],
+                 [ 'DB SQLS backup data volume', 'DB SQLS backup data volume' ],
+                 [ 'DB SQLS restore data volume', 'DB SQLS restore data volume' ],
                ]
       st = ServerTemplate.find(s_one.server_template_href.split(/\//).last.to_i)
       lookup_scripts_table(st,scripts)
-      @scripts_to_run['backup_database_check'] = RightScript.new('href' => "/api/acct/2901/right_scripts/310407")
+      @scripts_to_run['sql_db_check'] = RightScript.new('href' => "/api/acct/2901/right_scripts/335104")
+      @scripts_to_run['load_db'] = RightScript.new('href' => "/api/acct/2901/right_scripts/331394")
     end
   end
 end

@@ -6,7 +6,7 @@
 # Scenario: windows blog engine server test
 #
 # Given A simple deployment
-  @runner = VirtualMonkey::SimpleWindowsRunner.new(ENV['DEPLOYMENT'])
+  @runner = VirtualMonkey::SimpleWindowsBlogRunner.new(ENV['DEPLOYMENT'])
 
 # Then I should stop the servers
   @runner.behavior(:stop_all)

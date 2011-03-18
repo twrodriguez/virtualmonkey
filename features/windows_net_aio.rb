@@ -1,7 +1,7 @@
 #@base
 #
 # Feature: Windows ASP.NET All-In-One Server Test
-#   Tests the windows blog engine server functions
+#   Tests the windows ASP.NET engine server functions
 #
 # Scenario: windows ASP.NET All-In-One server test
 #
@@ -21,7 +21,6 @@
 #  @runner.behavior(:check_monitoring)
 
 # Then I should check all the scripts in the template
-  @runner.behavior(:run_script, "install_firefox", @runner.behavior(:s_one))
   @runner.behavior(:run_script, "backup", @runner.behavior(:s_one))
   @runner.behavior(:run_script, "backup_database_check", @runner.behavior(:s_one))
   @runner.behavior(:run_script, "restore", @runner.behavior(:s_one))
