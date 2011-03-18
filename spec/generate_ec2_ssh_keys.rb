@@ -52,8 +52,7 @@ cloud_ids.each { |cloud|
   else
     found = Ec2SshKeyInternal.find_by_cloud_id("1").select { |obj| obj.aws_key_name =~ /#{key_name}/ }.first
     k = (found ? found : Ec2SshKey.create('aws_key_name' => key_name, 'cloud_id' => "1"))
-    keys["#{cloud}"] = {"ec2_ssh_key_href" => k.href,
-                        "parameters" =>
+    keys["#{cloud}"] = {"parameters" =>
                           {"PRIVATE_SSH_KEY" => "key:#{key_name}:1"}
                         }
   end
