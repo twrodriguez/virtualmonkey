@@ -38,6 +38,8 @@ cloud_ids.each { |cloud|
   else
     if cloud <= 10
       key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
+    elsif cloud == 850
+      key_name = "publish-test"
     else
       key_name = "monkey-1-#{ENV['RS_API_URL'].split("/").last}"
     end
