@@ -28,7 +28,21 @@ module VirtualMonkey
       # exercise operational RightScript(s)
       run_script("backup", @servers.first)
       run_script("restart_apache", @servers.first)
-      
+
+      # check that mysql tmpdir is custom setup on all servers
+      query = "show variables like 'tmpdir'"
+      query_command = "echo -e \"#{query}\"| mysql"
+      @servers.each do |server|
+        server.spot_check(query_command) { |result| raise "Failure: tmpdir was unset#{result}" unless result.include?("/mnt/mysqltmp") }
+      end
+
+      # check that logrotate has mysqlslow in it
+      @servers.each do |server|
+        res = server.spot_check_command("logrotate --force -v /etc/logrotate.d/mysql-server")
+        raise "LOGROTATE FAILURE, exited with non-zero status" if res[:status] != 0
+        raise "DID NOT FIND mysqlslow.log in the log rotation!" if res[:output] !~ /mysqlslow/
+      end
+
     end
 
 
