@@ -20,6 +20,7 @@
 
 # Then I should set a variation volume size "3"
   @runner.set_var(:set_variation_volume_size, 3)
+  @runner.set_var(:set_variation_mount_point, "/mnt/mysql")
 
 # Then I should stop the servers
   @runner.behavior(:stop_all)
