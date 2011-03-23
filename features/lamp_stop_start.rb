@@ -20,9 +20,6 @@
 # Then I should run LAMP checks
   @runner.behavior(:run_lamp_checks)
 
-# Then I should run mysql checks
-  @runner.behavior(:run_checks)
-
   @runner.behavior(:perform_start_stop_operations)
 
 ## Then I should run mysqlslap stress test
