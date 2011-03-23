@@ -40,7 +40,7 @@ module VirtualMonkey
 
     def lookup_scripts_table(st,table)
       table.each { |a|
-        @scripts_to_run[ a[0] ] = st.executables.detect { |ex| ex.name =~ /#{a[1]}/ }
+        @scripts_to_run[ a[0] ] = st.executables.detect { |ex| ex.name =~ /#{a[1]}/i }
         raise "FATAL: Script #{a[1]} not found" unless @scripts_to_run[ a[0] ]
       }
     end
