@@ -10,7 +10,6 @@
   "OPT_TARGET_BIND_PORT":"ignore:$ignore",
   "RAILS_ENV":"text:production",
   "LB_BIND_PORT":"text:85",
-  "WEBSITE_DNS":"text:reg-rails.test.rightscale.com",
   "OPT_SVN_PASSWORD":"cred:cary_wush_svn",
   "LB_BIND_ADDRESS":"text:127.0.0.1",
   "WEB_SITE_DNS":"text:reg-rails.test.rightscale.com",
@@ -28,6 +27,8 @@
   "AWS_ACCESS_KEY_ID":"cred:AWS_ACCESS_KEY_ID",
   "AWS_SECRET_ACCESS_KEY":"cred:AWS_SECRET_ACCESS_KEY",
   "RAILS_ENV": "text:production",
-  "WEBSITE_DNS": "text:localhost"
+  "DB_MYSQLDUMP_BUCKET":"text:lamp-feature-bucket-ap",
+  "DB_MYSQLDUMP_PREFIX":"text:app_test",
+  "WEBSITE_DNS":"env:EC2_PUBLIC_HOSTNAME"
 
 }
