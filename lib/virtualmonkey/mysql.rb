@@ -9,7 +9,7 @@ module VirtualMonkey
     # sets the lineage for the deployment
     # * kind<~String> can be "chef" or nil
     def set_variation_lineage(kind = nil)
-      @lineage = "testlineage#{@deployment.href.split(/\//).last}"
+      @lineage = "testlineage#{resource_id(@deployment)}"
       if kind == "chef"
         @deployment.set_input('db/backup/lineage', "text:#{@lineage}")
         # unset all server level inputs in the deployment to ensure use of 
@@ -38,7 +38,7 @@ module VirtualMonkey
     end
 
     def set_variation_bucket
-       bucket = "text:testingcandelete#{@deployment.href.split(/\//).last}"
+       bucket = "text:testingcandelete#{resource_id(@deployment)}"
       @deployment.set_input('remote_storage/default/container', bucket)
       # unset all server level inputs in the deployment to ensure use of 
       # the setting from the deployment level
@@ -62,8 +62,7 @@ module VirtualMonkey
               "DBAPPLICATION_PASSWORD" => "text:somepass", 
               "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:1",
               "EBS_LINEAGE" => "text:#{@lineage}" }
-      audit = server.run_executable(@scripts_to_run['create_mysql_ebs_stripe'], options)
-      audit.wait_for_completed
+      run_script('create_mysql_ebs_stripe', server, options)
     end
 
     # Performs steps necessary to bootstrap a MySQL Master server from a pristine state.
@@ -91,15 +90,14 @@ module VirtualMonkey
     # Sets DNS record for the Master server to point at server
     # * server<~Server> the server to use as MASTER
     def set_master_dns(server)
-      audit = server.run_executable(@scripts_to_run['master_init'])
-      audit.wait_for_completed
+      run_script('master_init', server)
     end
 
     # Use the termination script to stop all the servers (this cleans up the volumes)
     def stop_all(wait=true)
-      if @scripts_to_run['terminate']
+      if script_to_run?('terminate')
         options = { "DB_TERMINATE_SAFETY" => "text:off" }
-        @servers.each { |s| s.run_executable(@scripts_to_run['terminate'], options) unless s.state == 'stopped' }
+        @servers.each { |s| run_script('terminate', s, options) unless s.state == 'stopped' }
       else
         @servers.each { |s| s.stop }
       end
@@ -139,7 +137,7 @@ module VirtualMonkey
       options = { "DB_EBS_PREFIX" => "text:regmysql",
               "DB_EBS_SIZE_MULTIPLIER" => "text:1",
               "EBS_STRIPE_COUNT" => "text:#{@stripe_count}" }
-      s_one.run_executable(@scripts_to_run['create_migrate_script'], options)
+      run_script('create_migrate_script', s_one, options)
     end
 
     # These are mysql specific checks (used by mysql_runner and lamp_runner)

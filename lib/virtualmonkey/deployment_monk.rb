@@ -13,6 +13,10 @@ class DeploymentMonk
     return variations
   end
 
+  def self.list(tag)
+    Deployment.find_by(:nickname) {|n| n =~ /^#{tag}/ }.each { |d| puts d.nickname }
+  end
+
   def initialize(tag, server_templates = [], extra_images = [])
     @clouds = []
     @tag = tag

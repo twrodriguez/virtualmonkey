@@ -62,7 +62,7 @@ module VirtualMonkey
     # lookup all the RightScripts that we will want to run
     def lookup_scripts
 #TODO fix this so epoch is not hard coded.
-puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1.b1"
+puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1"
      scripts = [
                  [ 'restore', 'restore and become' ],
                  [ 'slave_init', 'slave init' ],
@@ -78,28 +78,25 @@ puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1.b1"
                               [ 'create_mysql_ebs_stripe' , 'DB Create MySQL EBS stripe volume - 11H1' ],
                               [ 'create_migrate_script' , 'DB EBS create migrate script from MySQL EBS v1' ]
                             ]
-      st = ServerTemplate.find(s_two.server_template_href.split(/\//).last.to_i)
-      lookup_scripts_table(st,scripts)
-      @scripts_to_run['master_init'] = RightScript.new('href' => "/api/acct/2901/right_scripts/195053")
-      #This does not work - does not create the same type as call above does.
-      #@scripts_to_run['master_init'] = RightScript.find_by("name") { |n| n =~ /DB register master \-ONLY FOR TESTING/ }
-      raise "Did not find script" unless @scripts_to_run['master_init']
+      raise "FATAL: Need 2 MySQL servers in the deployment" unless @servers.size == 2
 
-      tbx = ServerTemplate.find_by(:nickname) { |n| n =~ /EBS Stripe Toolbox - 11H1.b1/ }
-      raise "Did not find toolbox template" unless tbx[0]
       # Use the HEAD revision.
-      lookup_scripts_table(tbx[0],ebs_toolbox_scripts)
-#      @scripts_to_run['create_stripe'] = RightScript.new('href' => "/api/acct/2901/right_scripts/198381")
-#TODO - does not account for 5.0/5.1 toolbox differences
-      #tbx = ServerTemplate.find_by(:nickname) { |n| n =~ /Database Manager with MySQL 5.0 Toolbox - 11H1.b1/ }
-      #use_tbx = tbx.detect { |t| t.is_head_version }
-      use_tbx = ServerTemplate.find 84657
-      raise "Did not find toolbox template" unless use_tbx
-      puts "USING Toolbox Template: #{use_tbx.nickname}"
-      lookup_scripts_table(use_tbx,mysql_toolbox_scripts)
-#      @scripts_to_run['create_mysql_ebs_stripe'] = RightScript.new('href' => "/api/acct/2901/right_scripts/212492")
-#      @scripts_to_run['create_migrate_script'] = tbx[0].executables.detect { |ex| ex.name =~ /DB EBS create migrate script from MySQL EBS v1 master/ }
-     raise "FATAL: Need 2 MySQL servers in the deployment" unless @servers.size == 2
+      ebs_tbx = ServerTemplate.find_by(:nickname) { |n| n =~ /EBS Stripe Toolbox - 11H1/ }.select { |st| st.is_head_version }.first
+      raise "Did not find ebs toolbox template" unless ebs_tbx
+
+      db_tbx = ServerTemplate.find 84657
+      raise "Did not find mysql toolbox template" unless db_tbx
+      puts "USING Toolbox Template: #{db_tbx.nickname}"
+
+      st = ServerTemplate.find(resource_id(s_one.server_template_href))
+      lookup_scripts_table(st,scripts)
+      lookup_scripts_table(ebx_tbx,ebs_toolbox_scripts)
+      lookup_scripts_table(db_tbx,mysql_toolbox_scripts)
+      # hardwired script! (this is an 'anyscript' that users typically use to setup the master dns)
+      # This a special version of the register that uses MASTER_DB_DNSID instead of a test DNSID
+      # This is identical to "DB register master" However it is not part of the template.
+      add_script_to_run('master_init', RightScript.new('href' => "/api/acct/2901/right_scripts/195053"))
+      raise "Did not find script" unless script_to_run?('master_init')
     end
 
     def migrate_slave
@@ -117,9 +114,8 @@ puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1.b1"
     def run_restore_with_timestamp_override
       object_behavior(s_one, :relaunch)
       s_one.dns_name = nil
-      s_one.wait_for_operational_with_dns
-      audit = object_behavior(s_one, :run_executable, @scripts_to_run['restore'], { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" } )
-      audit.wait_for_completed
+      object_behavior(s_one, :wait_for_operational_with_dns)
+      behavior(:run_script, 'restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
     end
 
 # Check for specific MySQL data.

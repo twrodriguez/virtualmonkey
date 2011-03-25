@@ -18,7 +18,7 @@
   @runner.behavior(:wait_for_all, "operational")
 
 # Then I should shutdown server using operational script
-  @runner.behavior(:run_script_on_all, "shutdown", false)
+  @runner.behavior(:run_script!, "shutdown", {'wait' => false})
 
 # Then the server should become terminated
   @runner.behavior(:wait_for_all, "stopped")

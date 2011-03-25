@@ -21,10 +21,10 @@ module VirtualMonkey
                  [ 'DB SQLS backup data volume', 'DB SQLS backup data volume' ],
                  [ 'DB SQLS restore data volume', 'DB SQLS restore data volume' ],
                ]
-      st = ServerTemplate.find(s_one.server_template_href.split(/\//).last.to_i)
+      st = ServerTemplate.find(resource_id(s_one.server_template_href))
       lookup_scripts_table(st,scripts)
-      @scripts_to_run['sql_db_check'] = RightScript.new('href' => "/api/acct/2901/right_scripts/335104")
-      @scripts_to_run['load_db'] = RightScript.new('href' => "/api/acct/2901/right_scripts/331394")
+      add_script_to_run('sql_db_check', RightScript.new('href' => "/api/acct/2901/right_scripts/335104"))
+      add_script_to_run('load_db', RightScript.new('href' => "/api/acct/2901/right_scripts/331394"))
     end
   end
 end

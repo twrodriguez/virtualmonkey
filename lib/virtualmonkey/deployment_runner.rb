@@ -1,25 +1,22 @@
 module VirtualMonkey
   module DeploymentRunner
     include VirtualMonkey::TestCaseInterface
-    attr_accessor :deployment, :servers
+    attr_accessor :deployment, :servers, :server_templates
     attr_accessor :scripts_to_run
     
     def initialize(deployment)
       @scripts_to_run = {}
       @rerun_last_command = []
+      @server_templates = []
       @deployment = Deployment.find_by_nickname_speed(deployment).first
       raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
       @servers = @deployment.servers_no_reload
-      @servers.each { |s| s.settings }
+      @servers.each { |s| 
+        s.settings
+        @server_templates << ServerTemplate.find(resource_id(s.server_template_href))
+      }
+      @server_templates.uniq!
       behavior(:lookup_scripts)
-    end
-
-    def run_script_on_all(friendly_name, wait = true)
-      audits = Array.new() 
-      @servers.each do |s|
-        audits << s.run_executable(@scripts_to_run[friendly_name])
-      end
-      audits.each { |a| a.wait_for_completed } if wait
     end
 
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should
@@ -34,14 +31,50 @@ module VirtualMonkey
                  [ 'script_ref1', 'name' ],
                  [ 'script_ref2', 'name' ]
                ]
-#      st = ServerTemplate.find(s_two.server_template_href.split(/\//).last.to_i)
+#      st = ServerTemplate.find(resource_id(s_two.server_template_href))
 #      lookup_scripts_table(st,scripts)
     end
 
-    def lookup_scripts_table(st,table)
-      table.each { |a|
-        @scripts_to_run[ a[0] ] = st.executables.detect { |ex| ex.name =~ /#{a[1]}/i }
-        raise "FATAL: Script #{a[1]} not found" unless @scripts_to_run[ a[0] ]
+    # Returns the API 1.0 integer id of the rest_connection object or href
+    def resource_id(res)
+      if res.is_a?(String)
+        return res.split(/\//).last.to_i
+      else
+        return res.href.split(/\//).last.to_i
+      end
+    end
+
+    # Loads a table of [friendly_name, script/recipe regex] from reference_template, attaching them to all templates in the deployment unless add_only_to_this_st is set
+    def lookup_scripts_table(reference_template,table,add_only_to_this_st=nil)
+      if add_only_to_this_st.is_a?(Server)
+        sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
+      elsif add_only_to_this_st.is_a?(ServerTemplate)
+        sts = [ add_only_to_this_st ]
+      elsif add_only_to_this_st.nil?
+        sts = @server_templates
+      end
+      sts.each { |st|
+        table.each { |a|
+          @scripts_to_run[resource_id(st)] = {} unless @scripts_to_run[resource_id(st)]
+          @scripts_to_run[resource_id(st)][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
+          raise "WARNING: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[resource_id(st)][ a[0] ]
+        }
+      }
+    end
+
+    # Loads a single hard-coded RightScript or Recipe, attaching it to all templates in the deployment unless add_only_to_this_st is set
+    def add_script_to_run(friendly_name, script, add_only_to_this_st=nil)
+      if add_only_to_this_st.is_a?(Server)
+        sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
+      elsif add_only_to_this_st.is_a?(ServerTemplate)
+        sts = [ add_only_to_this_st ]
+      elsif add_only_to_this_st.nil?
+        sts = @server_templates
+      end
+      sts.each { |st|
+        @scripts_to_run[resource_id(st)] = {} unless @scripts_to_run[resource_id(st)]
+        @scripts_to_run[resource_id(st)][friendly_name] = script
+        raise "FATAL: Script #{a[1]} not found" unless @scripts_to_run[resource_id(st)][friendly_name]
       }
     end
 
@@ -77,12 +110,6 @@ module VirtualMonkey
       the_name = get_tester_ip_addr
       @deployment.set_input("MASTER_DB_DNSNAME", the_name) 
       @deployment.set_input("DB_HOST_NAME", the_name) 
-    end
-
-    # Helper method, performs selection of a subset of servers to operate on based on the server's nicknames.
-    # * nickname_substr<~String> - regex compatible string to match
-    def select_set(nickname_substr)
-      @servers.select { |s| s.nickname =~ /#{nickname_substr}/ }
     end
 
     # Launch server(s) that match nickname_substr
@@ -122,7 +149,7 @@ module VirtualMonkey
     # * nickname_substr<~String> - regex compatible string to match
     # * state<~String> - state to wait for, eg. operational
     def wait_for_set(nickname_substr, state, timeout=1200)
-      set = select_set(nickname_substr)
+      set = select_set(nickname_substr)  
       state_wait(set, state, timeout)
     end
 
@@ -185,12 +212,76 @@ module VirtualMonkey
       end
     end
 
-    # Run a script on server in the deployment
-    # * server<~Server> the server to run the script on
-    # * friendly_name<~String> string lookup for Hash @scripts_to_run.  @scripts_to_run must be a Hash containing an Executable with this key.
-    def run_script(friendly_name, server)
-      audit = server.run_executable(@scripts_to_run[friendly_name])
-      audit.wait_for_completed
+    # Run a script on all servers in the deployment in parallel
+    def run_script_on_all(friendly_name, wait = true, options = nil)
+      run_script_on_set(friendly_name, @servers, wait, options)
+    end
+
+    # Run a script on a set of servers in the deployment in parallel
+    # * friendly_name<~String> = the hash key name of the desired script to run
+    # * set can be any way of denoting a set of servers to run on:
+    # *** <~Array> will attempt to run the script on each server in set
+    # *** <~String> will first attempt to find a function in the runner with that String to get
+    # ***           an Array/Server to run on (e.g. app_servers, s_one). If that fails, then it
+    # ***           will use the String as a regex to select a subset of servers.
+    # *** <~Symbol> will attempt to run a function in the runner to get an Array/Server to run
+    # ***           on (e.g. app_servers, s_one)
+    # *** <~Server> will run the script only on that one server
+    # * wait<~Boolean> will wait for the script to complete on all servers (true) or return
+    #                  audits for each
+    # * options<~Hash> will pass specific inputs to the script to run with
+    def run_script_on_set(friendly_name, set = @servers, wait = true, options = nil)
+      audits = Array.new() 
+      set = select_set(set)
+      set.each do |s|
+        audits << behavior(:launch_script, friendly_name, s, options)
+      end
+      if wait
+        audits.each { |a| object_behavior(a, :wait_for_completed) }
+      elsif audits.size == 1
+        return audits.first
+      else
+        return audits
+      end
+    end
+
+    # Run a script on server in the deployment synchronously
+    def run_script(friendly_name, server, options = nil)
+      run_script_on_set(friendly_name, server, true, options)
+    end
+
+    # Run a script on server in the deployment asynchronously
+    def launch_script(friendly_name, server, options = nil)
+      raise "No script registered with friendly_name #{friendly_name} for server #{server.inspect}" unless script_to_run?(friendly_name, server)
+      server.run_executable(@scripts_to_run[resource_id(server.server_template_href)][friendly_name], options)
+    end
+
+    # Call run_script_on_set with out-of-order params passed in as a hash
+    def run_script!(friendly_name, hash = {})
+      hash['servers'] = @servers unless hash['servers']
+      hash['wait'] = true unless hash['wait']
+      run_script_on_set(friendly_name, hash['servers'], hash['wait'], hash['options'])
+    end
+
+    # Returns false or true if a script with friendly_name has been registered for all or just one server
+    def script_to_run?(friendly_name, server = nil)
+      if server.nil? #check for all
+        ret = true
+        @server_templates.each { |st|
+          if @scripts_to_run[resource_id(st)]
+            ret &&= @scripts_to_run[resource_id(st)][friendly_name]
+          else
+            ret = false
+          end
+        }
+      else
+        if @scripts_to_run[resource_id(server.server_template_href)]
+          ret = true if @scripts_to_run[resource_id(server.server_template_href)][friendly_name]
+        else
+          ret = false
+        end
+      end
+      ret
     end
 
     

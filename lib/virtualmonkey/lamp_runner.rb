@@ -5,11 +5,12 @@ module VirtualMonkey
     include VirtualMonkey::Mysql
 
     def lookup_scripts
-      @scripts_to_run = {}
-      st_id = @servers.first.server_template_href.split(/\//).last.to_i
-      st = ServerTemplate.find(st_id)
-      @scripts_to_run["backup"] = st.executables.detect { |ex| ex.name =~ /mysqldump backup/ }
-      @scripts_to_run["restart_apache"] = st.executables.detect { |ex| ex.name =~ /\(re\)start/ }
+      scripts = [
+                  [ 'backup', 'mysqldump backup' ],
+                  [ 'restart_apache', '\(re\)start' ]
+                ]
+      st = ServerTemplate.find(resource_id(@servers.first.server_template_href))
+      lookup_scripts_table(st,scripts)
     end
 
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should
