@@ -104,3 +104,6 @@ rescue EOFError => e
 end while !done
 elapsed = Time.now - timer
 $stdout.syswrite "Total time elapsed: #{elapsed} seconds\n"
+if linenum > @breakpoint and ENV['MONKEY_NO_DEBUG'] !~ /true/i
+  @runner.dev_mode?
+end

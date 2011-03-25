@@ -71,18 +71,20 @@ module VirtualMonkey
       }
     end
 
-    private
-
-    def dev_mode?(e)
-      if not ENV['MONKEY_NO_DEBUG'] =~ /true/i
-        puts "Got exception: #{e.message}"
-        puts "Backtrace: #{e.backtrace.join("\n")}"
+    def dev_mode?(e = nil)
+      if ENV['MONKEY_NO_DEBUG'] !~ /true/i
+        puts "Got exception: #{e.message}" if e
+        puts "Backtrace: #{e.backtrace.join("\n")}" if e
         puts "Pausing for debugging..."
         debugger
-      else
+      elsif e
         exception_handle(e)
+      else
+        raise "'dev_mode?' function called improperly. An Exception needs to be passed or ENV['MONKEY_NO_DEBUG'] must not be set to 'true'"
       end
     end
+
+    private
 
     def exception_handle(e)
       puts "ATTENTION: Using default exception_handle(e). This can be overridden in mixin classes."
