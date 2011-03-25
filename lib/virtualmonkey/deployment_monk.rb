@@ -155,13 +155,7 @@ class DeploymentMonk
           if cloud.to_i < 10
             server = Server.create(server_params.merge(@variables_for_cloud[cloud])) unless server
             # since the create call does not set the parameters, we need to set them separate
-            if server.respond_to?(:set_inputs)
-              server.set_inputs(@variables_for_cloud[cloud]['parameters'])
-            else
-              @variables_for_cloud[cloud]['parameters'].each do |key,val|
-                server.set_input(key,val)
-              end
-            end
+            set_inputs(server, @variables_for_cloud[cloud]['parameters'])
             # uses a special internal call for setting the MCI on the server
             sint = ServerInternal.new(:href => server.href)
             sint.set_multi_cloud_image(use_this_image) unless options[:mci_override] && !options[:mci_override].empty?
@@ -182,13 +176,7 @@ class DeploymentMonk
           end
           new_deploy.nickname = dep_tempname + dep_image_list.uniq.join("_AND_")
           new_deploy.save
-          if new_deploy.respond_to?(:set_inputs)
-            new_deploy.set_inputs(@common_inputs)
-          else
-            @common_inputs.each do |key,val|
-              new_deploy.set_input(key,val)
-            end
-          end
+          set_inputs(new_deploy, @common_inputs)
         end
       end
     end
@@ -196,6 +184,31 @@ class DeploymentMonk
 
   def load_common_inputs(file)
     @common_inputs.merge! JSON.parse(IO.read(file))
+  end
+
+  def load_cloud_variables(file)
+    @variables_for_cloud.merge! JSON.parse(IO.read(file))
+  end
+
+  def update_inputs
+    @deployments.each do |d|
+      if d.cloud_id
+        @common_inputs.merge!(@variables_for_cloud[d.cloud_id]['parameters']) if @variables_for_cloud[d.cloud_id]
+      end
+      set_inputs(d, @common_inputs)
+      d.servers.each { |s|
+        cv_inputs = (@variables_for_cloud[s.cloud_id] ? @variables_for_cloud[s.cloud_id]['parameters'] : {})
+        set_inputs(s, @common_inputs.merge(cv_inputs)))
+      }
+    end
+  end
+
+  def set_inputs(obj, inputs)
+    if obj.respond_to?(:set_inputs)
+      obj.set_inputs(inputs)
+    else
+      inputs.each { |key,val| obj.set_input(key,val) }
+    end
   end
 
   def destroy_all

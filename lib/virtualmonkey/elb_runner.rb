@@ -44,6 +44,7 @@ module VirtualMonkey
 
     def initialize(args)
       super(args)
+      raise "FATAL: ELBRunner must run on a single-cloud AWS deployment" unless @deployment.cloud_id
       endpoint_url=ELBS[@deployment.cloud_id][:endpoint]
 puts "USING EP: #{endpoint_url}"
       @elb = RightAws::ElbInterface.new(AWS_ID, AWS_KEY, { :endpoint_url => endpoint_url } )

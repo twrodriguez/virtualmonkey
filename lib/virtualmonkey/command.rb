@@ -8,6 +8,7 @@ require 'virtualmonkey/command/run'
 require 'virtualmonkey/command/list'
 require 'virtualmonkey/command/troop'
 require 'virtualmonkey/command/clone'
+require 'virtualmonkey/command/update_inputs'
 require 'uri'
 
 module VirtualMonkey
@@ -34,17 +35,19 @@ module VirtualMonkey
           VirtualMonkey::Command.troop
         when "clone"
           VirtualMonkey::Command.clone
+        when "update_inputs"
+          VirtualMonkey::Command.update_inputs
         when "help" || "--help" || "-h"
           puts "Help usage: monkey <command> --help"
-          puts "Valid commands for monkey: create, destroy, list, run, troop, clone or help"
+          puts "Valid commands for monkey: create, destroy, list, run, troop, clone, update_inputs or help"
         else
-          STDERR.puts "Invalid command #{@@command}: You need to specify a command for monkey: create, destroy, list, run, troop, clone or help\n"
+          STDERR.puts "Invalid command #{@@command}: You need to specify a command for monkey: create, destroy, list, run, troop, clone, update_inputs or help\n"
           exit(1)
       end
     end
 
     def self.create_logic
-      @@dm.variables_for_cloud = JSON::parse(IO.read(@@options[:cloud_variables]))
+      @@options[:cloud_variables].each { |cvpath| @@dm.load_cloud_variables(cvpath) }
       @@dm.ec2_ssh_keys = JSON::parse(IO.read(File.join(@@cv_dir, "ec2_keys.json")))
       @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
       @@dm.generate_variations(@@options)
@@ -121,9 +124,7 @@ module VirtualMonkey
 
     def self.destroy_all_logic
       @@dm.deployments.each do |deploy|
-        # TODO: Move the following escape into rest_connection
-        nickname = val = URI.escape(deploy.nickname, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
-        runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(nickname)")
+        runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(deploy.nickname)")
         runner.behavior(:stop_all, false)
         state_dir = File.join(@@global_state_dir, deploy.nickname)
         if File.directory?(state_dir)
