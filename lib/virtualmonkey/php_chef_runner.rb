@@ -54,15 +54,15 @@ module VirtualMonkey
     end
 
     def lookup_scripts
-      @scripts_to_run = {}
-      st = ServerTemplate.find(fe_servers.first.server_template_href.split(/\//).last.to_i)
-      @scripts_to_run["attach"] = st.executables.detect { |d| d.recipe == "lb_haproxy::do_attach_request" }
+      recipes = [
+                  [ 'attach', 'lb_haproxy::do_attach_request' ]
+                ]
+      fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
+      lookup_scripts_table(fe_st,recipes)
     end
 
     def cross_connect_frontends
-      statuses = Array.new 
-      @servers.each { |s| statuses << s.run_executable(@scripts_to_run['attach']) }
-      statuses.each_with_index { |s,i| s.wait_for_completed }
+      run_script_on_all('attach')
     end
     
   end

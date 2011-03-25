@@ -25,23 +25,19 @@ module VirtualMonkey
                               [ 'grow_volume', 'DB EBS slave init and grow stripe volume' ],
                               [ 'restore', 'DB EBS restore stripe volume' ]
                             ]
-      st = ServerTemplate.find(s_one.server_template_href.split(/\//).last.to_i)
+      #TODO - this is hardcoded for 5.0 toolbox - need to deal with issue that we have two
+      #toolboxes and their names are going to change
+      # Use the HEAD revision.
+      tbx = ServerTemplate.find_by(:nickname) { |n| n =~ /Database Manager with MySQL 5.0 Toolbox - 11H1/ }.first
+      raise "FATAL: could not find toolbox" unless tbx
+      st = ServerTemplate.find(resource_id(s_one.server_template_href))
       lookup_scripts_table(st,scripts_mysql)
+      lookup_scripts_table(tbx,scripts_my_toolbox)
       # hardwired script! (this is an 'anyscript' that users typically use to setup the master dns)
       # This a special version of the register that uses MASTER_DB_DNSID instead of a test DNSID
       # This is identical to "DB register master" However it is not part of the template.
-#      @scripts_to_run['master_init'] = RightScript.find_by("name") { |n| n =~ /DB register master \-ONLY FOR TESTING/ }
-      @scripts_to_run['master_init'] = RightScript.new('href' => "/api/acct/2901/right_scripts/195053")
-      raise "Did not find script" unless @scripts_to_run['master_init']
-
-#      @scripts_to_run['master_init'] = RightScript.new('href' => "/api/acct/2901/right_scripts/195053")
-#TODO - this is hardcoded for 5.0 toolbox - need to deal with issue that we have two
-#toolboxes and their names are going to change
-      tbx = ServerTemplate.find_by(:nickname) { |n| n =~ /Database Manager with MySQL 5.0 Toolbox/ }
-      raise "FATAL: could not find toolbox" unless tbx
-      # Use the HEAD revision.
-      st = tbx[0]
-      lookup_scripts_table(st,scripts_my_toolbox)
+      add_script_to_run('master_init', RightScript.new('href' => "/api/acct/2901/right_scripts/195053"))
+      raise "Did not find script" unless script_to_run?('master_init')
     end
 
     def create_master

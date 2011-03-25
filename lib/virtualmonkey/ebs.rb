@@ -28,7 +28,7 @@ module VirtualMonkey
     # sets the lineage for the deployment
     # * kind<~String> can be "chef" or nil
     def set_variation_lineage(kind = nil)
-      @lineage = "testlineage#{@deployment.href.split(/\//).last}"
+      @lineage = "testlineage#{resource_id(@deployment)}"
       if kind
         raise "Only support nil kind for ebs lineage"
       else
@@ -80,8 +80,7 @@ module VirtualMonkey
               "EBS_STRIPE_COUNT" => "text:#{@stripe_count}",
               "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:#{@volume_size}",
               "EBS_LINEAGE" => "text:#{@lineage}" }
-      audit = server.run_executable(@scripts_to_run['create_stripe'], options)
-      audit.wait_for_completed
+      run_script('create_stripe', server, options)
     end
 
     # * server<~Server> the server to restore to
@@ -89,8 +88,7 @@ module VirtualMonkey
       options = { "EBS_MOUNT_POINT" => "text:#{@mount_point}",
               "OPT_DB_FORCE_RESTORE" => "text:#{force}",
               "EBS_LINEAGE" => "text:#{@lineage}" }
-      audit = server.run_executable(@scripts_to_run['restore'], options)
-      audit.wait_for_completed
+      run_script('restore', server, options)
     end
 
     # * server<~Server> the server to restore to
@@ -99,8 +97,7 @@ module VirtualMonkey
               "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:#{new_size}",
               "OPT_DB_FORCE_RESTORE" => "text:#{force}",
               "EBS_LINEAGE" => "text:#{@lineage}" }
-      audit = server.run_executable(@scripts_to_run['grow_volume'], options)
-      audit.wait_for_completed
+      run_script('grow_volume', server, options)
     end
 
     # Verify that the volume has special data on it.
@@ -108,7 +105,7 @@ module VirtualMonkey
       server.spot_check_command("test -f #{@mount_point}/data.txt")
     end
 
-    # Verify that the volume is the expected size TODO
+    # Verify that the volume is the expected size
     def test_volume_size(server,expected_size)
       error_range = 0.05
       puts "Testing with a +/- #{error_range * 100}% margin of error: #{@mount_point} #{expected_size}GB"
@@ -130,8 +127,7 @@ module VirtualMonkey
     def terminate_server(server)
       options = { "EBS_MOUNT_POINT" => "text:#{@mount_point}",
               "EBS_TERMINATE_SAFETY" => "text:off" }
-      audit = server.run_executable(@scripts_to_run['terminate'], options)
-      audit.wait_for_completed
+      run_script('terminate', server, options)
     end
 
     # Use the termination script to stop all the servers (this cleans up the volumes)

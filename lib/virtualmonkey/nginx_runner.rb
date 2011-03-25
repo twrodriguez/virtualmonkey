@@ -5,11 +5,11 @@ module VirtualMonkey
     include VirtualMonkey::Mysql
 
     def lookup_scripts
-      @scripts_to_run = {}
-      st_id = @servers.first.server_template_href.split(/\//).last.to_i
-      st = ServerTemplate.find(st_id)
-      @scripts_to_run["backup"] = st.executables.detect { |ex| ex.name =~ /mysqldump backup/ }
-      @scripts_to_run["restart_nginx"] = st.executables.detect { |ex| ex.name =~ /\(re\)start/ }
+      scripts = [
+                  [ 'backup', 'mysqldump backup' ],
+                  [ 'restart_nginx', '\(re\)start' ]
+                ]
+      lookup_scripts_table(@server_templates.first,scripts)
     end
 
     private

@@ -71,9 +71,7 @@ module VirtualMonkey
       end
 
       # restart apache and check that it succeeds
-      statuses = Array.new
-      fe_servers.each { |s| statuses << object_behavior(s, :run_executable, @scripts_to_run['apache_restart']) }
-      statuses.each { |status| status.wait_for_completed }
+      run_script_on_set('apache_restart', fe_servers, true)
       fe_servers.each_with_index do |server,i|
         response = nil
         count = 0
@@ -89,10 +87,8 @@ module VirtualMonkey
     end
 
     def cross_connect_frontends
-      statuses = Array.new 
       options = { :LB_HOSTNAME => behavior(:get_lb_hostname_input) }
-      fe_servers.each { |s| statuses << object_behavior(s, :run_executable, @scripts_to_run['connect'], options) }
-      statuses.each_with_index { |s,i| s.wait_for_completed }
+      run_script_on_set('connect', fe_servers, true, options)
     end
 
     def lookup_scripts
@@ -102,9 +98,9 @@ module VirtualMonkey
       app_scripts = [
                      [ 'connect', 'LB [app|application|mongrels]+ to HA[ pP]+roxy connect' ]
                     ]
-      st = ServerTemplate.find(fe_servers.first.server_template_href.split(/\//).last.to_i)
+      st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
       lookup_scripts_table(st,fe_scripts)
-      st = ServerTemplate.find(app_servers.first.server_template_href.split(/\//).last.to_i)
+      st = ServerTemplate.find(resource_id(app_servers.first.server_template_href))
       lookup_scripts_table(st,app_scripts)
     end 
 

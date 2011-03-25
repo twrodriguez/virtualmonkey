@@ -17,4 +17,3 @@ module VirtualMonkey
     end
   end
 end
-
