@@ -49,6 +49,7 @@ module VirtualMonkey
     def self.create_logic
       @@options[:cloud_variables].each { |cvpath| @@dm.load_cloud_variables(cvpath) }
       @@dm.ec2_ssh_keys = JSON::parse(IO.read(File.join(@@cv_dir, "ec2_keys.json")))
+      @@dm.security_groups = JSON::parse(IO.read(File.join(@@cv_dir, "security_groups.json")))
       @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
       @@dm.generate_variations(@@options)
     end

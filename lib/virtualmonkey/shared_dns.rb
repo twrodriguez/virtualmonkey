@@ -16,7 +16,10 @@ class SharedDns
     set_these = sdb_result.body['Attributes'].reject {|k,v| k == 'owner'}
     set_these.each do |key,val|
       deployment.set_input(key, val.to_s)
-      deployment.servers.each { |s| s.set_input(key, "text:") }
+      deployment.servers.each { |s|
+        st = ServerTemplate.find(s.server_template_href)
+        s.set_input(key, "text:") unless st.nickname =~ /virtual *monkey/i
+      }
     end
   end
 

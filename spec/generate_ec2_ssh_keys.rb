@@ -8,10 +8,6 @@ rescue
   ENV['RS_API_URL'] = "#{ENV['USER']}-#{`hostname`}".strip
 end
 
-# XXX DO NOT DELETE THIS COMMENT XXX
-#Server.find_by(:state) { |s| s == "operational" }.each { |s| s.settings }.select { |s| s.dns_name =~ /#{ENV['EC2_PUBLIC_HOSTNAME']}/ }
-# XXX DO NOT DELETE THIS COMMENT XXX
-
 cloud_ids = []
 for i in 1..5
   cloud_ids << i

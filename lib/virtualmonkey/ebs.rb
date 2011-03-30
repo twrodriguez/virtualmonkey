@@ -35,7 +35,7 @@ module VirtualMonkey
         @deployment.set_input('EBS_LINEAGE', "text:#{@lineage}")
         # unset all server level inputs in the deployment to ensure use of 
         # the setting from the deployment level
-        @deployment.servers_no_reload.each do |s|
+        @servers.each do |s|
           s.set_input('EBS_LINEAGE', "text:")
         end
       end

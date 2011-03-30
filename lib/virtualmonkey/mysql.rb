@@ -14,14 +14,14 @@ module VirtualMonkey
         @deployment.set_input('db/backup/lineage', "text:#{@lineage}")
         # unset all server level inputs in the deployment to ensure use of 
         # the setting from the deployment level
-        @deployment.servers_no_reload.each do |s|
+        @servers.each do |s|
           s.set_input('db/backup/lineage', "text:")
         end
       else
         @deployment.set_input('DB_LINEAGE_NAME', "text:#{@lineage}")
         # unset all server level inputs in the deployment to ensure use of 
         # the setting from the deployment level
-        @deployment.servers_no_reload.each do |s|
+        @servers.each do |s|
           s.set_input('DB_LINEAGE_NAME', "text:")
         end
       end
@@ -32,7 +32,7 @@ module VirtualMonkey
       @deployment.set_input('DB_EBS_PREFIX', @lineage)
       # unset all server level inputs in the deployment to ensure use of 
       # the setting from the deployment level
-      @deployment.servers_no_reload.each do |s|
+      @servers.each do |s|
         s.set_input('DB_EBS_PREFIX', "text:")
       end
     end
@@ -42,7 +42,7 @@ module VirtualMonkey
       @deployment.set_input('remote_storage/default/container', bucket)
       # unset all server level inputs in the deployment to ensure use of 
       # the setting from the deployment level
-      @deployment.servers_no_reload.each do |s|
+      @servers.each do |s|
         s.set_input('remote_storage/default/container', "text:")
       end
     end

@@ -8,7 +8,7 @@ module VirtualMonkey
       begin
         rerun_test
         #pre-command
-        populate_settings unless @populated
+        populate_settings if @deployment
         #command
         result = __send__(sym, *args)
         if block
@@ -24,33 +24,6 @@ module VirtualMonkey
         end
       end while @rerun_last_command.pop
       result
-    end
-
-    def verify(method, expectation, *args)
-      puts "TestCaseInterface::verify is deprecated!"
-      if expectation =~ /((exception)|(error)|(fatal)|(fail))/i
-        expect = "fail"
-        error_msg = expectation.split(":")[1..-1].join(":")
-      elsif expectation =~ /((success)|(succeed)|(pass))/i
-        expect = "pass"
-      elsif expectation =~ /nil/i
-        expect = "nil"
-      else
-        raise 'Syntax Error: verify expects a "pass", "fail", or "nil"'
-      end
-
-      begin
-        rerun_test
-        result = __send__(method, *args)
-        if expect != "pass" and not (result == nil and expect == "nil")
-          raise "FATAL: Failed verification"
-        end
-        continue_test
-      rescue Exception => e
-        if not ("#{e}" =~ /#{error_msg}/ and expect == "fail")
-          dev_mode?(e)
-        end
-      end while @rerun_last_command.pop
     end
 
     def probe(set, command, &block)
@@ -127,9 +100,19 @@ module VirtualMonkey
     end
 
     def populate_settings
-      @servers.each { |s| s.settings }
-      lookup_scripts
-      @populated = 1
+      unless @populated
+        @servers = @deployment.servers_no_reload
+        @servers.reject! { |s|
+          s.settings
+          st = ServerTemplate.find(resource_id(s.server_template_href))
+          ret = (st.nickname =~ /virtual *monkey/i)
+          @server_templates << st unless ret
+          ret
+        }
+        @server_templates.uniq!
+        lookup_scripts
+        @populated = true
+      end
     end
 
     def select_set(set = @servers)
@@ -149,7 +132,7 @@ module VirtualMonkey
       begin
         rerun_test
         #pre-command
-        populate_settings unless @populated
+        populate_settings if @deployment
         #command
         result = obj.__send__(sym, *args)
         #post-command

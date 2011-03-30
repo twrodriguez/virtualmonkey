@@ -10,13 +10,7 @@ module VirtualMonkey
       @server_templates = []
       @deployment = Deployment.find_by_nickname_speed(deployment).first
       raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
-      @servers = @deployment.servers_no_reload
-      @servers.each { |s| 
-        s.settings
-        @server_templates << ServerTemplate.find(resource_id(s.server_template_href))
-      }
-      @server_templates.uniq!
-      behavior(:lookup_scripts)
+      behavior(:populate_settings)
     end
 
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should
@@ -138,7 +132,7 @@ module VirtualMonkey
 
     # un-set all tags on all servers in the deployment
     def unset_all_tags
-      @deployment.servers_no_reload.each do |s|
+      @servers.each do |s|
         # can't unset ALL tags, so we must set a bogus one
         s.tags = [{"name"=>"removeme:now=1"}]
         s.save

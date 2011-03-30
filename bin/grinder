@@ -3,11 +3,20 @@
 # Development ENV only
 $LOAD_PATH.unshift(File.dirname(__FILE__))
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
+$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'spec'))
 ###
 
 require 'rubygems'
 require 'virtualmonkey'
 require 'ruby-debug'
+
+unless ENV['DEPLOYMENT']
+  begin
+    require 'find_myself_in_api.rb'
+    ENV['DEPLOYMENT'] = ENV['MONKEY_SELF_DEPLOYMENT_NAME']
+  rescue
+  end
+end
 
 usage = <<-EOS
 After setting the 'DEPLOYMENT' and 'REST_CONNECTION_LOG' environment variables, run the grinder using:
@@ -29,6 +38,13 @@ if ARGV[1]
   @breakpoint = ARGV[1].to_i
 else
   @breakpoint = 1000000
+end
+
+unless ENV['MONKEY_NO_DEBUG'] =~ /true/i
+  if ENV['DEPLOYMENT'] == ENV['MONKEY_SELF_DEPLOYMENT_NAME']
+    confirm = ask("WARNING: You are about to run grinder on the deployment your virtualmonkey server is in. Are you sure you want to do this? (y/n)", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
+    raise "Aborting." unless confirm
+  end
 end
 
 @testcase = File.open(ARGV[0], "r")
