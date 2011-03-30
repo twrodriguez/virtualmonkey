@@ -219,7 +219,7 @@ class DeploymentMonk
       set_inputs(d, @common_inputs)
       d.servers.each { |s|
         cv_inputs = (@variables_for_cloud[s.cloud_id] ? @variables_for_cloud[s.cloud_id]['parameters'] : {})
-        set_inputs(s, @common_inputs.merge(cv_inputs)))
+        set_inputs(s, @common_inputs.merge(cv_inputs))
       }
     end
   end
