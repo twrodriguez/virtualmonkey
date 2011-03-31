@@ -23,8 +23,8 @@ sgs = (File.exists?(sgs_file) ? JSON::parse(IO.read(sgs_file)) : {})
 
 cloud_ids.each { |cloud|
   next if cloud == 0 or sgs["#{cloud}"]
-  if ENV['EC2_SECURITY_GROUP']
-    sg_name = "#{ENV['EC2_SECURITY_GROUP']}"
+  if ENV['EC2_SECURITY_GROUPS']
+    sg_name = "#{ENV['EC2_SECURITY_GROUPS']}"
   else
     raise "This script requires the environment variable EC2_SECURITY_GROUP to be set"
   end
@@ -35,7 +35,8 @@ cloud_ids.each { |cloud|
     else
       puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
       default = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
-      sg = (default ? default : raise "Security Group 'default' not found in cloud #{cloud}.")
+      raise "Security Group 'default' not found in cloud #{cloud}." unless default
+      sg = default
     end
     sgs["#{cloud}"] = {"ec2_security_groups_href" => sg.href }
   else
@@ -45,7 +46,8 @@ cloud_ids.each { |cloud|
     else
       puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
       default = McSecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
-      sg = (default ? default : raise "Security Group 'default' not found in cloud #{cloud}.")
+      raise "Security Group 'default' not found in cloud #{cloud}." unless default
+      sg = default
     end
     sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
   end

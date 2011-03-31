@@ -7,7 +7,7 @@ rescue
 end
 
 module VirtualMonkey
-  module Tool
+  module Toolbox
     def self.api0_1?
       unless class_variable_defined?("@@api0_1")
         begin
@@ -60,8 +60,10 @@ module VirtualMonkey
       end
 
       cloud_ids.each { |cloud|
-        next if cloud == 0 # Not a valid cloud ID
-        next if keys["#{cloud}"] # We already have data for this cloud, skip
+        if keys["#{cloud}"] # We already have data for this cloud, skip
+          puts "Data found for cloud #{cloud}. Skipping..."
+          next
+        end
         if File.exists?(multicloud_key_file)
           key_name = "api_user_key"
         else
@@ -103,7 +105,7 @@ module VirtualMonkey
       File.open(@@rest_yaml, "w") { |f| f.write(rest_out) }
     end
 
-    def destroy_ssh_keys
+    def self.destroy_ssh_keys
       setup_paths()
 
       cloud_ids = []
@@ -130,7 +132,7 @@ module VirtualMonkey
       rest_settings[:ssh_keys].each { |f| File.delete(f) if File.exists?(f) and f =~ /monkey/ }
     end
 
-    def get_security_groups(add_cloud = nil)
+    def self.populate_security_groups(add_cloud = nil)
       setup_paths()
 
       cloud_ids = []
@@ -142,9 +144,12 @@ module VirtualMonkey
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {}) 
 
       cloud_ids.each { |cloud|
-        next if cloud == 0 or sgs["#{cloud}"]
-        if ENV['EC2_SECURITY_GROUP']
-          sg_name = "#{ENV['EC2_SECURITY_GROUP']}"
+        if sgs["#{cloud}"] # We already have data for this cloud, skip
+          puts "Data found for cloud #{cloud}. Skipping..."
+          next
+        end
+        if ENV['EC2_SECURITY_GROUPS']
+          sg_name = "#{ENV['EC2_SECURITY_GROUPS']}"
         else
           raise "This script requires the environment variable EC2_SECURITY_GROUP to be set"
         end 
@@ -155,7 +160,8 @@ module VirtualMonkey
           else
             puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
             default = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
-            sg = (default ? default : raise "Security Group 'default' not found in cloud #{cloud}.")
+            raise "Security Group 'default' not found in cloud #{cloud}." unless default
+            sg = default
           end 
           sgs["#{cloud}"] = {"ec2_security_groups_href" => sg.href }
         else
@@ -165,7 +171,8 @@ module VirtualMonkey
           else
             puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
             default = McSecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
-            sg = (default ? default : raise "Security Group 'default' not found in cloud #{cloud}.")
+            raise "Security Group 'default' not found in cloud #{cloud}." unless default
+            sg = default
           end 
           sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
         end 
