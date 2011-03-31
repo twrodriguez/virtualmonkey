@@ -1,6 +1,6 @@
 module VirtualMonkey
   class MonkeySelfTestRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::Simple
 
     def lookup_scripts

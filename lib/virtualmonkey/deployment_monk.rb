@@ -31,7 +31,7 @@ class DeploymentMonk
       puts "loading server templates from all deployments"
       @deployments.each { |d| 
         d.reload
-        d.servers_no_reload.each {
+        d.servers_no_reload.each { |s|
           server_templates << s.server_template_href.split(/\//).last.to_i
         }
       }

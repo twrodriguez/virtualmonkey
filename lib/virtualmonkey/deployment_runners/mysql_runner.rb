@@ -1,6 +1,6 @@
 module VirtualMonkey
   class MysqlRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::EBS
     include VirtualMonkey::Mysql
     attr_accessor :scripts_to_run

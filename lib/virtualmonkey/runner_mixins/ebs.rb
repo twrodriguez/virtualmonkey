@@ -1,6 +1,6 @@
 module VirtualMonkey
   module EBS
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     attr_accessor :stripe_count
     attr_accessor :volume_size
     attr_accessor :mount_point
