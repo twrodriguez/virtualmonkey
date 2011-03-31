@@ -3,7 +3,7 @@
   "OPT_PHP_MODULES_LIST":"ignore:$ignore",
   "ADMIN_EMAIL":"text:root@localhost",
   "MON_PROCESSES":"text:mysqld httpd",
-  "DB_MYSQLDUMP_BUCKET":"text:lamp-feature-bucket-ap",
+  "DB_MYSQLDUMP_BUCKET":"text:lamp-feature-bucket-east",
   "STORAGE_ACCOUNT_ID":"cred:AWS_ACCESS_KEY_ID",
   "STORAGE_ACCOUNT_SECRET":"cred:AWS_SECRET_ACCESS_KEY",
   "DBADMIN_PASSWORD":"text:admin_pass",

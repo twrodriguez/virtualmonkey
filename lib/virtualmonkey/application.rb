@@ -45,9 +45,11 @@ module VirtualMonkey
     end
 
     def lookup_scripts
-      @scripts_to_run = {}
-      st = ServerTemplate.find(@servers.first.server_template_href.split(/\//).last.to_i)
-      @scripts_to_run['apache_restart'] = st.executables.detect { |ex| ex.name =~  /WEB apache \(re\)start v2/i }
+      scripts = [
+                  [ 'apache_restart', 'WEB apache \(re\)start v2' ]
+                ]
+      st = ServerTemplate.find(resource_id(@servers.first.server_template_href))
+      lookup_scripts_table(st,scripts)
     end 
 
     # Assumes the host machine is EC2, uses the meta-data to grab the IP address of this

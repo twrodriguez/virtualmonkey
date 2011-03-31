@@ -1,0 +1,10 @@
+{
+  "tag":"PASS_TROOP",
+  "feature":"nginx_pass_mysql_aio.rb",
+  "cloud_variables":"east.json",
+  "runner":"SimpleRunner",
+  "common_inputs":"rails_passenger.json",
+  "server_template_ids":[
+    "94487"
+  ]
+}

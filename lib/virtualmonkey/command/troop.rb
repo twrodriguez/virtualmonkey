@@ -6,7 +6,7 @@ module VirtualMonkey
         text "This command performs all the operations of the monkey in one execution.  Create/Run/Destroy"
         opt :file, "troop config, see config/troop/*sample.json for example format", :type => :string, :required => true
         opt :no_spot, "do not use spot instances"
-        opt :step, "use the troop config file to do either: create, run, or destroy", :type => :string
+        opt :steps, "use the troop config file to do either: create, run, or destroy", :type => :strings
         opt :tag, "add an additional tag to the deployments", :type => :string
         opt :create, "interactive mode: create troop config"
         opt :mci_override, "list of mcis to use instead of the ones from the server template. expects full hrefs.", :type => :string, :multi => true, :required => false
@@ -67,17 +67,20 @@ module VirtualMonkey
         @@options[:tag] += "-" if @@options[:tag]
         @@options[:tag] = "" unless @@options[:tag]
         @@options[:tag] += config['tag']
-        @@options[:step] = "all" unless @@options[:step]
+        if @@options[:steps].is_a?(Array)
+          @@options[:steps] = @@options[:steps].join(" ")
+        end
+        @@options[:steps] = "all" unless @@options[:steps] =~ /(create)|(run)|(destroy)/
         @@options[:cloud_variables] = File.join(@@cv_dir, config['cloud_variables'])
         @@options[:common_inputs] = config['common_inputs'].map { |cipath| File.join(@@ci_dir, cipath) }
         @@options[:feature] = File.join(@@features_dir, config['feature'])
         @@options[:terminate] = config['runner']
-        unless @@options[:step] =~ /(all)|(create)|(run)|(destroy)/
-          raise "Invalid --step argument. Valid steps are: 'all', 'create', 'run', or 'destroy'"
+        unless @@options[:steps] =~ /(all)|(create)|(run)|(destroy)/
+          raise "Invalid --steps argument. Valid steps are: 'all', 'create', 'run', or 'destroy'"
         end
 
         # CREATE PHASE
-        if @@options[:step] =~ /((all)|(create))/
+        if @@options[:steps] =~ /((all)|(create))/
           @@dm = DeploymentMonk.new(@@options[:tag], config['server_template_ids'])
           unless @@dm.deployments.size > 0
             create_logic # NEW INTERNAL COMMAND
@@ -87,13 +90,13 @@ module VirtualMonkey
         end
 
         # RUN PHASE
-        if @@options[:step] =~ /((all)|(run))/
-          @@dm = DeploymentMonk.new(@@options[:tag]) if @@options[:step] =~ /run/
+        if @@options[:steps] =~ /((all)|(run))/
+          @@dm = DeploymentMonk.new(@@options[:tag]) if @@options[:steps] =~ /run/
           run_logic # NEW INTERNAL COMMAND
         end
 
         # DESTROY PHASE
-        if @@options[:step] =~ /destroy/
+        if @@options[:steps] =~ /destroy/
           @@dm = DeploymentMonk.new(@@options[:tag])
           destroy_all_logic # NEW INTERNAL COMMAND
         end

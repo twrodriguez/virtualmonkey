@@ -8,6 +8,8 @@ require 'virtualmonkey/command/run'
 require 'virtualmonkey/command/list'
 require 'virtualmonkey/command/troop'
 require 'virtualmonkey/command/clone'
+require 'virtualmonkey/command/update_inputs'
+require 'virtualmonkey/command/tool'
 require 'uri'
 
 module VirtualMonkey
@@ -34,18 +36,23 @@ module VirtualMonkey
           VirtualMonkey::Command.troop
         when "clone"
           VirtualMonkey::Command.clone
+        when "update_inputs"
+          VirtualMonkey::Command.update_inputs
+        when "toolbox"
+          VirtualMonkey::Command.tool
         when "help" || "--help" || "-h"
           puts "Help usage: monkey <command> --help"
-          puts "Valid commands for monkey: create, destroy, list, run, troop, clone or help"
+          puts "Valid commands for monkey: create, destroy, list, run, troop, clone, update_inputs, tool or help"
         else
-          STDERR.puts "Invalid command #{@@command}: You need to specify a command for monkey: create, destroy, list, run, troop, clone or help\n"
+          STDERR.puts "Invalid command #{@@command}: You need to specify a command for monkey: create, destroy, list, run, troop, clone, update_inputs, tool or help\n"
           exit(1)
       end
     end
 
     def self.create_logic
-      @@dm.variables_for_cloud = JSON::parse(IO.read(@@options[:cloud_variables]))
+      @@options[:cloud_variables].each { |cvpath| @@dm.load_cloud_variables(cvpath) }
       @@dm.ec2_ssh_keys = JSON::parse(IO.read(File.join(@@cv_dir, "ec2_keys.json")))
+      @@dm.security_groups = JSON::parse(IO.read(File.join(@@cv_dir, "security_groups.json")))
       @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
       @@dm.generate_variations(@@options)
     end
@@ -115,22 +122,13 @@ module VirtualMonkey
       @@remaining_jobs.delete(job)
       #Release DNS logic
       if runner.respond_to?(:release_dns) and not @@options[:no_delete]
-        ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
-          begin
-            dns = SharedDns.new(domain)
-            raise "Unable to reserve DNS" unless dns.reserve_dns(deploy.href)
-            dns.release_dns
-          rescue Exception => e
-            raise e unless e.message =~ /Unable to reserve DNS/
-          end
-        }
+        release_all_dns_domains(runner.deployment.href)
       end
     end
 
     def self.destroy_all_logic
       @@dm.deployments.each do |deploy|
-	nickname = val = URI.escape(deploy.nickname, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
-        runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(nickname)")
+        runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(deploy.nickname)")
         runner.behavior(:stop_all, false)
         state_dir = File.join(@@global_state_dir, deploy.nickname)
         if File.directory?(state_dir)
@@ -144,19 +142,23 @@ module VirtualMonkey
         end 
         #Release DNS logic
         if runner.respond_to?(:release_dns) and not @@options[:no_delete]
-          ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
-            begin
-              dns = SharedDns.new(domain)
-              raise "Unable to reserve DNS" unless dns.reserve_dns(deploy.href)
-              dns.release_dns
-            rescue Exception => e
-              raise e unless e.message =~ /Unable to reserve DNS/
-            end
-          }
+          release_all_dns_domains(deploy.href)
         end
       end 
 
       @@dm.destroy_all unless @@options[:no_delete]
+    end
+
+    def self.release_all_dns_domains(deploy_href)
+      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
+        begin
+          dns = SharedDns.new(domain)
+          raise "Unable to reserve DNS" unless dns.reserve_dns(deploy_href)
+          dns.release_dns
+        rescue Exception => e
+          raise e unless e.message =~ /Unable to reserve DNS/
+        end
+      }
     end
   end
 end

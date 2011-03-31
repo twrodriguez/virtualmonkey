@@ -1,9 +1,13 @@
 require 'rubygems'
 require 'rest_connection'
+begin
+  require 'find_myself_in_api.rb'
+rescue
+end
 
 class DeploymentMonk
   attr_accessor :common_inputs
-  attr_accessor :variables_for_cloud, :ec2_ssh_keys
+  attr_accessor :variables_for_cloud, :ec2_ssh_keys, :security_groups
   attr_accessor :deployments
   attr_reader :tag
 
@@ -11,6 +15,10 @@ class DeploymentMonk
     variations = Deployment.find_by(:nickname) {|n| n =~ /^#{@tag}/ }
     puts "loading #{variations.size} deployments matching your tag"
     return variations
+  end
+
+  def self.list(tag)
+    Deployment.find_by(:nickname) {|n| n =~ /^#{tag}/ }.each { |d| puts d.nickname }
   end
 
   def initialize(tag, server_templates = [], extra_images = [])
@@ -21,21 +29,29 @@ class DeploymentMonk
     @common_inputs = {}
     @variables_for_cloud = {}
     @ec2_ssh_keys = {}
+    @security_groups = {}
     raise "Need either populated deployments or passed in server_template ids" if server_templates.empty? && @deployments.empty?
     if server_templates.empty?
-      puts "loading server templates from servers in the first deployment"
-      @deployments.each { |d| d.reload }
-      @deployments.first.servers.each do |s|
-        server_templates << s.server_template_href.split(/\//).last.to_i
-      end
+      puts "loading server templates from all deployments"
+      @deployments.each { |d| 
+        d.reload
+        d.servers_no_reload.each {
+          server_templates << s.server_template_href.split(/\//).last.to_i
+        }
+      }
+      server_templates.uniq!
     end
     server_templates.each do |st|
-      if st =~ /[^0-9]/
-        sts_found << ServerTemplate.find_by(:nickname) { |n| n =~ /#{st}/ } #ServerTemplate Name was given
+      if st =~ /[^0-9]/ #ServerTemplate Name was given
+        sts_found << ServerTemplate.find_by(:nickname) { |n| n =~ /#{st}/ }
         raise "Found more than one ServerTemplate matching '#{st}'." unless sts_found.size == 1
-        @server_templates << sts_found.first
-      else
-        @server_templates << ServerTemplate.find(st.to_i) #ServerTemplate ID was given
+        st = sts_found.first
+        raise "ABORTING: VirtualMonkey has been found in a deployment." if st.nickname =~ /virtual *monkey/i
+        @server_templates << st
+      else #ServerTemplate ID was given
+        st = ServerTemplate.find(st.to_i)
+        raise "ABORTING: VirtualMonkey has been found in a deployment." if st.nickname =~ /virtual *monkey/i
+        @server_templates << st
       end
     end
 
@@ -118,7 +134,16 @@ class DeploymentMonk
             use_this_image = st.multi_cloud_images[0]['href']
           end
           inputs = []
-          @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud]) if cloud.to_i <= 10
+          unless @ec2_ssh_keys[cloud]
+            `export ADD_CLOUD_SSH_KEY=#{cloud}; bash -cex "cd spec; ruby generate_ec2_ssh_keys.rb"`
+            @ec2_ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ec2_keys.json")))
+          end
+          unless @security_groups[cloud]
+            `export ADD_CLOUD_SECURITY_GROUP=#{cloud}; bash -cex "cd spec; ruby get_security_groups.rb"`
+            @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","security_groups.json")))
+          end
+          @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud])
+          @variables_for_cloud[cloud].merge!(@security_groups[cloud])
           @common_inputs.merge!(@variables_for_cloud[cloud]['parameters'])
           @common_inputs.each do |key,val|
             inputs << { :name => key, :value => val }
@@ -151,13 +176,7 @@ class DeploymentMonk
           if cloud.to_i < 10
             server = Server.create(server_params.merge(@variables_for_cloud[cloud])) unless server
             # since the create call does not set the parameters, we need to set them separate
-            if server.respond_to?(:set_inputs)
-              server.set_inputs(@variables_for_cloud[cloud]['parameters'])
-            else
-              @variables_for_cloud[cloud]['parameters'].each do |key,val|
-                server.set_input(key,val)
-              end
-            end
+            set_inputs(server, @variables_for_cloud[cloud]['parameters'])
             # uses a special internal call for setting the MCI on the server
             sint = ServerInternal.new(:href => server.href)
             sint.set_multi_cloud_image(use_this_image) unless options[:mci_override] && !options[:mci_override].empty?
@@ -178,13 +197,7 @@ class DeploymentMonk
           end
           new_deploy.nickname = dep_tempname + dep_image_list.uniq.join("_AND_")
           new_deploy.save
-          if new_deploy.respond_to?(:set_inputs)
-            new_deploy.set_inputs(@common_inputs)
-          else
-            @common_inputs.each do |key,val|
-              new_deploy.set_input(key,val)
-            end
-          end
+          set_inputs(new_deploy, @common_inputs)
         end
       end
     end
@@ -192,6 +205,31 @@ class DeploymentMonk
 
   def load_common_inputs(file)
     @common_inputs.merge! JSON.parse(IO.read(file))
+  end
+
+  def load_cloud_variables(file)
+    @variables_for_cloud.merge! JSON.parse(IO.read(file))
+  end
+
+  def update_inputs
+    @deployments.each do |d|
+      if d.cloud_id
+        @common_inputs.merge!(@variables_for_cloud[d.cloud_id]['parameters']) if @variables_for_cloud[d.cloud_id]
+      end
+      set_inputs(d, @common_inputs)
+      d.servers.each { |s|
+        cv_inputs = (@variables_for_cloud[s.cloud_id] ? @variables_for_cloud[s.cloud_id]['parameters'] : {})
+        set_inputs(s, @common_inputs.merge(cv_inputs))
+      }
+    end
+  end
+
+  def set_inputs(obj, inputs)
+    if obj.respond_to?(:set_inputs)
+      obj.set_inputs(inputs)
+    else
+      inputs.each { |key,val| obj.set_input(key,val) }
+    end
   end
 
   def destroy_all

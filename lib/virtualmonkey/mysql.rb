@@ -9,19 +9,19 @@ module VirtualMonkey
     # sets the lineage for the deployment
     # * kind<~String> can be "chef" or nil
     def set_variation_lineage(kind = nil)
-      @lineage = "testlineage#{@deployment.href.split(/\//).last}"
+      @lineage = "testlineage#{resource_id(@deployment)}"
       if kind == "chef"
         @deployment.set_input('db/backup/lineage', "text:#{@lineage}")
         # unset all server level inputs in the deployment to ensure use of 
         # the setting from the deployment level
-        @deployment.servers_no_reload.each do |s|
+        @servers.each do |s|
           s.set_input('db/backup/lineage', "text:")
         end
       else
         @deployment.set_input('DB_LINEAGE_NAME', "text:#{@lineage}")
         # unset all server level inputs in the deployment to ensure use of 
         # the setting from the deployment level
-        @deployment.servers_no_reload.each do |s|
+        @servers.each do |s|
           s.set_input('DB_LINEAGE_NAME', "text:")
         end
       end
@@ -32,17 +32,17 @@ module VirtualMonkey
       @deployment.set_input('DB_EBS_PREFIX', @lineage)
       # unset all server level inputs in the deployment to ensure use of 
       # the setting from the deployment level
-      @deployment.servers_no_reload.each do |s|
+      @servers.each do |s|
         s.set_input('DB_EBS_PREFIX', "text:")
       end
     end
 
     def set_variation_bucket
-       bucket = "text:testingcandelete#{@deployment.href.split(/\//).last}"
+       bucket = "text:testingcandelete#{resource_id(@deployment)}"
       @deployment.set_input('remote_storage/default/container', bucket)
       # unset all server level inputs in the deployment to ensure use of 
       # the setting from the deployment level
-      @deployment.servers_no_reload.each do |s|
+      @servers.each do |s|
         s.set_input('remote_storage/default/container', "text:")
       end
     end
@@ -62,8 +62,7 @@ module VirtualMonkey
               "DBAPPLICATION_PASSWORD" => "text:somepass", 
               "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:1",
               "EBS_LINEAGE" => "text:#{@lineage}" }
-      audit = server.run_executable(@scripts_to_run['create_mysql_ebs_stripe'], options)
-      audit.wait_for_completed
+      run_script('create_mysql_ebs_stripe', server, options)
     end
 
     # Performs steps necessary to bootstrap a MySQL Master server from a pristine state.
@@ -91,15 +90,14 @@ module VirtualMonkey
     # Sets DNS record for the Master server to point at server
     # * server<~Server> the server to use as MASTER
     def set_master_dns(server)
-      audit = server.run_executable(@scripts_to_run['master_init'])
-      audit.wait_for_completed
+      run_script('master_init', server)
     end
 
     # Use the termination script to stop all the servers (this cleans up the volumes)
     def stop_all(wait=true)
-      if @scripts_to_run['terminate']
+      if script_to_run?('terminate')
         options = { "DB_TERMINATE_SAFETY" => "text:off" }
-        @servers.each { |s| s.run_executable(@scripts_to_run['terminate'], options) unless s.state == 'stopped' }
+        @servers.each { |s| run_script('terminate', s, options) unless s.state == 'stopped' }
       else
         @servers.each { |s| s.stop }
       end
@@ -139,7 +137,7 @@ module VirtualMonkey
       options = { "DB_EBS_PREFIX" => "text:regmysql",
               "DB_EBS_SIZE_MULTIPLIER" => "text:1",
               "EBS_STRIPE_COUNT" => "text:#{@stripe_count}" }
-      s_one.run_executable(@scripts_to_run['create_migrate_script'], options)
+      run_script('create_migrate_script', s_one, options)
     end
 
     # These are mysql specific checks (used by mysql_runner and lamp_runner)
@@ -150,7 +148,24 @@ module VirtualMonkey
       @servers.each do |server|
         server.spot_check(query_command) { |result| raise "Failure: tmpdir was unset#{result}" unless result.include?("/mnt/mysqltmp") }
       end
+
+      # check that mysql cron script exits success
+      @servers.each do |server|
+        chk1 = server.spot_check_command?("/usr/local/bin/mysql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+
+        chk2 = server.spot_check_command?("/usr/local/bin/mysql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+
+        raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2) 
+      end
+
+      # check that logrotate has mysqlslow in it
+      @servers.each do |server|
+        res = server.spot_check_command("logrotate --force -v /etc/logrotate.d/mysql-server")
+        raise "LOGROTATE FAILURE, exited with non-zero status" if res[:status] != 0
+        raise "DID NOT FIND mysqlslow.log in the log rotation!" if res[:output] !~ /mysqlslow/
+      end
     end
+
 
     # check that mysql can handle 5000 concurrent connections (file limits, etc.)
     def run_mysqlslap_check

@@ -29,6 +29,10 @@ module VirtualMonkey
              4 => {
                 :endpoint => "https://elasticloadbalancing.ap-southeast-1.amazonaws.com",
                 :azs => [ "ap-southeast-1a", "ap-southeast-1a" ] 
+                },
+             5 => {
+                :endpoint => "https://elasticloadbalancing.ap-northeast-1.amazonaws.com",
+                :azs => [ "ap-northeast-1a", "ap-northeast-1a" ]
                 }
           }
     
@@ -40,11 +44,12 @@ module VirtualMonkey
 
     def initialize(args)
       super(args)
+      raise "FATAL: ELBRunner must run on a single-cloud AWS deployment" unless @deployment.cloud_id
       endpoint_url=ELBS[@deployment.cloud_id][:endpoint]
 puts "USING EP: #{endpoint_url}"
       @elb = RightAws::ElbInterface.new(AWS_ID, AWS_KEY, { :endpoint_url => endpoint_url } )
 #      @elb_name = "#{ELB_PREFIX}-#{rand(1000000)}"
-      @elb_name = @deployment.href.split(/\//).last
+      @elb_name = "#{resource_id(@deployment)}"
     end
     
     def retry_elb_fn(fn, *args)
@@ -112,13 +117,8 @@ puts "USING EP: #{endpoint_url}"
                  [ 'connect', 'ELB connect' ],
                  [ 'disconnect', 'ELB disconnect' ]
                ]
-#      @scripts_to_run = {}
-      server = @servers.first
-      server.settings 
-      st = ServerTemplate.find(server.server_template_href.split(/\//).last.to_i)
+      st = ServerTemplate.find(resource_id(@servers.first.server_template_href))
       lookup_scripts_table(st,scripts)
-#      @scripts_to_run['connect'] = st.executables.detect { |ex| ex.name =~  /ELB connect/i }
-#      @scripts_to_run['disconnect'] = st.executables.detect { |ex| ex.name =~  /ELB disconnect/i }
     end 
     
     # This is really just a PHP server check. relocate?
