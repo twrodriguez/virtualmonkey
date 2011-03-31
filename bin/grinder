@@ -3,7 +3,6 @@
 # Development ENV only
 $LOAD_PATH.unshift(File.dirname(__FILE__))
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
-$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'spec'))
 ###
 
 require 'rubygems'
@@ -11,10 +10,8 @@ require 'virtualmonkey'
 require 'ruby-debug'
 
 unless ENV['DEPLOYMENT']
-  begin
-    require 'find_myself_in_api.rb'
+  if VirtualMonkey::Tool::find_myself_in_api()
     ENV['DEPLOYMENT'] = ENV['MONKEY_SELF_DEPLOYMENT_NAME']
-  rescue
   end
 end
 
@@ -121,5 +118,5 @@ end while !done
 elapsed = Time.now - timer
 $stdout.syswrite "Total time elapsed: #{elapsed} seconds\n"
 if linenum > @breakpoint and ENV['MONKEY_NO_DEBUG'] !~ /true/i
-  @runner.dev_mode?
+  eval("@runner.dev_mode?")
 end

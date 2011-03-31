@@ -1,5 +1,5 @@
 module VirtualMonkey
-  class SimpleRunner
+  class MonkeySelfTestRunner
     include VirtualMonkey::DeploymentRunner
     include VirtualMonkey::Simple
 

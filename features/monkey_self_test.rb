@@ -6,7 +6,7 @@
 # Scenario: base server test
 #
 # Given A simple deployment
-  @runner = VirtualMonkey::SimpleRunner.new(ENV['DEPLOYMENT'])
+  @runner = VirtualMonkey::MonkeySelfTestRunner.new(ENV['DEPLOYMENT'])
 
 # Then I should stop the servers
   @runner.behavior(:stop_all)

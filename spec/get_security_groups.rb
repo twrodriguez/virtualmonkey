@@ -30,11 +30,23 @@ cloud_ids.each { |cloud|
   end
   if cloud <= 10
     found = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /#{sg_name}/ }.first
-    sg = (found ? found : raise "Security Group '#{sg_name}' not found in cloud #{cloud}.")
+    if found
+      sg = found
+    else
+      puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
+      default = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
+      sg = (default ? default : raise "Security Group 'default' not found in cloud #{cloud}.")
+    end
     sgs["#{cloud}"] = {"ec2_security_groups_href" => sg.href }
   else
     found = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /#{sg_name}/ }.first
-    sg = (found ? found : raise "Security Group '#{sg_name}' not found in cloud #{cloud}.")
+    if found
+      sg = found
+    else
+      puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
+      default = McSecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
+      sg = (default ? default : raise "Security Group 'default' not found in cloud #{cloud}.")
+    end
     sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
   end
 }
