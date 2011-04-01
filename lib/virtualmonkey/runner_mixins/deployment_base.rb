@@ -1,5 +1,5 @@
 module VirtualMonkey
-  module DeploymentRunner
+  module DeploymentBase
     include VirtualMonkey::TestCaseInterface
     attr_accessor :deployment, :servers, :server_templates
     attr_accessor :scripts_to_run

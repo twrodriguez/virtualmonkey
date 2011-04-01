@@ -1,6 +1,6 @@
 module VirtualMonkey
   class FeAppRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::ApplicationFrontend
 
    end

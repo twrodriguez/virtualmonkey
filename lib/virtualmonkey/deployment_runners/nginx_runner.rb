@@ -1,6 +1,6 @@
 module VirtualMonkey
   class NginxRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::UnifiedApplication
     include VirtualMonkey::Mysql
 

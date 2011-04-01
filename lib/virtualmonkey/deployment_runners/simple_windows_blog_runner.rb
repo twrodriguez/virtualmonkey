@@ -1,6 +1,6 @@
 module VirtualMonkey
   class SimpleWindowsBlogRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::Simple
     def exception_handle(e)
       puts "ATTENTION: Using default exception_handle(e). This can be overridden in mixin classes."

@@ -10,7 +10,7 @@ require 'virtualmonkey'
 require 'ruby-debug'
 
 unless ENV['DEPLOYMENT']
-  if VirtualMonkey::Tool::find_myself_in_api()
+  if VirtualMonkey::Toolbox::find_myself_in_api()
     ENV['DEPLOYMENT'] = ENV['MONKEY_SELF_DEPLOYMENT_NAME']
   end
 end

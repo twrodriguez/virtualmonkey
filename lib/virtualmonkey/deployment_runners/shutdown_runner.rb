@@ -1,6 +1,6 @@
 module VirtualMonkey
   class ShutdownRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     
     def lookup_scripts
       scripts = [

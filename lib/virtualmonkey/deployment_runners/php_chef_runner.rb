@@ -1,6 +1,6 @@
 module VirtualMonkey
   class PhpChefRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::ApplicationFrontend
 
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should

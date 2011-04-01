@@ -1,6 +1,6 @@
 module VirtualMonkey
   class RailsAioDeveloperChefRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::ApplicationFrontend
 
   end

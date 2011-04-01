@@ -3,7 +3,7 @@ require "right_aws"
 
 module VirtualMonkey
   class ELBRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::Application
     include VirtualMonkey::UnifiedApplication
     

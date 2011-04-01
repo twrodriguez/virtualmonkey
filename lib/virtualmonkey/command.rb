@@ -9,7 +9,7 @@ require 'virtualmonkey/command/list'
 require 'virtualmonkey/command/troop'
 require 'virtualmonkey/command/clone'
 require 'virtualmonkey/command/update_inputs'
-require 'virtualmonkey/command/tool'
+require 'virtualmonkey/command/toolbox'
 require 'uri'
 
 module VirtualMonkey
@@ -38,13 +38,17 @@ module VirtualMonkey
           VirtualMonkey::Command.clone
         when "update_inputs"
           VirtualMonkey::Command.update_inputs
-        when "toolbox"
-          VirtualMonkey::Command.tool
+        when "generate_ssh_keys"
+          VirtualMonkey::Command.generate_ssh_keys
+        when "destroy_ssh_keys"
+          VirtualMonkey::Command.destroy_ssh_keys
+        when "populate_security_groups"
+          VirtualMonkey::Command.populate_security_groups
         when "help" || "--help" || "-h"
           puts "Help usage: monkey <command> --help"
-          puts "Valid commands for monkey: create, destroy, list, run, troop, clone, update_inputs, tool or help"
+          puts "Valid commands for monkey: create, destroy, list, run, troop, clone, update_inputs, generate_ssh_keys, destroy_ssh_keys, populate_security_groups or help"
         else
-          STDERR.puts "Invalid command #{@@command}: You need to specify a command for monkey: create, destroy, list, run, troop, clone, update_inputs, tool or help\n"
+          STDERR.puts "Invalid command #{@@command}: You need to specify a command for monkey: create, destroy, list, run, troop, clone, update_inputs, generate_ssh_keys, destroy_ssh_keys, populate_security_groups or help\n"
           exit(1)
       end
     end

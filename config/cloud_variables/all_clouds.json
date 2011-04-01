@@ -1,19 +1,9 @@
 {
-  "1":{
-    "ec2_security_groups_href":"https://my.rightscale.com/api/acct/2901/ec2_security_groups/194172"
-  },
-  "2":{
-    "ec2_security_groups_href":"https://my.rightscale.com/api/acct/2901/ec2_security_groups/194174"
-  },
-  "3":{
-    "ec2_security_groups_href":"https://my.rightscale.com/api/acct/2901/ec2_security_groups/194175"
-  },
-  "4":{
-    "ec2_security_groups_href":"https://my.rightscale.com/api/acct/2901/ec2_security_groups/194173"
-  },
-  "5":{
-    "ec2_security_groups_href":"https://my.rightscale.com/api/acct/2901/ec2_security_groups/194176"
-  },
+  "1":{},
+  "2":{},
+  "3":{},
+  "4":{},
+  "5":{},
   "232":{
     "parameters":{
       "PRIVATE_SSH_KEY":"key:publish-test:1"
@@ -23,7 +13,6 @@
     "parameters":{
       "PRIVATE_SSH_KEY":"key:publish-test:1"
     },
-    "security_group_hrefs":["https://my.rightscale.com/api/clouds/850/security_groups/94FG3E8TUGBUO"],
     "datacenter_href": "https://my.rightscale.com/api/clouds/850/datacenters/6D17SF55U9GFP"
   }
 }

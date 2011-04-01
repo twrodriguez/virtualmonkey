@@ -3,7 +3,7 @@ require "right_aws"
 
 module VirtualMonkey
   class PatchRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     
     
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should

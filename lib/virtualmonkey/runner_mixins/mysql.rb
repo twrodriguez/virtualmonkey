@@ -1,7 +1,7 @@
 require 'ruby-debug'
 module VirtualMonkey
   module Mysql
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::EBS
     attr_accessor :scripts_to_run
     attr_accessor :db_ebs_prefix

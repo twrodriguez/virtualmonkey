@@ -1,9 +1,5 @@
 require 'rubygems'
 require 'rest_connection'
-begin
-  require 'find_myself_in_api.rb'
-rescue
-end
 
 class DeploymentMonk
   attr_accessor :common_inputs
@@ -35,7 +31,7 @@ class DeploymentMonk
       puts "loading server templates from all deployments"
       @deployments.each { |d| 
         d.reload
-        d.servers_no_reload.each {
+        d.servers_no_reload.each { |s|
           server_templates << s.server_template_href.split(/\//).last.to_i
         }
       }
@@ -135,11 +131,13 @@ class DeploymentMonk
           end
           inputs = []
           unless @ec2_ssh_keys[cloud]
-            `export ADD_CLOUD_SSH_KEY=#{cloud}; bash -cex "cd spec; ruby generate_ec2_ssh_keys.rb"`
+#            `export ADD_CLOUD_SSH_KEY=#{cloud}; bash -cex "cd spec; ruby generate_ec2_ssh_keys.rb"`
+            VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
             @ec2_ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ec2_keys.json")))
           end
           unless @security_groups[cloud]
-            `export ADD_CLOUD_SECURITY_GROUP=#{cloud}; bash -cex "cd spec; ruby get_security_groups.rb"`
+#            `export ADD_CLOUD_SECURITY_GROUP=#{cloud}; bash -cex "cd spec; ruby get_security_groups.rb"`
+            VirtualMonkey::Toolbox::populate_security_groups(cloud)
             @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","security_groups.json")))
           end
           @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud])
