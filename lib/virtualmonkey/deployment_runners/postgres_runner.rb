@@ -1,6 +1,6 @@
 module VirtualMonkey
   class PostgresRunner
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::EBS
     include VirtualMonkey::Postgres
     attr_accessor :scripts_to_run

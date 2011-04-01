@@ -1,7 +1,7 @@
 require 'ruby-debug'
 module VirtualMonkey
   module Postgres
-    include VirtualMonkey::DeploymentRunner
+    include VirtualMonkey::DeploymentBase
     include VirtualMonkey::EBS
     attr_accessor :scripts_to_run
     attr_accessor :db_ebs_prefix
@@ -56,9 +56,6 @@ module VirtualMonkey
     # * server<~Server> the server to use as MASTER
     def config_master_from_scratch(server)
       behavior(:create_stripe, server)
-      object_behavior(server, :spot_check_command, "service mysqld start")
-#TODO the service name depends on the OS
-#      server.spot_check_command("service mysql start")
       behavior(:run_query, "createdb -U postgres i-heart-monkey", server)
       behavior(:set_master_dns, server)
       # This sleep is to wait for DNS to settle - must sleep
