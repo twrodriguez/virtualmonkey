@@ -51,7 +51,7 @@ module VirtualMonkey
         puts "Pausing for debugging..."
         debugger
       elsif e
-        self.__exception_handle__(e)
+        self.__send__(:__exception_handle__, e)
       else
         raise "'dev_mode?' function called improperly. An Exception needs to be passed or ENV['MONKEY_NO_DEBUG'] must not be set to 'true'"
       end
@@ -121,7 +121,7 @@ module VirtualMonkey
           ret
         }
         @server_templates.uniq!
-        self.__lookup_scripts__
+        __lookup_scripts__
         @populated = true
       end
     end
