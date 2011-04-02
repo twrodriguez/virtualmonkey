@@ -1,7 +1,6 @@
 require 'rest_connection'
 require 'fog'
 require 'fileutils'
-require 'virtualmonkey/unified_application'
 require 'virtualmonkey/deployment_monk'
 require 'virtualmonkey/grinder_monk'
 require 'virtualmonkey/shared_dns'

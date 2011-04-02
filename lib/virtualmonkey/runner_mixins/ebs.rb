@@ -110,7 +110,7 @@ module VirtualMonkey
       error_range = 0.05
       puts "Testing with a +/- #{error_range * 100}% margin of error: #{@mount_point} #{expected_size}GB"
       expected_size *= 1048576 # expected_size is given in GB, df is given in KB
-      probe(server.nickname, "df -k | grep #{@mount_point}") { |response|
+      probe(server.nickname, "df -k | grep #{@mount_point}") { |response,status|
         val = response.match(/[0-9]+/)[0].to_i
         ret = (val < (expected_size * (1.0 + error_range)) and val > (expected_size * (1.0 - error_range)))
         ret
@@ -139,6 +139,7 @@ module VirtualMonkey
       # unset dns in our local cached copy..
       @servers.each { |s| s.params['dns-name'] = nil }
     end
+
     def test_restore_grow
       grow_to_size=100
       behavior(:restore_and_grow, s_three, grow_to_size, false)
@@ -156,5 +157,32 @@ module VirtualMonkey
       behavior(:wait_for_snapshots)
     end
 
+    # Create a stripe and write some data to it
+    def create_stripe
+      behavior(:create_stripe_volume, s_one)
+      behavior(:populate_volume, s_one)
+    end
+
+    def test_backup_script_operations
+      backup_script="/usr/local/bin/ebs-backup.rb"
+      # create backup scripts
+      behavior(:run_script, "create_backup_scripts", s_one)
+      object_behavior(s_one, :spot_check_command, "test -x #{backup_script}")
+      # enable continuous backups
+      behavior(:run_script, "continuous_backup", s_one)
+      object_behavior(s_one, :spot_check_command, "egrep \"^[0-6].*#{backup_script}\" /etc/crontab")
+      # freeze backups
+      behavior(:run_script, "freeze", s_one)
+      object_behavior(s_one, :spot_check_command, "egrep \"^#[0-6].*#{backup_script}\" /etc/crontab")
+      # unfreeze backups
+      behavior(:run_script, "unfreeze", s_one)
+      object_behavior(s_one, :spot_check_command, "egrep \"^[0-6].*#{backup_script}\" /etc/crontab")
+    end
+
+    def run_reboot_operations
+      object_behavior(s_one, :reboot, true)
+      object_behavior(s_one, :wait_for_state, "operational")
+      behavior(:create_backup)
+    end
   end
 end

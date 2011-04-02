@@ -53,12 +53,12 @@ module VirtualMonkey
       end
     end
 
-    def lookup_scripts
+    def php_chef_lookup_scripts
       recipes = [
                   [ 'attach', 'lb_haproxy::do_attach_request' ]
                 ]
       fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
-      lookup_scripts_table(fe_st,recipes)
+      load_script_table(fe_st,recipes)
     end
 
     def cross_connect_frontends

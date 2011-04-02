@@ -33,7 +33,7 @@ module VirtualMonkey
         begin
           rerun_test
           result_temp = s.spot_check_command(command)
-          if not yield(result_temp[:output])
+          if not yield(result_temp[:output],result_temp[:status])
             raise "FATAL: Server #{s.nickname} failed probe. Got #{result_temp[:output]}"
           end
           continue_test
@@ -51,7 +51,7 @@ module VirtualMonkey
         puts "Pausing for debugging..."
         debugger
       elsif e
-        exception_handle(e)
+        self.__exception_handle__(e)
       else
         raise "'dev_mode?' function called improperly. An Exception needs to be passed or ENV['MONKEY_NO_DEBUG'] must not be set to 'true'"
       end
@@ -59,17 +59,28 @@ module VirtualMonkey
 
     private
 
-    def exception_handle(e)
-      puts "ATTENTION: Using default exception_handle(e). This can be overridden in mixin classes."
+    def __exception_handle__(e)
+      exception_handle_methods = self.methods.select { |m| m =~ /exception_handle/ and m != "__exception_handle__" }
+      
       if e.message =~ /Insufficient capacity/
         puts "Got \"Insufficient capacity\". Retrying...."
         sleep 60
+        return "Exception Handled"
       elsif e.message =~ /Service Temporarily Unavailable/
         puts "Got \"Service Temporarily Unavailable\". Retrying...."
         sleep 10
-      else
-        raise e
+        return "Exception Handled"
       end
+
+      exception_handle_methods.each { |m|
+        begin
+          self.__send__(m,e)
+          # If an exception_handle method doesn't raise an exception, it handled correctly
+          return "Exception Handled"
+        rescue
+        end
+      }
+      raise e
     end
 
     def help
@@ -110,7 +121,7 @@ module VirtualMonkey
           ret
         }
         @server_templates.uniq!
-        lookup_scripts
+        self.__lookup_scripts__
         @populated = true
       end
     end

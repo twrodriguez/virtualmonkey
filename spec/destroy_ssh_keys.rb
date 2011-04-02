@@ -2,6 +2,12 @@ require File.join(File.dirname(__FILE__), "spec_helper")
 require 'ruby-debug'
 require 'json'
 
+`cd ..; bin/monkey destroy_ssh_keys`
+
+exit(0)
+
+# Don't execute beyond here...legacy code
+
 begin
   require '/var/spool/cloud/user-data.rb'
 rescue

@@ -2,6 +2,12 @@ require File.join(File.dirname(__FILE__), "spec_helper")
 require 'ruby-debug'
 require 'json'
 
+cmd = "bin/monkey populate_security_groups "
+cmd += "--add-cloud #{ENV['ADD_CLOUD_SECURITY_GROUP']}" if ENV['ADD_CLOUD_SECURITY_GROUP']
+`cd ..; #{cmd}`
+
+exit(0)
+
 begin
   require '/var/spool/cloud/meta-data.rb'
 rescue

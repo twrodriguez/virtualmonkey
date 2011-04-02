@@ -19,14 +19,9 @@ module VirtualMonkey
     # Trust me, I know what's good for you. -- Tim R.
     private
 
-    def lookup_scripts
-      puts "WARNING: lookup_scripts is undefined, this must be set in mixin classes"
-      scripts = [
-                 [ 'script_ref1', 'name' ],
-                 [ 'script_ref2', 'name' ]
-               ]
-#      st = ServerTemplate.find(resource_id(s_two.server_template_href))
-#      lookup_scripts_table(st,scripts)
+    def __lookup_scripts__ # Master method, do NOT override
+      lookup_script_methods = self.methods.select { |m| m =~ /lookup_scripts/ and m != "__lookup_scripts__" }
+      lookup_script_methods.each { |method_name| self.__send__(method_name) }
     end
 
     # Returns the API 1.0 integer id of the rest_connection object or href
@@ -39,7 +34,7 @@ module VirtualMonkey
     end
 
     # Loads a table of [friendly_name, script/recipe regex] from reference_template, attaching them to all templates in the deployment unless add_only_to_this_st is set
-    def lookup_scripts_table(reference_template,table,add_only_to_this_st=nil)
+    def load_script_table(reference_template, table, add_only_to_this_st = nil)
       if add_only_to_this_st.is_a?(Server)
         sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
       elsif add_only_to_this_st.is_a?(ServerTemplate)
@@ -49,15 +44,17 @@ module VirtualMonkey
       end
       sts.each { |st|
         table.each { |a|
-          @scripts_to_run[resource_id(st)] = {} unless @scripts_to_run[resource_id(st)]
-          @scripts_to_run[resource_id(st)][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
-          raise "WARNING: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[resource_id(st)][ a[0] ]
+          st_id = resource_id(st)
+          @scripts_to_run[st_id] = {} unless @scripts_to_run[st_id]
+          puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id]
+          @scripts_to_run[st_id][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
+          raise "FATAL: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[st_id][ a[0] ]
         }
       }
     end
 
     # Loads a single hard-coded RightScript or Recipe, attaching it to all templates in the deployment unless add_only_to_this_st is set
-    def add_script_to_run(friendly_name, script, add_only_to_this_st=nil)
+    def load_script(friendly_name, script, add_only_to_this_st=nil)
       if add_only_to_this_st.is_a?(Server)
         sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
       elsif add_only_to_this_st.is_a?(ServerTemplate)

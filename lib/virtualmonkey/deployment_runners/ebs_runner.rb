@@ -2,7 +2,6 @@ module VirtualMonkey
   class EBSRunner
     include VirtualMonkey::DeploymentBase
     include VirtualMonkey::EBS
-    attr_accessor :scripts_to_run
 
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should
     # not be calling the following methods directly. Instead, they should use the
@@ -24,36 +23,7 @@ module VirtualMonkey
                  [ 'terminate', 'TERMINATE' ]
                ]
       st = ServerTemplate.find(resource_id(s_one.server_template_href))
-      lookup_scripts_table(st,scripts)
+      load_script_table(st,scripts)
     end
-    
-    # Create a stripe and write some data to it
-    def create_stripe
-      behavior(:create_stripe_volume, s_one)
-      behavior(:populate_volume, s_one)
-    end
-
-    def test_backup_script_operations
-      backup_script="/usr/local/bin/ebs-backup.rb"
-# create backup scripts
-      behavior(:run_script, "create_backup_scripts", s_one)
-      object_behavior(s_one, :spot_check_command, "test -x #{backup_script}")
-# enable continuous backups
-      behavior(:run_script, "continuous_backup", s_one)
-      object_behavior(s_one, :spot_check_command, "egrep \"^[0-6].*#{backup_script}\" /etc/crontab")
-# freeze backups
-      behavior(:run_script, "freeze", s_one)
-      object_behavior(s_one, :spot_check_command, "egrep \"^#[0-6].*#{backup_script}\" /etc/crontab")
-# unfreeze backups
-      behavior(:run_script, "unfreeze", s_one)
-      object_behavior(s_one, :spot_check_command, "egrep \"^[0-6].*#{backup_script}\" /etc/crontab")
-    end
-
-    def run_reboot_operations
-      object_behavior(s_one, :reboot, true)
-      object_behavior(s_one, :wait_for_state, "operational")
-      behavior(:create_backup)
-    end
-
   end
 end
