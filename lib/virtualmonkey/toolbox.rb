@@ -118,7 +118,7 @@ module VirtualMonkey
 
         File.chmod(0700, priv_key_file)
         # Configure rest_connection config
-        rest_settings[:ssh_keys] << priv_key_file unless rest_settings[:ssh_keys].contains?(priv_key_file)
+        rest_settings[:ssh_keys] << priv_key_file unless rest_settings[:ssh_keys].include?(priv_key_file)
       }
 
       keys_out = keys.to_json(:indent => "  ",

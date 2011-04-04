@@ -30,7 +30,7 @@ module VirtualMonkey
       @@usage_msg = "Help usage: monkey <command> --help\n"
       @@usage_msg += "Valid commands for monkey: #{@@available_commands.join(", ")}"
 
-      if @@available_commands.contains?(@@command)
+      if @@available_commands.include?(@@command)
         VirtualMonkey::Command.__send__(@@command)
       else
         STDERR.puts "Invalid command #{@@command}\n\n#{@@usage_msg}"

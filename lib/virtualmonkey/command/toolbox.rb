@@ -32,7 +32,7 @@ module VirtualMonkey
         opt :api_version, "Check to see if the monkey has RightScale API access for the given version (0.1, 1.0, or 1.5)", :type => :float, :required => true
       end
 
-      if [0.1, 1.0, 1.5].contains?(@@options[:api_version])
+      if [0.1, 1.0, 1.5].include?(@@options[:api_version])
         ret = VirtualMonkey::Toolbox.__send__("api#{@@options[:api_version]}?".gsub(/\./,"_"))
         puts "#{ret}"
       else
