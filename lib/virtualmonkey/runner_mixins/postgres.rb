@@ -56,7 +56,7 @@ module VirtualMonkey
     # * server<~Server> the server to use as MASTER
     def config_master_from_scratch(server)
       behavior(:create_stripe, server)
-      behavior(:run_query, "createdb -U postgres i-heart-monkey", server)
+      behavior(:run_query, "CREATE DATABASE i_heart_monkey", server)
       behavior(:set_master_dns, server)
       # This sleep is to wait for DNS to settle - must sleep
       sleep 120

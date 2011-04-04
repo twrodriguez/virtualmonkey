@@ -12,6 +12,16 @@ module VirtualMonkey
     # Trust me, I know what's good for you. -- Tim R.
     private
 
+    def run_promotion_operations
+      behavior(:config_master_from_scratch, s_one)
+      object_behavior(s_one, :relaunch)
+      s_one.dns_name = nil
+      behavior(:wait_for_snapshots)
+# need to wait for ebs snapshot, otherwise this could easily fail
+      object_behavior(s_one, :wait_for_operational_with_dns)
+      behavior(:restore_server, s_one)
+    end
+
     def run_reboot_operations
 # Duplicate code here because we need to wait between the master and the slave time
       #reboot_all(true) # serially_reboot = true

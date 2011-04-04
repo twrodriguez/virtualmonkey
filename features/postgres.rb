@@ -25,6 +25,9 @@
 # Then I should wait for the state of "all" servers to be "operational"
   @runner.behavior(:wait_for_all, "operational")
 
+# Then I should test promotion operations on the deployment
+  @runner.behavior(:run_promotion_operations)
+
 # Then I should run standard checks
   @runner.behavior(:run_checks)
 
