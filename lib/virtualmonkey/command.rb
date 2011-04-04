@@ -23,34 +23,23 @@ module VirtualMonkey
       @@cv_dir = File.join(@@cfg_dir, "cloud_variables")
       @@ci_dir = File.join(@@cfg_dir, "common_inputs")
 
-      case @@command
-        when "create"
-          VirtualMonkey::Command.create
-        when "destroy"
-          VirtualMonkey::Command.destroy
-        when "run"
-          VirtualMonkey::Command.run
-        when "list"
-          VirtualMonkey::Command.list
-        when "troop"
-          VirtualMonkey::Command.troop
-        when "clone"
-          VirtualMonkey::Command.clone
-        when "update_inputs"
-          VirtualMonkey::Command.update_inputs
-        when "generate_ssh_keys"
-          VirtualMonkey::Command.generate_ssh_keys
-        when "destroy_ssh_keys"
-          VirtualMonkey::Command.destroy_ssh_keys
-        when "populate_security_groups"
-          VirtualMonkey::Command.populate_security_groups
-        when "help" || "--help" || "-h"
-          puts "Help usage: monkey <command> --help"
-          puts "Valid commands for monkey: create, destroy, list, run, troop, clone, update_inputs, generate_ssh_keys, destroy_ssh_keys, populate_security_groups or help"
-        else
-          STDERR.puts "Invalid command #{@@command}: You need to specify a command for monkey: create, destroy, list, run, troop, clone, update_inputs, generate_ssh_keys, destroy_ssh_keys, populate_security_groups or help\n"
-          exit(1)
+      @@available_commands = ["create", "destroy", "run", "list", "troop", "clone",
+                              "update_inputs", "generate_ssh_keys", "destroy_ssh_keys",
+                              "populate_security_groups", "api_check", "help"]
+
+      @@usage_msg = "Help usage: monkey <command> --help\n"
+      @@usage_msg += "Valid commands for monkey: #{@@available_commands.join(", ")}"
+
+      if @@available_commands.contains?(@@command)
+        VirtualMonkey::Command.__send__(@@command)
+      else
+        STDERR.puts "Invalid command #{@@command}\n\n#{@@usage_msg}"
+        exit(1)
       end
+    end
+
+    def self.help
+      puts @@usage_msg
     end
 
     def self.create_logic

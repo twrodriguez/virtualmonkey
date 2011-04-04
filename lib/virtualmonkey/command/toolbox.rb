@@ -26,5 +26,18 @@ module VirtualMonkey
       VirtualMonkey::Toolbox::populate_security_groups(@@options[:add_cloud])
       puts "Security Group file populated."
     end
+
+    def self.api_check
+      @@options = Trollop::options do
+        opt :api_version, "Check to see if the monkey has RightScale API access for the given version (0.1, 1.0, or 1.5)", :type => :float, :required => true
+      end
+
+      if [0.1, 1.0, 1.5].contains?(@@options[:api_version])
+        ret = VirtualMonkey::Toolbox.__send__("api#{@@options[:api_version]}?".gsub(/\./,"_"))
+        puts "#{ret}"
+      else
+        STDERR.puts "Invalid version number: #{@@options[:api_version]}"
+      end
+    end
   end 
 end

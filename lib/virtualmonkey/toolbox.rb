@@ -20,6 +20,30 @@ module VirtualMonkey
       return @@api0_1
     end
 
+    def self.api1_0?
+      unless class_variable_defined?("@@api1_0")
+        begin
+          Ec2SecurityGroup.find_all
+          @@api1_0 = true
+        rescue
+          @@api1_0 = false
+        end
+      end
+      return @@api1_0
+    end
+
+    def self.api1_5?
+      unless class_variable_defined?("@@api1_5")
+        begin
+          McServer.find_all
+          @@api1_5 = true
+        rescue
+          @@api1_5 = false
+        end
+      end
+      return @@api1_5
+    end
+
     def self.setup_paths
       @@sgs_file = File.join("config", "cloud_variables", "security_groups.json")
       @@keys_file = File.join("config", "cloud_variables", "ec2_keys.json")
