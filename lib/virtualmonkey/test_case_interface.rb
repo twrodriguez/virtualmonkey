@@ -1,12 +1,12 @@
 module VirtualMonkey
   module TestCaseInterface
-    def set_var(sym, *args)
-      behavior(sym, *args)
+    def set_var(sym, *args, &block)
+      behavior(sym, *args, block)
     end
 
     def behavior(sym, *args, &block)
       begin
-        rerun_test
+        push_rerun_test
         #pre-command
         populate_settings if @deployment
         #command
@@ -31,7 +31,7 @@ module VirtualMonkey
       result = ""
       select_set(set).each { |s|
         begin
-          rerun_test
+          push_rerun_test
           result_temp = s.spot_check_command(command)
           if not yield(result_temp[:output],result_temp[:status])
             raise "FATAL: Server #{s.nickname} failed probe. Got #{result_temp[:output]}"
@@ -141,7 +141,7 @@ module VirtualMonkey
 
     def object_behavior(obj, sym, *args, &block)
       begin
-        rerun_test
+        push_rerun_test
         #pre-command
         populate_settings if @deployment
         #command
@@ -154,7 +154,7 @@ module VirtualMonkey
       result
     end
 
-    def rerun_test
+    def push_rerun_test
       @rerun_last_command.push(true)
     end
 
