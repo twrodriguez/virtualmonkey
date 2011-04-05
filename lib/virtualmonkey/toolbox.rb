@@ -143,7 +143,7 @@ module VirtualMonkey
       if api0_1?
         found = []
         cloud_ids.each { |c|
-          found << Ec2SshKeyInternal.find_by_cloud_id("#{c}").select { |obj| obj.aws_key_name =~ /#{key_name}/ }
+          found += Ec2SshKeyInternal.find_by_cloud_id("#{c}").select { |obj| obj.aws_key_name =~ /#{key_name}/ }
         }
         key_hrefs = found.select { |k| k.aws_key_name =~ /monkey/ }.map { |k| k.href }
       else
