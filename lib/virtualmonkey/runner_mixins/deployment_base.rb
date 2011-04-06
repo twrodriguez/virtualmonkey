@@ -21,7 +21,7 @@ module VirtualMonkey
 
     def __lookup_scripts__ # Master method, do NOT override
       all_methods = self.methods + self.private_methods
-      lookup_script_methods = all_methods.select! { |m| m =~ /lookup_scripts/ and m != "__lookup_scripts__" }
+      lookup_script_methods = all_methods.select { |m| m =~ /lookup_scripts/ and m != "__lookup_scripts__" }
       lookup_script_methods.each { |method_name| self.__send__(method_name) }
     end
 
