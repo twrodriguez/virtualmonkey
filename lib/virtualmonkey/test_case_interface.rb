@@ -60,8 +60,8 @@ module VirtualMonkey
     private
 
     def __exception_handle__(e)
-      exception_handle_methods = self.methods + self.private_methods
-      exception_handle_methods.select! { |m| m =~ /exception_handle/ and m != "__exception_handle__" }
+      all_methods = self.methods + self.private_methods
+      exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m != "__exception_handle__" }
       
       if e.message =~ /Insufficient capacity/
         puts "Got \"Insufficient capacity\". Retrying...."
