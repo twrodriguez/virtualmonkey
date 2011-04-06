@@ -1,7 +1,7 @@
 module VirtualMonkey
   module TestCaseInterface
     def set_var(sym, *args, &block)
-      behavior(sym, *args, block)
+      behavior(sym, *args, &block)
     end
 
     def behavior(sym, *args, &block)
