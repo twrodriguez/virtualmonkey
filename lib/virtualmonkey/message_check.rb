@@ -104,10 +104,10 @@ class MessageCheck
     if object.is_a?(Array)
       object.each { |i| print_msg += check_messages(i, interactive) + "\n" }
     elsif object.is_a?(Deployment)
-      print_msg += "Checking #{@logfile} in Deployment #{object.nickname}...\n"
+      print_msg += "Checking \"#{@logfile}\" in Deployment \"#{object.nickname}\"...\n"
       object.servers_no_reload.each { |s| print_msg += check_messages(s, interactive) + "\n" }
     elsif object.is_a?(Server) or object.is_a?(ServerInterface)
-      print_msg += "Checking #{@logfile} for Server #{object.nickname}...\n"
+      print_msg += "Checking \"#{@logfile}\" for Server \"#{object.nickname}\"...\n"
       store, ENV['REST_CONNECTION_LOG'] = ENV['REST_CONNECTION_LOG'], "/dev/null"
       messages = object.spot_check_command("cat #{@logfile}")[:output].split("\n")
       ENV['REST_CONNECTION_LOG'] = store
