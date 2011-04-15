@@ -151,8 +151,8 @@ class MessageCheck
             puts "Ignoring..."
           end
         }
-        save_db
       end
+      save_db
     else
       raise "check_messages takes either Deployment or Server objects!"
     end
