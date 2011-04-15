@@ -171,7 +171,7 @@ module VirtualMonkey
       }
     end
 
-    def self.get_runner_class(feature_file) #returns class string
+    def self.get_runner_class #returns class string
       return @@options[:runner] if @@options[:runner]
       return @@options[:terminate] if @@options[:terminate].is_a?(String)
       return nil unless @@options[:feature]
