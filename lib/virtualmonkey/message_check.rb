@@ -55,7 +55,7 @@ class MessageCheck
         entry_to_be['st_rgx'] = lcs(db_entry['st_rgx'], entry_to_be['st_rgx'])
       end
     }
-    @db[list][logfile].reject! { |db_entry| db_entry['msg_rgx'] == entry['msg_rgx'] }
+    @db[list][logfile].reject! { |db_entry| db_entry['msg_rgx'] == msg_rgx }
     @db[list][logfile] << entry_to_be
   end
 
