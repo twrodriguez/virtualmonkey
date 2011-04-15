@@ -119,7 +119,7 @@ module VirtualMonkey
     def self.audit_log_deployment_logic(deployment, interactive = false)
       @@options[:runner] = get_runner_class
       runner = eval("VirtualMonkey::#{@@options[:runner]}.new(deployment.nickname)")
-      puts runner.run_logger_audit(interactive, @@options[:qa])
+      puts runner.behavior(:run_logger_audit, interactive, @@options[:qa])
     end
 
     def self.destroy_job_logic(job)
