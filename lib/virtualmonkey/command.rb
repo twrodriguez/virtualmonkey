@@ -25,7 +25,7 @@ module VirtualMonkey
 
       @@available_commands = ["create", "destroy", "run", "list", "troop", "clone",
                               "update_inputs", "generate_ssh_keys", "destroy_ssh_keys",
-                              "populate_security_groups", "api_check", "help"]
+                              "populate_security_groups", "api_check", "audit_logs", "help"]
 
       @@usage_msg = "Help usage: monkey <command> --help\n"
       @@usage_msg += "Valid commands for monkey: #{@@available_commands.join(", ")}"
@@ -51,19 +51,17 @@ module VirtualMonkey
     end
 
     def self.run_logic
-      begin
-        eval("VirtualMonkey::#{@@options[:terminate]}.new('fgasvgreng243o520sdvnsals')") if @@options[:terminate]
-      rescue Exception => e
-        unless e.message =~ /Could not find a deployment named/
-          puts "WARNING: VirtualMonkey::#{@@options[:terminate]} is not a valid class. Defaulting to SimpleRunner."
-          @@options[:terminate] = "SimpleRunner"
-        end 
+      @@options[:runner] = get_runner_class
+      unless VirtualMonkey.const_defined?(@@options[:runner])
+        puts "WARNING: VirtualMonkey::#{@@options[:runner]} is not a valid class. Defaulting to SimpleRunner."
+        @@options[:runner] = "SimpleRunner"
       end
 
       EM.run {
         @@gm ||= GrinderMonk.new
         @@dm ||= DeploymentMonk.new(@@options[:tag])
         @@do_these ||= @@dm.deployments
+        @@options[:runner] = get_runner_class
         if @@options[:only]
           @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ }
         end 
@@ -94,21 +92,39 @@ module VirtualMonkey
           if @@gm.all_done?
             watch.cancel
           end
-          if @@options[:terminate]
+          
+          if @@options[:terminate] and not @@options[:list_trainer]
             @@remaining_jobs.each do |job|
               if job.status == 0
-                if @@command !~ /troop/ or @@options[:step] =~ /all/
+                if @@command !~ /troop/ or @@options[:step] =~ /(all)|(destroy)/
                   destroy_job_logic(job)
                 end
               end
             end
           end
         }
+        if @@options[:list_trainer]
+          @@remaining_jobs.each do |job|
+            if job.status == 0
+              audit_log_deployment_logic(job.deployment, :interactive)
+              if @@command !~ /troop/ or @@options[:step] =~ /(all)|(destroy)/
+                destroy_job_logic(job) if @@options[:terminate]
+              end
+            end
+          end
+        end
       }
     end
 
+    def self.audit_log_deployment_logic(deployment, interactive = false)
+      @@options[:runner] = get_runner_class
+      runner = eval("VirtualMonkey::#{@@options[:runner]}.new(deployment.nickname)")
+      puts runner.run_logger_audit(interactive, @@options[:qa])
+    end
+
     def self.destroy_job_logic(job)
-      runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(job.deployment.nickname)")
+      @@options[:runner] = get_runner_class
+      runner = eval("VirtualMonkey::#{@@options[:runner]}.new(job.deployment.nickname)")
       puts "Destroying successful deployment: #{runner.deployment.nickname}"
       runner.behavior(:stop_all, false)
       runner.deployment.destroy unless @@options[:no_delete] or @@command =~ /run|clone/
@@ -120,8 +136,9 @@ module VirtualMonkey
     end
 
     def self.destroy_all_logic
+      @@options[:runner] = get_runner_class
       @@dm.deployments.each do |deploy|
-        runner = eval("VirtualMonkey::#{@@options[:terminate]}.new(deploy.nickname)")
+        runner = eval("VirtualMonkey::#{@@options[:runner]}.new(deploy.nickname)")
         runner.behavior(:stop_all, false)
         state_dir = File.join(@@global_state_dir, deploy.nickname)
         if File.directory?(state_dir)
@@ -152,6 +169,23 @@ module VirtualMonkey
           raise e unless e.message =~ /Unable to reserve DNS/
         end
       }
+    end
+
+    def self.get_runner_class(feature_file) #returns class string
+      return @@options[:runner] if @@options[:runner]
+      return @@options[:terminate] if @@options[:terminate].is_a?(String)
+      return nil unless @@options[:feature]
+      feature_file = @@options[:feature]
+      ret = nil
+      File.open(feature_file, "r") { |f|
+        begin
+          line = f.readline
+          ret = line.match(/VirtualMonkey.*Runner/)[0].split(":").last if line =~ /= VirtualMonkey.*Runner/
+        rescue EOFError => e
+          ret = ""
+        end while !ret
+      }
+      return ret
     end
   end
 end

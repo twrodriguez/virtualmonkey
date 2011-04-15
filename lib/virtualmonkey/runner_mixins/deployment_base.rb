@@ -6,6 +6,7 @@ module VirtualMonkey
     
     def initialize(deployment)
       @scripts_to_run = {}
+      @log_checklists = {"whitelist" => {}, "blacklist" => {}, "needlist" => {}}
       @rerun_last_command = []
       @server_templates = []
       @deployment = Deployment.find_by_nickname_speed(deployment).first
@@ -18,6 +19,29 @@ module VirtualMonkey
     # TestCaseInterface methods (behavior, verify, probe) to access these functions.
     # Trust me, I know what's good for you. -- Tim R.
     private
+
+    def deployment_base_blacklist
+      [
+        ["/var/log/messages", ".*", "exception"],
+        ["/var/log/messages", ".*", "error"],
+        ["/var/log/messages", ".*", "fatal"],
+        ["/var/log/messages", ".*", "BEGIN RSA PRIVATE KEY"]
+      ]
+    end
+
+    def deployment_base_exception_handle(e)
+      if e.message =~ /Insufficient capacity/
+        puts "Got \"Insufficient capacity\". Retrying...."
+        sleep 60
+        return "Exception Handled"
+      elsif e.message =~ /Service Temporarily Unavailable/
+        puts "Got \"Service Temporarily Unavailable\". Retrying...."
+        sleep 10
+        return "Exception Handled"
+      else
+        raise e
+      end
+    end
 
     def __lookup_scripts__ # Master method, do NOT override
       all_methods = self.methods + self.private_methods
@@ -46,12 +70,21 @@ module VirtualMonkey
       sts.each { |st|
         table.each { |a|
           st_id = resource_id(st)
-          @scripts_to_run[st_id] = {} unless @scripts_to_run[st_id]
           puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id]
+          @scripts_to_run[st_id] = {} unless @scripts_to_run[st_id]
           @scripts_to_run[st_id][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
           raise "FATAL: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[st_id][ a[0] ]
         }
       }
+    end
+
+    def run_logger_audit(interactive = false, strict = false)
+      mc = MessageCheck.new(@log_checklists, strict)
+      logs = mc.logs_to_check(@server_templates)
+      logs.each do |st_href,logfile_array|
+        servers_to_check = @servers.select { |s| s.server_template_href == st_href }
+        logfile_array.each { |logfile| mc.check_messages(servers_to_check, interactive, logfile) }
+      end
     end
 
     # Loads a single hard-coded RightScript or Recipe, attaching it to all templates in the deployment unless add_only_to_this_st is set

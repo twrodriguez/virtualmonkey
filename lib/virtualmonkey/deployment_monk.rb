@@ -17,7 +17,7 @@ class DeploymentMonk
     Deployment.find_by(:nickname) {|n| n =~ /^#{tag}/ }.each { |d| puts d.nickname }
   end
 
-  def initialize(tag, server_templates = [], extra_images = [])
+  def initialize(tag, server_templates = [], extra_images = [], suppress_monkey_warning = false)
     @clouds = []
     @tag = tag
     @deployments = from_tag
@@ -42,13 +42,13 @@ class DeploymentMonk
         sts_found << ServerTemplate.find_by(:nickname) { |n| n =~ /#{st}/ }
         raise "Found more than one ServerTemplate matching '#{st}'." unless sts_found.size == 1
         st = sts_found.first
-        raise "ABORTING: VirtualMonkey has been found in a deployment." if st.nickname =~ /virtual *monkey/i
-        @server_templates << st
       else #ServerTemplate ID was given
         st = ServerTemplate.find(st.to_i)
-        raise "ABORTING: VirtualMonkey has been found in a deployment." if st.nickname =~ /virtual *monkey/i
-        @server_templates << st
       end
+      unless suppress_monkey_warning
+        raise "ABORTING: VirtualMonkey has been found in a deployment." if st.nickname =~ /virtual *monkey/i
+      end
+      @server_templates << st unless st.nickname =~ /virtual *monkey/i
     end
 
     

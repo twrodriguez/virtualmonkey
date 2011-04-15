@@ -1,3 +1,23 @@
+require 'ruby-debug'
+
+class Object
+  def raise(*args, &block)
+    if ENV["MONKEY_DEEP_DEBUG"] == "true" and block
+      begin
+        super(*args)
+      rescue Exception => e
+        puts "Got exception: #{e.message}" if e
+        puts "Backtrace: #{e.backtrace.join("\n")}" if e
+        puts "Pausing for inspection before continuing to raise Exception..."
+        debugger
+        super(*args)
+      end
+    else
+      super(*args)
+    end
+  end
+end
+
 module VirtualMonkey
   module TestCaseInterface
     def set_var(sym, *args, &block)
@@ -63,16 +83,6 @@ module VirtualMonkey
       all_methods = self.methods + self.private_methods
       exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m != "__exception_handle__" }
       
-      if e.message =~ /Insufficient capacity/
-        puts "Got \"Insufficient capacity\". Retrying...."
-        sleep 60
-        return "Exception Handled"
-      elsif e.message =~ /Service Temporarily Unavailable/
-        puts "Got \"Service Temporarily Unavailable\". Retrying...."
-        sleep 10
-        return "Exception Handled"
-      end
-
       exception_handle_methods.each { |m|
         begin
           self.__send__(m,e)
@@ -82,6 +92,22 @@ module VirtualMonkey
         end
       }
       raise e
+    end
+
+    def __list_loader__
+      all_methods = self.methods + self.private_methods
+      ["whitelist", "blacklist", "needlist"].each do |list|
+        list_methods = all_methods.select { |m| m =~ /#{list}/ }
+        list_methods.each do |m|
+          result = self.__send__(m)
+          if result.is_a?(Array)
+            result.each { |logfile,st_rgx,msg_rgx|
+              @log_checklists[list][logfile] ||= []
+              @log_checklists[list][logfile] << {'st_rgx' => st_rgx, 'msg_rgx' => msg_rgx}
+            }
+          end
+        end
+      end
     end
 
     def help
@@ -122,7 +148,8 @@ module VirtualMonkey
           ret
         }
         @server_templates.uniq!
-        __lookup_scripts__
+        self.__send__(:__lookup_scripts__)
+        self.__send__(:__list_loader__)
         @populated = true
       end
     end

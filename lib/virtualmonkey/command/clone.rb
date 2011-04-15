@@ -8,6 +8,7 @@ module VirtualMonkey
         opt :feature, "path to feature(s) to run against the deployments", :type => :string
         opt :breakpoint, "feature file line to stop at", :type => :integer, :short => '-b'
         opt :copies, "number of copies to make (default is 1)", :type => :integer, :short => '-c'
+        opt :list_trainer, "run through the interactive white- and black-list trainer after the tests complete"
       end
 
       @@options[:copies] = 1 unless @@options[:copies] > 1
