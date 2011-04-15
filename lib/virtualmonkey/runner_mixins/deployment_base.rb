@@ -60,7 +60,7 @@ module VirtualMonkey
 
     # Loads a table of [friendly_name, script/recipe regex] from reference_template, attaching them to all templates in the deployment unless add_only_to_this_st is set
     def load_script_table(reference_template, table, add_only_to_this_st = nil)
-      if add_only_to_this_st.is_a?(Server)
+      if add_only_to_this_st.is_a?(ServerInterface) or add_only_to_this_st.is_a?(Server)
         sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
       elsif add_only_to_this_st.is_a?(ServerTemplate)
         sts = [ add_only_to_this_st ]
@@ -89,7 +89,7 @@ module VirtualMonkey
 
     # Loads a single hard-coded RightScript or Recipe, attaching it to all templates in the deployment unless add_only_to_this_st is set
     def load_script(friendly_name, script, add_only_to_this_st=nil)
-      if add_only_to_this_st.is_a?(Server)
+      if add_only_to_this_st.is_a?(ServerInterface) or add_only_to_this_st.is_a?(Server)
         sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
       elsif add_only_to_this_st.is_a?(ServerTemplate)
         sts = [ add_only_to_this_st ]
@@ -247,11 +247,11 @@ module VirtualMonkey
     # * set can be any way of denoting a set of servers to run on:
     # *** <~Array> will attempt to run the script on each server in set
     # *** <~String> will first attempt to find a function in the runner with that String to get
-    # ***           an Array/Server to run on (e.g. app_servers, s_one). If that fails, then it
+    # ***           an Array/ServerInterface to run on (e.g. app_servers, s_one). If that fails, then it
     # ***           will use the String as a regex to select a subset of servers.
-    # *** <~Symbol> will attempt to run a function in the runner to get an Array/Server to run
+    # *** <~Symbol> will attempt to run a function in the runner to get an Array/ServerInterface to run
     # ***           on (e.g. app_servers, s_one)
-    # *** <~Server> will run the script only on that one server
+    # *** <~ServerInterface> will run the script only on that one server
     # * wait<~Boolean> will wait for the script to complete on all servers (true) or return
     #                  audits for each
     # * options<~Hash> will pass specific inputs to the script to run with
