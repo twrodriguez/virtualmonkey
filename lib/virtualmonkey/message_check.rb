@@ -108,9 +108,7 @@ class MessageCheck
       object.servers_no_reload.each { |s| print_msg += check_messages(s, interactive) + "\n" }
     elsif object.is_a?(Server) or object.is_a?(ServerInterface)
       print_msg += "Checking \"#{@logfile}\" for Server \"#{object.nickname}\"...\n"
-      store, ENV['REST_CONNECTION_LOG'] = ENV['REST_CONNECTION_LOG'], "/dev/null"
-      messages = object.spot_check_command("cat #{@logfile}")[:output].split("\n")
-      ENV['REST_CONNECTION_LOG'] = store
+      messages = object.spot_check_command("cat #{@logfile}", nil, object.dns_name, true)[:output].split("\n")
       st = ServerTemplate.find(object.server_template_href)
       # needlist
       n_msg_start = "ERROR: NEEDLIST entry didn't match any messages:"
