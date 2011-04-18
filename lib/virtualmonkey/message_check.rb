@@ -104,19 +104,25 @@ class MessageCheck
       # needlist
       n_msg_start = "ERROR: NEEDLIST entry didn't match any messages:"
       need_unmatches = needlist_check(messages, st.nickname)
-      num_n_entries = @db[NEEDLIST].select { |logfile,st_rgx,msg_rgx| st.nickname =~ /#{st_rgx}/i }.size
+      num_n_entries = @db[NEEDLIST].select { |logfile,st_rgx,msg_rgx|
+        logfile == @logfile and st.nickname =~ /#{st_rgx}/i
+      }.size
       unless interactive
         need_unmatches.each { |logfile,st_rgx,msg_rgx| print_msg << "#{n_msg_start} [#{st_rgx}, #{msg_rgx}]\n" }
       end
       # blacklist
       b_msg_start = "ERROR: BLACKLIST entry matched:"
       black_matches = messages.select { |line| match?(line, st.nickname, BLACKLIST) }
-      num_b_entries = @db[BLACKLIST].select { |logfile,st_rgx,msg_rgx| st.nickname =~ /#{st_rgx}/i }.size
+      num_b_entries = @db[BLACKLIST].select { |logfile,st_rgx,msg_rgx|
+        logfile == @logfile and st.nickname =~ /#{st_rgx}/i
+      }
       # whitelist
       w_msg_start = "WARNING: WHITELIST entry matched:"
       if black_matches.length > 0 and not @strict
         white_matches = black_matches.select { |line| match?(line, st.nickname, WHITELIST) }
-        num_w_entries = @db[WHITELIST].select { |logfile,st_rgx,msg_rgx| st.nickname =~ /#{st_rgx}/i }.size
+        num_w_entries = @db[WHITELIST].select { |logfile,st_rgx,msg_rgx|
+          logfile == @logfile and st.nickname =~ /#{st_rgx}/i
+        }
         unless interactive
           white_matches.each { |msg| print_msg << "#{w_msg_start} #{msg}\n" }
           (black_matches - white_matches).each { |msg| print_msg << "#{b_msg_start} #{msg}\n" }
@@ -132,11 +138,11 @@ class MessageCheck
       summary_msg = "Log Audit Summary for \"#{@logfile}\":"
       print_msg << "#{"="*summary_msg.size}\n#{summary_msg}\n#{"="*summary_msg.size}\n"
       print_msg << "Total Log Messages:   #{messages.size}\n\n"
-      print_msg << "Needlist Entries:     #{num_n_entries}\n" if need_unmatches
+      print_msg << "Needlist Entries:     #{num_n_entries.size}\n" if need_unmatches
       print_msg << "Needlist Non-matches: #{need_unmatches.size}\n\n" if need_unmatches
-      print_msg << "Blacklist Entries:    #{num_b_entries}\n" if black_matches
+      print_msg << "Blacklist Entries:    #{num_b_entries.size}\n" if black_matches
       print_msg << "Blacklist Matches:    #{black_matches.size}\n\n" if black_matches
-      print_msg << "Whitelist Entries:    #{num_w_entries}\n" if white_matches
+      print_msg << "Whitelist Entries:    #{num_w_entries.size}\n" if white_matches
       print_msg << "Whitelist Matches:    #{white_matches.size}\n\n" if white_matches
 
       if interactive
