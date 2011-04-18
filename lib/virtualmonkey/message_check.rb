@@ -103,7 +103,9 @@ class MessageCheck
       # needlist
       n_msg_start = "ERROR: NEEDLIST entry didn't match any messages:"
       need_unmatches = needlist_check(messages, st.nickname)
-      need_unmatches.each { |st_rgx,msg_rgx| print_msg += "#{n_msg_start} [#{st_rgx}, #{msg_rgx}]\n" }
+      unless interactive
+        need_unmatches.each { |st_rgx,msg_rgx| print_msg += "#{n_msg_start} [#{st_rgx}, #{msg_rgx}]\n" }
+      end
       # blacklist
       b_msg_start = "ERROR: BLACKLIST entry matched:"
       black_matches = messages.select { |line| match?(line, st.nickname, BLACKLIST) }
@@ -111,13 +113,17 @@ class MessageCheck
       w_msg_start = "WARNING: WHITELIST entry matched:"
       if black_matches.length > 0 and not @strict
         white_matches = black_matches.select { |line| match?(line, st.nickname, WHITELIST) }
-        white_matches.each { |msg| print_msg += "#{w_msg_start} #{msg}\n" }
-        (black_matches - white_matches).each { |msg| print_msg += "#{b_msg_start} #{msg}\n" }
+        unless interactive
+          white_matches.each { |msg| print_msg += "#{w_msg_start} #{msg}\n" }
+          (black_matches - white_matches).each { |msg| print_msg += "#{b_msg_start} #{msg}\n" }
+        end
       else
-        black_matches.each { |msg|
-          print_msg += "#{b_msg_start} #{msg}\n"
-          print_msg += "NOTE: WHITELIST has entry for previous message\n" if match?(msg, st.nickname, WHITELIST)
-        }
+        unless interactive
+          black_matches.each { |msg|
+            print_msg += "#{b_msg_start} #{msg}\n"
+            print_msg += "NOTE: WHITELIST has entry for previous message\n" if match?(msg, st.nickname, WHITELIST)
+          }
+        end
       end
       print_msg += "==================\n"
       print_msg += "Log Audit Summary:\n"
