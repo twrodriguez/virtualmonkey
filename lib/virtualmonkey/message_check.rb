@@ -127,14 +127,35 @@ class MessageCheck
       print_msg += "Whitelist Matches: #{white_matches.length}\n" if white_matches
 
       if interactive
-        list_to_classify = black_matches.dup
-        list_to_classify -= white_matches if white_matches
+        case ask("Review (U)nmatched, (B)lacklisted, (W)hitelisted, or (A)ll entries?")
+        when /^[uU]/
+          messages_reference = messages - black_matches
+          messages_reference -= white_matches if white_matches
+          messages_reference.reject! { |line| line =~ match?(msg, st.nickname, NEEDLIST) }
+          puts "Reviewing unmatches entries..."
+        when /^[bB]/
+          messages_reference = black_matches.dup
+          messages_reference -= white_matches if white_matches
+          puts "Reviewing blacklisted entries..."
+        when /^[wW]/
+          if white_matches
+            messages_reference = white_matches.dup
+            puts "Reviewing whitelisted entries..."
+          else
+            messages_reference = messages.dup
+            puts "No whitelisted entries, reviewing all entries..."
+          end
+        else
+          messages_reference = messages.dup
+          puts "Reviewing all entries..."
+        end
+        list_to_classify = messages_reference
         while list_to_classify.first
           msg = list_to_classify.shift
           terminal_width = `stty size`.split(" ").last.to_i
           puts "#{"*" * terminal_width}\n#{msg}\n#{"*" * terminal_width}"
           case ask("(B)lacklist, (W)hitelist, (N)eedlist, or (I)gnore?")
-          when /^[b,B]/
+          when /^[bB]/
             puts "Adding to blacklist..."
             confirmed = false
             while not confirmed
@@ -146,10 +167,10 @@ class MessageCheck
               end
             end
             add_to_list(BLACKLIST, @logfile, st.nickname, message_regex)
-            list_to_classify |= messages.select { |line| match?(line, st.nickname, BLACKLIST) }
+            list_to_classify |= messages_reference.select { |line| match?(line, st.nickname, BLACKLIST) }
             list_to_classify -= list_to_classify.select { |line| match?(line, st.nickname, WHITELIST) }
             puts "Added to blacklist."
-          when /^[w,W]/
+          when /^[wW]/
             puts "Adding to whitelist..."
             confirmed = false
             while not confirmed
@@ -163,7 +184,7 @@ class MessageCheck
             add_to_list(WHITELIST, @logfile, st.nickname, message_regex)
             list_to_classify.reject! { |line| line =~ /#{message_regex}/i }
             puts "Added to whitelist."
-          when /^[n,N]/
+          when /^[nN]/
             puts "Adding to needlist..."
             message_regex = ask("Enter a regular expression for matching the above line:")
             add_to_list(NEEDLIST, @logfile, st.nickname, message_regex)
