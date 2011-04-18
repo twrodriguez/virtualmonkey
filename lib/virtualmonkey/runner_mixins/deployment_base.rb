@@ -6,7 +6,7 @@ module VirtualMonkey
     
     def initialize(deployment)
       @scripts_to_run = {}
-      @log_checklists = {"whitelist" => {}, "blacklist" => {}, "needlist" => {}}
+      @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
       @rerun_last_command = []
       @server_templates = []
       @deployment = Deployment.find_by_nickname_speed(deployment).first
