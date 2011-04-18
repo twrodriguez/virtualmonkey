@@ -65,6 +65,40 @@ module VirtualMonkey
       run_script('create_mysql_ebs_stripe', server, options)
     end
 
+    # creates a MySQL enabled EBS stripe on the server and uses the dumpfile to restore the DB
+    def create_stripe_from_dumpfile(server)
+      options = { "EBS_MOUNT_POINT" => "text:/mnt/mysql", 
+              "EBS_STRIPE_COUNT" => "text:#{@stripe_count}", 
+              "EBS_VOLUME_SIZE" => "text:1", 
+              "DBAPPLICATION_USER" => "text:someuser", 
+#TODO: un-hard code the bucket and dumpfile
+#              "DB_MYSQLDUMP_BUCKET" => "text:#{@bucket}",
+#              "DB_MYSQLDUMP_FILENAME" => "text:#{@dumpfile}",
+              "DB_MYSQLDUMP_BUCKET" => "text:rightscale_tutorials",
+              "DB_MYSQLDUMP_FILENAME" => "text:phptest.sql.gz",
+              "AWS_ACCESS_KEY_ID" => "cred:AWS_ACCESS_KEY_ID",
+              "AWS_SECRET_ACCESS_KEY" => "cred:AWS_SECRET_ACCESS_KEY",
+              "DB_SCHEMA_NAME" => "text:monkey_schema",
+              "DBAPPLICATION_PASSWORD" => "text:somepass", 
+              "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:1",
+              "EBS_LINEAGE" => "text:#{@lineage}" }
+      run_script('create_mysql_ebs_stripe', server, options)
+    end
+
+    # Performs steps necessary to bootstrap a MySQL Master server from a pristine state using a dumpfile.
+    # * server<~Server> the server to use as MASTER
+    def config_master_from_scratch_from_dumpfile(server)
+      behavior(:create_stripe_from_dumpfile, server)
+      object_behavior(server, :spot_check_command, "service mysqld start")
+#TODO the service name depends on the OS
+#      server.spot_check_command("service mysql start")
+      behavior(:run_query, "create database mynewtest", server)
+      behavior(:set_master_dns, server)
+      # This sleep is to wait for DNS to settle - must sleep
+      sleep 120
+      behavior(:run_script, "backup", server)
+    end
+
     # Performs steps necessary to bootstrap a MySQL Master server from a pristine state.
     # * server<~Server> the server to use as MASTER
     def config_master_from_scratch(server)
@@ -290,6 +324,10 @@ module VirtualMonkey
 
     def create_master
       config_master_from_scratch(s_one)
+    end
+
+    def create_master_from_dumpfile
+      config_master_from_scratch_from_dumpfile(s_one)
     end
 
   end
