@@ -100,15 +100,7 @@ module VirtualMonkey
         list_methods = all_methods.select { |m| m =~ /#{list}/ }
         list_methods.each do |m|
           result = self.__send__(m)
-          if result.is_a?(Array)
-            # Old Way
-#            result.each { |logfile,st_rgx,msg_rgx|
-#              @log_checklists[list][logfile] ||= []
-#              @log_checklists[list][logfile] << {'st_rgx' => st_rgx, 'msg_rgx' => msg_rgx}
-#            }
-            # New Way
-            @log_checklists[list] += result
-          end
+          @log_checklists[list] += result if result.is_a?(Array)
         end
       end
     end

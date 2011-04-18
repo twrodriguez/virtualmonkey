@@ -6,24 +6,6 @@ class MessageCheck
   NEEDLIST = "needlist"
   LISTS = [WHITELIST, BLACKLIST, NEEDLIST]
 
-  #####################################################
-  # OLD WAY
-  #####################################################
-  # @db = { "whitelist": {
-  #           "/var/log/messages": [
-  #               {"st_rgx": ".*", "msg_rgx": "..."},
-  #               {"st_rgx": ".*", "msg_rgx": "..."},
-  #               {"st_rgx": ".*", "msg_rgx": "..."}
-  #           ]
-  #           "/var/log/mysql.err": [
-  #               {"st_rgx": ".*", "msg_rgx": "..."}
-  #           ]
-  #         }
-  #         "blacklist": ...
-  #       }
-  #####################################################
-  # NEW WAY
-  #####################################################
   # @db = { "whitelist": [
   #           ["/var/log/messages", ".*", "..."],
   #           ["/var/log/mysql.err", ".*", "..."]
@@ -42,7 +24,6 @@ class MessageCheck
   end
 
   def logs_to_check(server_templates)
-    # New Way
     ret = {}
     server_templates.each do |st|
       LISTS.each { |list|
@@ -56,27 +37,10 @@ class MessageCheck
     end
     ret.each { |k,v| ret[k].uniq! }
     return ret
-    # Old Way
-#    ret = {}
-#    server_templates.each do |st|
-#      LISTS.each { |list|
-#        @db[list].each do |logfile,entries|
-#          entries.each { |entry|
-#            if st.nickname =~ /#{entry['st_rgx']}/
-#              ret[st.href] ||= []
-#              ret[st.href] << logfile
-#            end
-#          }
-#        end
-#      }
-#    end
-#    ret.each { |k,v| ret[k].uniq! }
-#    return ret
   end
 
   def add_to_list(list, logfile_to_be, st_rgx_to_be, msg_rgx_to_be)
     # Do a union with existing lists to abstract which server templates should match
-    # New Way
     entry_to_be = {'st' => st_rgx_to_be, 'msg' => msg_rgx_to_be}
     @db[list].each { |logfile,st_rgx,msg_rgx|
       if msg_rgx == msg_rgx_to_be
@@ -85,19 +49,9 @@ class MessageCheck
     }
     @db[list].reject! { |logfile,st_rgx,msg_rgx| msg_rgx == msg_rgx_to_be }
     @db[list] << [logfile_to_be, entry_to_be['st'], entry_to_be['msg']]
-    # Old Way
-#    entry_to_be = {'st_rgx' => st_rgx, 'msg_rgx' => msg_rgx}
-#    @db[list][logfile].each { |db_entry|
-#      if db_entry['msg_rgx'] == msg_rgx
-#        entry_to_be['st_rgx'] = lcs(db_entry['st_rgx'], entry_to_be['st_rgx'])
-#      end
-#    }
-#    @db[list][logfile].reject! { |db_entry| db_entry['msg_rgx'] == msg_rgx }
-#    @db[list][logfile] << entry_to_be
   end
 
   def load_lists(lists = {})
-    # New Way
     LISTS.each { |l|
       @db[l] = JSON::parse(IO.read(File.join("config", "lists", "#{l}.json")))
       if lists[l]
@@ -107,43 +61,23 @@ class MessageCheck
         }
       end
     }
-    # Old Way
-#    LISTS.each { |l|
-#      @db[l] = JSON::parse(IO.read(File.join("config", "lists", "#{l}.json")))
-#      if lists[l]
-#        @db[l] ||= {}
-#        lists[l].each { |logfile,entries|
-#          @db[l][logfile] ||= []
-#          entries.each do |entry|
-#            add_to_list(l, logfile, entry['st_rgx'], entry['msg_rgx']) unless @db[l][logfile].include?(entry)
-#          end
-#        }
-#      end
-#    }
   end
 
   def save_db
     LISTS.each { |list|
-      list_out = @db[list].to_json(:indent => "  ", :object_nl => "\n")
+      list_out = @db[list].to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
       File.open(File.join("config", "lists", "#{list}.json"), "w") { |f| f.write(list_out) }
     }
   end
 
   def match?(msg, st_name, list)
-    # New Way
     res = @db[list].select { |logfile,st_rgx,msg_rgx|
       logfile == @logfile and msg =~ /#{msg_rgx}/i and st_name =~ /#{st_rgx}/i
     }
     return res.first
-    # Old Way
-#    @db[list][@logfile].each { |st_rgx,msg_rgx|
-#      return true if msg =~ /#{msg_rgx}/i and st_name =~ /#{st_rgx}/i
-#    }
-#    return false
   end
 
   def needlist_check(match_list, st_name)
-    # New Way
     return [] unless @db[NEEDLIST].length > 0
     ret_list = @db[NEEDLIST].dup
     match_list.each { |msg|
@@ -152,15 +86,6 @@ class MessageCheck
       }
     }
     return ret_list
-
-    # Old Way
-#    return [] unless @db[NEEDLIST] and @db[NEEDLIST][@logfile] and @db[NEEDLIST][@logfile].length > 0
-#    ret_list = @db[NEEDLIST].dup
-#    ret_list.reject! { |st_rgx,msg_rgx| st_name !~ /#{st_rgx}/i }
-#    match_list.each { |msg|
-#      ret_list.reject! { |st_rgx,msg_rgx| msg =~ /#{msg_rgx}/i }
-#    }
-#    return ret_list
   end
 
   def check_messages(object, interactive = false, log_file = @logfile)
@@ -177,8 +102,8 @@ class MessageCheck
       st = ServerTemplate.find(object.server_template_href)
       # needlist
       n_msg_start = "ERROR: NEEDLIST entry didn't match any messages:"
-      need_disparity = needlist_check(messages, st.nickname)
-      need_disparity.each { |st_rgx,msg_rgx| print_msg += "#{n_msg_start} [#{st_rgx}, #{msg_rgx}]\n" }
+      need_unmatches = needlist_check(messages, st.nickname)
+      need_unmatches.each { |st_rgx,msg_rgx| print_msg += "#{n_msg_start} [#{st_rgx}, #{msg_rgx}]\n" }
       # blacklist
       b_msg_start = "ERROR: BLACKLIST entry matched:"
       black_matches = messages.select { |line| match?(line, st.nickname, BLACKLIST) }
@@ -194,28 +119,59 @@ class MessageCheck
           print_msg += "NOTE: WHITELIST has entry for previous message\n" if match?(msg, st.nickname, WHITELIST)
         }
       end
+      print_msg += "==================\n"
+      print_msg += "Log Audit Summary:\n"
+      print_msg += "==================\n"
+      print_msg += "Needlist Non-matches: #{need_unmatches.length}\n" if need_unmatches.first
+      print_msg += "Blacklist Matches: #{black_matches.length}\n" if black_matches.first
+      print_msg += "Whitelist Matches: #{white_matches.length}\n" if white_matches.first
 
       if interactive
-        black_matches.each { |msg|
+        list_to_classify = black_matches.dup
+        list_to_classify -= white_matches if white_matches
+        while list_to_classify.first
+          msg = list_to_classify.shift
           terminal_width = `stty size`.split(" ").last.to_i
           puts "#{"*" * terminal_width}\n#{msg}\n#{"*" * terminal_width}"
           case ask("(B)lacklist, (W)hitelist, (N)eedlist, or (I)gnore?")
           when /^[b,B]/
             puts "Adding to blacklist..."
-            message_regex = ask("Enter a regular expression for matching the above line:")
+            confirmed = false
+            while not confirmed
+              message_regex = ask("Enter a regular expression for matching the above line:")
+              # Verify that this regex only covers what should be covered
+              verify = messages.select { |line| line =~ /#{message_regex}/i }
+              if verify.size > 1
+                confirmed = ask("Adding \"#{message_regex}\" would blacklist #{verify.size} current entries. Are you sure you want to add it? (y/n)", lambda { |ans| true if ans =~ /^[yY]{1}/ })
+              end
+            end
             add_to_list(BLACKLIST, @logfile, st.nickname, message_regex)
+            list_to_classify |= messages.select { |line| match?(line, st.nickname, BLACKLIST) }
+            list_to_classify -= list_to_classify.select { |line| match?(line, st.nickname, WHITELIST) }
+            puts "Added to blacklist."
           when /^[w,W]/
             puts "Adding to whitelist..."
-            message_regex = ask("Enter a regular expression for matching the above line:")
+            confirmed = false
+            while not confirmed
+              message_regex = ask("Enter a regular expression for matching the above line:")
+              # Verify that this regex only covers what should be covered
+              verify = list_to_classify.select { |line| line =~ /#{message_regex}/i }
+              if verify.size > 1
+                confirmed = ask("Adding \"#{message_regex}\" would whitelist #{verify.size} flagged entries. Are you sure you want to add it? (y/n)", lambda { |ans| true if ans =~ /^[yY]{1}/ })
+              end
+            end
             add_to_list(WHITELIST, @logfile, st.nickname, message_regex)
+            list_to_classify.reject! { |line| line =~ /#{message_regex}/i }
+            puts "Added to whitelist."
           when /^[n,N]/
             puts "Adding to needlist..."
             message_regex = ask("Enter a regular expression for matching the above line:")
             add_to_list(NEEDLIST, @logfile, st.nickname, message_regex)
+            puts "Added to needlist."
           else
             puts "Ignoring..."
           end
-        }
+        end
       end
       save_db
     else
