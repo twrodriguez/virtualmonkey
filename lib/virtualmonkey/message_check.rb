@@ -6,6 +6,9 @@ class MessageCheck
   NEEDLIST = "needlist"
   LISTS = [WHITELIST, BLACKLIST, NEEDLIST]
 
+  #####################################################
+  # OLD WAY
+  #####################################################
   # @db = { "whitelist": {
   #           "/var/log/messages": [
   #               {"st_rgx": ".*", "msg_rgx": "..."},
@@ -16,6 +19,15 @@ class MessageCheck
   #               {"st_rgx": ".*", "msg_rgx": "..."}
   #           ]
   #         }
+  #         "blacklist": ...
+  #       }
+  #####################################################
+  # NEW WAY
+  #####################################################
+  # @db = { "whitelist": [
+  #           ["/var/log/messages", ".*", "..."],
+  #           ["/var/log/mysql.err", ".*", "..."]
+  #         ],
   #         "blacklist": ...
   #       }
 
@@ -30,72 +42,125 @@ class MessageCheck
   end
 
   def logs_to_check(server_templates)
+    # New Way
     ret = {}
     server_templates.each do |st|
       LISTS.each { |list|
-        @db[list].each do |logfile,entries|
-          entries.each { |entry|
-            if st.nickname =~ /#{entry['st_rgx']}/
-              ret[st.href] ||= []
-              ret[st.href] << logfile
-            end
-          }
+        @db[list].each do |logfile,st_rgx,msg_rgx|
+          if st.nickname =~ /#{st_rgx}/i
+            ret[st.href] ||= []
+            ret[st.href] << logfile
+          end
         end
       }
     end
     ret.each { |k,v| ret[k].uniq! }
     return ret
+    # Old Way
+#    ret = {}
+#    server_templates.each do |st|
+#      LISTS.each { |list|
+#        @db[list].each do |logfile,entries|
+#          entries.each { |entry|
+#            if st.nickname =~ /#{entry['st_rgx']}/
+#              ret[st.href] ||= []
+#              ret[st.href] << logfile
+#            end
+#          }
+#        end
+#      }
+#    end
+#    ret.each { |k,v| ret[k].uniq! }
+#    return ret
   end
 
-  def add_to_list(list, logfile, st_rgx, msg_rgx)
+  def add_to_list(list, logfile_to_be, st_rgx_to_be, msg_rgx_to_be)
     # Do a union with existing lists to abstract which server templates should match
-    entry_to_be = {'st_rgx' => st_rgx, 'msg_rgx' => msg_rgx}
-    @db[list][logfile].each { |db_entry|
-      if db_entry['msg_rgx'] == msg_rgx
-        entry_to_be['st_rgx'] = lcs(db_entry['st_rgx'], entry_to_be['st_rgx'])
+    # New Way
+    entry_to_be = {'st' => st_rgx_to_be, 'msg' => msg_rgx_to_be}
+    @db[list].each { |logfile,st_rgx,msg_rgx|
+      if msg_rgx == msg_rgx_to_be
+        entry_to_be['st'] = lcs(st_rgx, entry_to_be['st'])
       end
     }
-    @db[list][logfile].reject! { |db_entry| db_entry['msg_rgx'] == msg_rgx }
-    @db[list][logfile] << entry_to_be
+    @db[list].reject! { |logfile,st_rgx,msg_rgx| msg_rgx == msg_rgx_to_be }
+    @db[list] << [logfile_to_be, entry_to_be['st'], entry_to_be['msg']]
+    # Old Way
+#    entry_to_be = {'st_rgx' => st_rgx, 'msg_rgx' => msg_rgx}
+#    @db[list][logfile].each { |db_entry|
+#      if db_entry['msg_rgx'] == msg_rgx
+#        entry_to_be['st_rgx'] = lcs(db_entry['st_rgx'], entry_to_be['st_rgx'])
+#      end
+#    }
+#    @db[list][logfile].reject! { |db_entry| db_entry['msg_rgx'] == msg_rgx }
+#    @db[list][logfile] << entry_to_be
   end
 
   def load_lists(lists = {})
+    # New Way
     LISTS.each { |l|
       @db[l] = JSON::parse(IO.read(File.join("config", "lists", "#{l}.json")))
       if lists[l]
-        @db[l] ||= {}
-        lists[l].each { |logfile,entries|
-          @db[l][logfile] ||= []
-          entries.each do |entry|
-            add_to_list(l, logfile, entry['st_rgx'], entry['msg_rgx']) unless @db[l][logfile].include?(entry)
-          end
+        @db[l] ||= []
+        lists[l].each { |logfile,st_rgx,msg_rgx|
+          add_to_list(l, logfile, st_rgx, msg_rgx) unless @db[l].include?([logfile, st_rgx, msg_rgx])
         }
       end
     }
+    # Old Way
+#    LISTS.each { |l|
+#      @db[l] = JSON::parse(IO.read(File.join("config", "lists", "#{l}.json")))
+#      if lists[l]
+#        @db[l] ||= {}
+#        lists[l].each { |logfile,entries|
+#          @db[l][logfile] ||= []
+#          entries.each do |entry|
+#            add_to_list(l, logfile, entry['st_rgx'], entry['msg_rgx']) unless @db[l][logfile].include?(entry)
+#          end
+#        }
+#      end
+#    }
   end
 
   def save_db
     LISTS.each { |list|
-      list_out = @db[list].to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
+      list_out = @db[list].to_json(:indent => "  ", :object_nl => "\n")
       File.open(File.join("config", "lists", "#{list}.json"), "w") { |f| f.write(list_out) }
     }
   end
 
   def match?(msg, st_name, list)
-    @db[list][@logfile].each { |st_rgx,msg_rgx|
-      return true if msg =~ /#{msg_rgx}/i and st_name =~ /#{st_rgx}/i
+    # New Way
+    res = @db[list].select { |logfile,st_rgx,msg_rgx|
+      logfile == @logfile and msg =~ /#{msg_rgx}/i and st_name =~ /#{st_rgx}/i
     }
-    return false
+    return res.first
+    # Old Way
+#    @db[list][@logfile].each { |st_rgx,msg_rgx|
+#      return true if msg =~ /#{msg_rgx}/i and st_name =~ /#{st_rgx}/i
+#    }
+#    return false
   end
 
   def needlist_check(match_list, st_name)
-    return [] unless @db[NEEDLIST] and @db[NEEDLIST][@logfile] and @db[NEEDLIST][@logfile].length > 0
+    # New Way
+    return [] unless @db[NEEDLIST].length > 0
     ret_list = @db[NEEDLIST].dup
-    ret_list.reject! { |st_rgx,msg_rgx| st_name !~ /#{st_rgx}/i }
     match_list.each { |msg|
-      ret_list.reject! { |st_rgx,msg_rgx| msg =~ /#{msg_rgx}/i }
+      ret_list.reject! { |logfile,st_rgx,msg_rgx|
+        logfile != @logfile or st_name !~ /#{st_rgx}/i or msg =~ /#{msg_rgx}/i
+      }
     }
     return ret_list
+
+    # Old Way
+#    return [] unless @db[NEEDLIST] and @db[NEEDLIST][@logfile] and @db[NEEDLIST][@logfile].length > 0
+#    ret_list = @db[NEEDLIST].dup
+#    ret_list.reject! { |st_rgx,msg_rgx| st_name !~ /#{st_rgx}/i }
+#    match_list.each { |msg|
+#      ret_list.reject! { |st_rgx,msg_rgx| msg =~ /#{msg_rgx}/i }
+#    }
+#    return ret_list
   end
 
   def check_messages(object, interactive = false, log_file = @logfile)
