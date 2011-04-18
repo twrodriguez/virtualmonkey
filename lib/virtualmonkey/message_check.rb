@@ -87,24 +87,25 @@ class MessageCheck
     }
     return ret_list
   end
-
+  
   def check_messages(object, interactive = false, log_file = @logfile)
     @logfile = log_file
     print_msg = ""
+    print_msg = STDOUT if interactive
     if object.is_a?(Array)
-      object.each { |i| print_msg += check_messages(i, interactive) + "\n" }
+      object.each { |i| print_msg << check_messages(i, interactive) + "\n" }
     elsif object.is_a?(Deployment)
-      print_msg += "Checking \"#{@logfile}\" in Deployment \"#{object.nickname}\"...\n"
-      object.servers_no_reload.each { |s| print_msg += check_messages(s, interactive) + "\n" }
+      print_msg << "Checking \"#{@logfile}\" in Deployment \"#{object.nickname}\"...\n"
+      object.servers_no_reload.each { |s| print_msg << check_messages(s, interactive) + "\n" }
     elsif object.is_a?(Server) or object.is_a?(ServerInterface)
-      print_msg += "Checking \"#{@logfile}\" for Server \"#{object.nickname}\"...\n"
+      print_msg << "Checking \"#{@logfile}\" for Server \"#{object.nickname}\"...\n"
       messages = object.spot_check_command("cat #{@logfile}", nil, object.dns_name, true)[:output].split("\n")
       st = ServerTemplate.find(object.server_template_href)
       # needlist
       n_msg_start = "ERROR: NEEDLIST entry didn't match any messages:"
       need_unmatches = needlist_check(messages, st.nickname)
       unless interactive
-        need_unmatches.each { |st_rgx,msg_rgx| print_msg += "#{n_msg_start} [#{st_rgx}, #{msg_rgx}]\n" }
+        need_unmatches.each { |st_rgx,msg_rgx| print_msg << "#{n_msg_start} [#{st_rgx}, #{msg_rgx}]\n" }
       end
       # blacklist
       b_msg_start = "ERROR: BLACKLIST entry matched:"
@@ -114,23 +115,23 @@ class MessageCheck
       if black_matches.length > 0 and not @strict
         white_matches = black_matches.select { |line| match?(line, st.nickname, WHITELIST) }
         unless interactive
-          white_matches.each { |msg| print_msg += "#{w_msg_start} #{msg}\n" }
-          (black_matches - white_matches).each { |msg| print_msg += "#{b_msg_start} #{msg}\n" }
+          white_matches.each { |msg| print_msg << "#{w_msg_start} #{msg}\n" }
+          (black_matches - white_matches).each { |msg| print_msg << "#{b_msg_start} #{msg}\n" }
         end
       else
         unless interactive
           black_matches.each { |msg|
-            print_msg += "#{b_msg_start} #{msg}\n"
-            print_msg += "NOTE: WHITELIST has entry for previous message\n" if match?(msg, st.nickname, WHITELIST)
+            print_msg << "#{b_msg_start} #{msg}\n"
+            print_msg << "NOTE: WHITELIST has entry for previous message\n" if match?(msg, st.nickname, WHITELIST)
           }
         end
       end
-      print_msg += "==================\n"
-      print_msg += "Log Audit Summary:\n"
-      print_msg += "==================\n"
-      print_msg += "Needlist Non-matches: #{need_unmatches.length}\n" if need_unmatches
-      print_msg += "Blacklist Matches: #{black_matches.length}\n" if black_matches
-      print_msg += "Whitelist Matches: #{white_matches.length}\n" if white_matches
+      print_msg << "==================\n"
+      print_msg << "Log Audit Summary:\n"
+      print_msg << "==================\n"
+      print_msg << "Needlist Non-matches: #{need_unmatches.length}\n" if need_unmatches
+      print_msg << "Blacklist Matches: #{black_matches.length}\n" if black_matches
+      print_msg << "Whitelist Matches: #{white_matches.length}\n" if white_matches
 
       if interactive
         case ask("Review (U)nmatched, (B)lacklisted, (W)hitelisted, or (A)ll entries?")
@@ -204,7 +205,8 @@ class MessageCheck
     else
       raise "check_messages takes either Deployment or Server objects!"
     end
-    return print_msg
+    return print_msg unless interactive
+    ""
   end
 
   # Longest Common Subsequence
