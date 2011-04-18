@@ -122,9 +122,9 @@ class MessageCheck
       print_msg += "==================\n"
       print_msg += "Log Audit Summary:\n"
       print_msg += "==================\n"
-      print_msg += "Needlist Non-matches: #{need_unmatches.length}\n" if need_unmatches.first
-      print_msg += "Blacklist Matches: #{black_matches.length}\n" if black_matches.first
-      print_msg += "Whitelist Matches: #{white_matches.length}\n" if white_matches.first
+      print_msg += "Needlist Non-matches: #{need_unmatches.length}\n" if need_unmatches
+      print_msg += "Blacklist Matches: #{black_matches.length}\n" if black_matches
+      print_msg += "Whitelist Matches: #{white_matches.length}\n" if white_matches
 
       if interactive
         list_to_classify = black_matches.dup
