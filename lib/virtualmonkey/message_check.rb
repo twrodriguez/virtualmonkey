@@ -106,7 +106,7 @@ class MessageCheck
       need_unmatches = needlist_check(messages, st.nickname)
       num_n_entries = @db[NEEDLIST].select { |logfile,st_rgx,msg_rgx|
         logfile == @logfile and st.nickname =~ /#{st_rgx}/i
-      }.size
+      }
       unless interactive
         need_unmatches.each { |logfile,st_rgx,msg_rgx| print_msg << "#{n_msg_start} [#{st_rgx}, #{msg_rgx}]\n" }
       end
