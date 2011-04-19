@@ -1,0 +1,8 @@
+{
+  "972":{
+    "parameters":{
+      "PRIVATE_SSH_KEY":"key:publish-test:1"
+    },
+    "datacenter_href": "https://my.rightscale.com/api/clouds/972/datacenters/D5F4C6UHKHO10"
+  }
+}

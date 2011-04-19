@@ -14,5 +14,29 @@
       "PRIVATE_SSH_KEY":"key:publish-test:1"
     },
     "datacenter_href": "https://my.rightscale.com/api/clouds/973/datacenters/AA5ELMLG5GGLJ"
+  },
+  "716":{
+    "parameters":{
+      "PRIVATE_SSH_KEY":"key:publish-test:1"
+    },
+    "datacenter_href": "https://my.rightscale.com/api/clouds/716/datacenters/4PI8TKUI2VH9D"
+  },
+  "972":{
+    "parameters":{
+      "PRIVATE_SSH_KEY":"key:publish-test:1"
+    },
+    "datacenter_href": "https://my.rightscale.com/api/clouds/972/datacenters/D5F4C6UHKHO10"
+  },
+  "923":{
+    "parameters":{
+      "PRIVATE_SSH_KEY":"key:publish-test:1"
+    },
+    "datacenter_href": "https://my.rightscale.com/api/clouds/923/datacenters/39KOA8TUKS2QV"
+  },
+  "822":{
+    "parameters":{
+      "PRIVATE_SSH_KEY":"key:publish-test:1"
+    },
+    "datacenter_href": "https://my.rightscale.com/api/clouds/822/datacenters/FC5ELLFVKBTQG"
   }
 }
