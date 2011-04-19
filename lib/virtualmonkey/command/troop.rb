@@ -13,7 +13,7 @@ module VirtualMonkey
         opt :no_delete, "only terminate, no deletion.", :short => "-d"
         opt :verbose, "Print all output to STDOUT as well as the log files", :short => "-v"
         opt :list_trainer, "run through the interactive white- and black-list trainer after the tests complete, before the deployments are destroyed"
-        opt :qa, "Before destroying deployments, runs through /var/log/messages and does a strict blacklist check (ignores whitelist)"
+        opt :qa, "Before destroying deployments, does a strict blacklist check (ignores whitelist)"
       end
 
       # PATHs SETUP

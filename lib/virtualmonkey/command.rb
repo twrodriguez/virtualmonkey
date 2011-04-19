@@ -93,7 +93,7 @@ module VirtualMonkey
             watch.cancel
           end
           
-          if @@options[:terminate] and not @@options[:list_trainer]
+          if @@options[:terminate] and not (@@options[:list_trainer] or @@options[:qa])
             @@remaining_jobs.each do |job|
               if job.status == 0
                 if @@command !~ /troop/ or @@options[:step] =~ /(all)|(destroy)/
@@ -103,7 +103,7 @@ module VirtualMonkey
             end
           end
         }
-        if @@options[:list_trainer]
+        if @@options[:list_trainer] or @@options[:qa]
           @@remaining_jobs.each do |job|
             if job.status == 0
               audit_log_deployment_logic(job.deployment, :interactive)

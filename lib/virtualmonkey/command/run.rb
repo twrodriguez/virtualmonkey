@@ -16,6 +16,7 @@ module VirtualMonkey
         opt :yes, "Turn off confirmation", :short => "-y"
         opt :verbose, "Print all output to STDOUT as well as the log files", :short => "-v"
         opt :list_trainer, "run through the interactive white- and black-list trainer after the tests complete, before the deployments are destroyed"
+        opt :qa, "Before destroying deployments, does a strict blacklist check (ignores whitelist)"
       end
 
       run_logic
