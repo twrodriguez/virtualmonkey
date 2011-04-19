@@ -43,7 +43,7 @@ class MessageCheck
     # Do a union with existing lists to abstract which server templates should match
     entry_to_be = {'st' => st_rgx_to_be, 'msg' => msg_rgx_to_be}
     @db[list].each { |logfile,st_rgx,msg_rgx|
-      if msg_rgx == msg_rgx_to_be
+      if msg_rgx == msg_rgx_to_be and logfile == logfile_to_be
         entry_to_be['st'] = lcs(st_rgx, entry_to_be['st'])
       end
     }

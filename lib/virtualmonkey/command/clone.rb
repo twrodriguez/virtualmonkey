@@ -9,6 +9,7 @@ module VirtualMonkey
         opt :breakpoint, "feature file line to stop at", :type => :integer, :short => '-b'
         opt :copies, "number of copies to make (default is 1)", :type => :integer, :short => '-c'
         opt :list_trainer, "run through the interactive white- and black-list trainer after the tests complete"
+        opt :qa, "Before destroying deployments, does a strict blacklist check (ignores whitelist)"
       end
 
       @@options[:copies] = 1 unless @@options[:copies] > 1

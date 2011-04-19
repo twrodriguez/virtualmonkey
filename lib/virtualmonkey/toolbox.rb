@@ -194,7 +194,7 @@ module VirtualMonkey
             sg = found
           else
             puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
-            default = McSecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
+            default = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /default/ }.first
             raise "Security Group 'default' not found in cloud #{cloud}." unless default
             sg = default
           end 
