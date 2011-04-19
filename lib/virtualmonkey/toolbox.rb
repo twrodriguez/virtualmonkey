@@ -88,14 +88,10 @@ module VirtualMonkey
           puts "Data found for cloud #{cloud}. Skipping..."
           next
         end
-        if File.exists?(multicloud_key_file)
-          key_name = "api_user_key"
+        if cloud <= 10
+          key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
         else
-          if cloud <= 10
-            key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
-          else
-            key_name = "monkey-1-#{ENV['RS_API_URL'].split("/").last}"
-          end
+          key_name = "api_user_key"
         end
         if cloud <= 10
           found = nil
@@ -112,7 +108,10 @@ module VirtualMonkey
           File.open(priv_key_file, "w") { |f| f.write(k.aws_material) } unless File.exists?(priv_key_file)
         else
           # Use API user's managed ssh key
-          puts "Using API user's managed ssh key"
+          puts "Using API user's managed ssh key, make sure \"~/.ssh/#{key_name}\" exists!"
+          keys["#{cloud}"] = {"parameters" =>
+                                {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
+                              }
           priv_key_file = multicloud_key_file
         end
 
