@@ -1,10 +1,4 @@
 {
-  "1":{},
-//  "232":{
-//    "parameters":{
-//      "PRIVATE_SSH_KEY":"key:publish-test:1"
-//    }
-//  },
   "973":{
     "parameters":{
       "PRIVATE_SSH_KEY":"key:publish-test:1"

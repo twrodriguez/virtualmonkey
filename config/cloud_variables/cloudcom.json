@@ -1,8 +1,0 @@
-{
-  "850":{
-    "parameters":{
-      "PRIVATE_SSH_KEY":"key:publish-test:1"
-    },
-    "datacenter_href": "https://my.rightscale.com/api/clouds/850/datacenters/6D17SF55U9GFP"
-  }
-}
