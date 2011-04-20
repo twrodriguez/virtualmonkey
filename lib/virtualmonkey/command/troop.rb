@@ -28,12 +28,26 @@ module VirtualMonkey
         troop_config[:server_template_ids] = ask("What Server Template ids (or names) would you like to use to create the deployments (comma delimited)?").split(",")
         troop_config[:server_template_ids].each {|st| st.strip!}
 
-        troop_config[:cloud_variables] =
+        file_or_nums =
           choose do |menu|
-            menu.prompt = "Which cloud_variables config file?"
+            menu.prompt = "Use a single cloud_variables config file, or a list of cloud_ids?"
             menu.index = :number
-            menu.choices(*cloud_variables_glob)
+            menu.choices("cloud_variables Config File", "List of Cloud IDs"
           end
+
+        if file_or_nums =~ /cloud_variables/
+          troop_config[:cloud_variables] =
+            choose do |menu|
+              menu.prompt = "Which cloud_variables config file?"
+              menu.index = :number
+              menu.choices(*cloud_variables_glob)
+            end
+        else
+          puts "Available Clouds:"
+          get_available_clouds().each { |cloud| puts "#{c['cloud_id']}: #{c['name']}" }
+          list_of_clouds = ask("Enter a space-separated list of cloud_ids to use").split(" ")
+          troop_config[:clouds] = list_of_clouds.map { |c| c.to_i }
+        end
 
         troop_config[:common_inputs] =
           choose do |menu|

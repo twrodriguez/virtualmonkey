@@ -24,8 +24,7 @@ class DeploymentMonk
     @server_templates = []
     @common_inputs = {}
     @variables_for_cloud = {}
-    @ec2_ssh_keys = {}
-    @security_groups = {}
+    @ec2_ssh_keys, @security_groups, @datacenters = {}, {}, {}
     raise "Need either populated deployments or passed in server_template ids" if server_templates.empty? && @deployments.empty?
     if server_templates.empty?
       puts "loading server templates from all deployments"
@@ -140,6 +139,11 @@ class DeploymentMonk
             VirtualMonkey::Toolbox::populate_security_groups(cloud)
             @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","security_groups.json")))
           end
+          unless @datacenters[cloud]
+#            `export ADD_CLOUD_SECURITY_GROUP=#{cloud}; bash -cex "cd spec; ruby get_security_groups.rb"`
+            VirtualMonkey::Toolbox::populate_datacenters(cloud)
+            @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","datacenters.json")))
+          end
           @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud])
           @variables_for_cloud[cloud].merge!(@security_groups[cloud])
           @common_inputs.merge!(@variables_for_cloud[cloud]['parameters'])
@@ -207,6 +211,10 @@ class DeploymentMonk
 
   def load_cloud_variables(file)
     @variables_for_cloud.merge! JSON.parse(IO.read(file))
+  end
+
+  def load_clouds(cloud_ids)
+    cloud_ids.each { |id| @variables_for_cloud.merge! {"#{id}" => {}} }
   end
 
   def update_inputs

@@ -25,7 +25,8 @@ module VirtualMonkey
 
       @@available_commands = ["create", "destroy", "run", "list", "troop", "clone",
                               "update_inputs", "generate_ssh_keys", "destroy_ssh_keys",
-                              "populate_security_groups", "api_check", "audit_logs", "help"]
+                              "populate_security_groups", "populate_datacenters", "api_check",
+                              "audit_logs", "populate_all_cloud_variables", "help"]
 
       @@usage_msg = "Help usage: monkey <command> --help\n"
       @@usage_msg += "Valid commands for monkey: #{@@available_commands.join(", ")}"
@@ -43,9 +44,16 @@ module VirtualMonkey
     end
 
     def self.create_logic
-      @@options[:cloud_variables].each { |cvpath| @@dm.load_cloud_variables(cvpath) }
+      if @@options[:clouds]
+        @@dm.load_clouds(@@options[:clouds])
+      elsif @@options[:cloud_variables]
+        @@options[:cloud_variables].each { |cvpath| @@dm.load_cloud_variables(cvpath) }
+      else
+        raise "Usage Error! Need either --clouds or --cloud_variables"
+      end
       @@dm.ec2_ssh_keys = JSON::parse(IO.read(File.join(@@cv_dir, "ec2_keys.json")))
       @@dm.security_groups = JSON::parse(IO.read(File.join(@@cv_dir, "security_groups.json")))
+      @@dm.datacenters = JSON::parse(IO.read(File.join(@@cv_dir, "security_groups.json")))
       @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
       @@dm.generate_variations(@@options)
     end

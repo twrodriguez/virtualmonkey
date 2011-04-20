@@ -45,10 +45,24 @@ module VirtualMonkey
     end
 
     def self.setup_paths
-      @@sgs_file = File.join("config", "cloud_variables", "security_groups.json")
-      @@keys_file = File.join("config", "cloud_variables", "ec2_keys.json")
+      @@cloud_vars_dir = File.join("config", "cloud_variables")
       @@ssh_dir = File.join(File.expand_path("~"), ".ssh")
+      @@sgs_file = File.join(@@cloud_vars_dir, "security_groups.json")
+      @@dcs_file = File.join(@@cloud_vars_dir, "datacenters.json")
+      @@keys_file = File.join(@@cloud_vars_dir, "ec2_keys.json")
       @@rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
+    end
+
+    def self.get_available_clouds
+      unless @@clouds
+        @@clouds = [{"cloud_id" => 1, "name" => "AWS US-East"},
+                    {"cloud_id" => 2, "name" => "AWS EU"},
+                    {"cloud_id" => 3, "name" => "AWS US-West"},
+                    {"cloud_id" => 4, "name" => "AWS AP-Singapore"},
+                    {"cloud_id" => 5, "name" => "AWS AP-Tokyo"}]
+        @@clouds += Clouds.find_all.map { |c| {"cloud_id" => c.cloud_id.to_i, "name" => c.name} }
+      end
+      @@clouds
     end
 
     def self.find_myself_in_api
@@ -93,8 +107,8 @@ module VirtualMonkey
         else
           key_name = "api_user_key"
         end
+        found = nil
         if cloud <= 10
-          found = nil
           if api0_1?
             found = Ec2SshKeyInternal.find_by_cloud_id("#{cloud}").select { |o| o.aws_key_name =~ /#{key_name}/ }.first
           end
@@ -112,6 +126,13 @@ module VirtualMonkey
           keys["#{cloud}"] = {"parameters" =>
                                 {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
                               }
+          begin
+            found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first
+            k = (found ? found : McSshKey.create('name' => key_name, 'cloud_id' => "#{cloud}"))
+            keys["#{cloud}"]["ssh_key_href"] = k.href
+          rescue
+            puts "Cloud #{cloud} doesn't support the resource 'ssh_key'"
+          end
           priv_key_file = multicloud_key_file
         end
 
@@ -188,16 +209,22 @@ module VirtualMonkey
           end 
           sgs["#{cloud}"] = {"ec2_security_groups_href" => sg.href }
         else
-          found = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /#{sg_name}/ }.first
-          if found
-            sg = found
-          else
-            puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
-            default = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /default/ }.first
-            raise "Security Group 'default' not found in cloud #{cloud}." unless default
-            sg = default
-          end 
-          sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
+          begin
+            found = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /#{sg_name}/ }.first
+            if found
+              sg = found
+            else
+              puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
+              default = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /default/ }.first
+              raise "Security Group 'default' not found in cloud #{cloud}." unless default
+              sg = default
+            end 
+            sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
+          rescue Exception => e
+            raise e if e.message =~ /Security Group.*not found/
+            puts "Cloud #{cloud} doesn't support the resource 'security_group'"
+            sgs["#{cloud}"] = {}
+          end
         end 
       }
 
@@ -206,6 +233,71 @@ module VirtualMonkey
                             :array_nl => "\n")
 
       File.open(@@sgs_file, "w") { |f| f.write(sgs_out) }
+    end
+
+    def self.populate_datacenters(add_cloud = nil)
+      setup_paths()
+
+      cloud_ids = []
+      for i in 1..5
+        cloud_ids << i
+      end
+      cloud_ids << add_cloud.to_i if add_cloud
+
+      dcs = (File.exists?(@@dcs_file) ? JSON::parse(IO.read(@@dcs_file)) : {}) 
+
+      cloud_ids.each { |cloud|
+        if dcs["#{cloud}"] # We already have data for this cloud, skip
+          puts "Data found for cloud #{cloud}. Skipping..."
+          next
+        end
+        if cloud <= 10
+          puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
+          dcs["#{cloud}"] = {}
+        else
+          begin
+            found = McDatacenter.find_all("#{cloud}").first
+            dcs["#{cloud}"] = {"datacenter_href" => found.href}
+          rescue
+            puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
+            sgs["#{cloud}"] = {}
+          end
+        end 
+      }
+
+      dcs_out = dcs.to_json(:indent => "  ",
+                            :object_nl => "\n",
+                            :array_nl => "\n")
+
+      File.open(@@dcs_file, "w") { |f| f.write(dcs_out) }
+    end
+
+    def self.populate_all_cloud_variables
+      get_available_clouds()
+
+      aws_clouds_out = {}
+      all_clouds_out = {}
+
+      @@clouds.each { |c|
+        self.generate_ssh_keys(c['cloud_id'])
+        self.populate_security_groups(c['cloud_id'])
+        self.populate_datacenters(c['cloud_id'])
+        # Single File
+        single_cloud_out = {"#{c['cloud_id']}" => {}}.to_json(:indent => "  ",
+                                                              :object_nl => "\n",
+                                                              :array_nl => "\n")
+        # AWS Clouds
+        aws_clouds_out["#{c['cloud_id']}"] = {} if c['cloud_id'] <= 10
+        # All Clouds
+        all_clouds_out["#{c['cloud_id']}"] = {}
+
+        c['name'].gsub!(/[- ]/, "_")
+        c['name'].gsub!(/_+/, "_")
+        c['name'].downcase!
+        File.open(File.join(@@cloud_vars_dir, "#{c['name']}.json"), "w") { |f| f.write(single_cloud_out) }
+      }
+      File.open(File.join(@@cloud_vars_dir, "aws_clouds.json"), "w") { |f| f.write(aws_clouds_out) }
+      File.open(File.join(@@cloud_vars_dir, "all_clouds.json"), "w") { |f| f.write(all_clouds_out) }
     end
   end
 end

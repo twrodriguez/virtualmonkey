@@ -27,6 +27,24 @@ module VirtualMonkey
       puts "Security Group file populated."
     end
 
+    def self.populate_datacenters
+      @@options = Trollop::options do
+        opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
+      end
+
+      VirtualMonkey::Toolbox::populate_datacenters(@@options[:add_cloud])
+      puts "Datacenters file populated."
+    end
+
+    def self.populate_all_cloud_vars
+      @@options = Trollop::options do
+        text "Populates all cloud vars necessary for testing in all clouds accessible by this account."
+      end
+
+      VirtualMonkey::Toolbox::populate_all_cloud_vars
+      puts "Cloud Variables folder populated."
+    end
+
     def self.api_check
       @@options = Trollop::options do
         opt :api_version, "Check to see if the monkey has RightScale API access for the given version (0.1, 1.0, or 1.5)", :type => :float, :required => true
