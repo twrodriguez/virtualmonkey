@@ -92,9 +92,7 @@ module VirtualMonkey
     end
 
     def setup_https_vhost
-      statuses = Array.new
-      fe_servers.each { |s| statuses << object_behavior(s, :run_executable, @scripts_to_run['https_vhost']) }
-      statuses.each_with_index { |s,i| s.wait_for_completed }
+      behavior(:run_script_on_set, fe_servers, 'https_vhost')
       fe_servers.each_with_index do |server,i|
         behavior(:test_http_response, "html serving succeeded", "https://" + server.dns_name + "/index.html", "443")
       end
