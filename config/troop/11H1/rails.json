@@ -7,7 +7,7 @@
     "84647",
     "84647"
   ],
-  "cloud_variables":"east.json",
+  "cloud_variables":"aws_us_east.json",
   "common_inputs":"rails.json",
   "tag":"TROOP_RAILS"
 }

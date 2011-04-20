@@ -8,6 +8,6 @@
     "84644",
     "84644"
   ],
-  "cloud_variables":"japan.json",
+  "cloud_variables":"aws_ap_tokyo.json",
   "common_inputs":"php.json"
 }

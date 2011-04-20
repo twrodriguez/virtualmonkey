@@ -7,5 +7,5 @@
     "88818"
   ],
   "feature":"mysql_5.x_v2_v4_from_scratch.rb",
-  "cloud_variables":"east.json"
+  "cloud_variables":"aws_us_east.json"
 }
