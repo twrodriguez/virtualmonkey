@@ -31,6 +31,7 @@ module VirtualMonkey
       #  force_log_rotation(server)
       #  log_check(server,"/mnt/log/#{server.apache_str}/access.log.1")
       #end
+      detect_os
 
       fe_servers.each do |server|
         behavior(:force_log_rotation, server)

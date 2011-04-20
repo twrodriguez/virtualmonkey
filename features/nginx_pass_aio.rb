@@ -21,7 +21,7 @@
   @runner.behavior(:run_onboarding_checks)
 
 # Then I should check that ulimit was set correctly
-  @runner.probe(".*", "su - mysql -s /bin/bash -c \"ulimit -n\"") { |s| s.to_i > 1024 }
+  @runner.probe(".*", "su - mysql -s /bin/bash -c \"ulimit -n\"") { |r,st| r.to_i > 1024 }
 
 # Then I should check that monitoring is enabled
   @runner.behavior(:check_monitoring)

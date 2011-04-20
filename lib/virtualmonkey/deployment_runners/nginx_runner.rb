@@ -4,12 +4,12 @@ module VirtualMonkey
     include VirtualMonkey::UnifiedApplication
     include VirtualMonkey::Mysql
 
-    def lookup_scripts
+    def nginx_lookup_scripts
       scripts = [
                   [ 'backup', 'mysqldump backup' ],
                   [ 'restart_nginx', '\(re\)start' ]
                 ]
-      lookup_scripts_table(@server_templates.first,scripts)
+      load_script_table(@server_templates.first,scripts)
     end
 
     private

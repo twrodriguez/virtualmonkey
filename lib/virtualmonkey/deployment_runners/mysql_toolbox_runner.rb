@@ -11,7 +11,7 @@ module VirtualMonkey
     # Trust me, I know what's good for you. -- Tim R.
     private
 
-    def lookup_scripts
+    def mysql_toolbox_lookup_scripts
       scripts_mysql = [
                          [ 'promote', 'EBS promote to master' ],
                          [ 'backup', 'EBS backup' ],
@@ -31,17 +31,13 @@ module VirtualMonkey
       tbx = ServerTemplate.find_by(:nickname) { |n| n =~ /Database Manager with MySQL 5.0 Toolbox - 11H1/ }.first
       raise "FATAL: could not find toolbox" unless tbx
       st = ServerTemplate.find(resource_id(s_one.server_template_href))
-      lookup_scripts_table(st,scripts_mysql)
-      lookup_scripts_table(tbx,scripts_my_toolbox)
+      load_script_table(st,scripts_mysql)
+      load_script_table(tbx,scripts_my_toolbox)
       # hardwired script! (this is an 'anyscript' that users typically use to setup the master dns)
       # This a special version of the register that uses MASTER_DB_DNSID instead of a test DNSID
       # This is identical to "DB register master" However it is not part of the template.
-      add_script_to_run('master_init', RightScript.new('href' => "/api/acct/2901/right_scripts/195053"))
+      load_script('master_init', RightScript.new('href' => "/api/acct/2901/right_scripts/195053"))
       raise "Did not find script" unless script_to_run?('master_init')
-    end
-
-    def create_master
-      config_master_from_scratch(s_one)
     end
   end
 end

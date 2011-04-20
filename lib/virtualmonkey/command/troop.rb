@@ -12,6 +12,8 @@ module VirtualMonkey
         opt :mci_override, "list of mcis to use instead of the ones from the server template. expects full hrefs.", :type => :string, :multi => true, :required => false
         opt :no_delete, "only terminate, no deletion.", :short => "-d"
         opt :verbose, "Print all output to STDOUT as well as the log files", :short => "-v"
+        opt :list_trainer, "run through the interactive white- and black-list trainer after the tests complete, before the deployments are destroyed"
+        opt :qa, "Before destroying deployments, does a strict blacklist check (ignores whitelist)"
       end
 
       # PATHs SETUP
@@ -25,14 +27,6 @@ module VirtualMonkey
         troop_config[:tag] = ask("What tag to use for creating the deployments?")
         troop_config[:server_template_ids] = ask("What Server Template ids (or names) would you like to use to create the deployments (comma delimited)?").split(",")
         troop_config[:server_template_ids].each {|st| st.strip!}
-
-        troop_config[:runner] = 
-          choose do |menu|
-            menu.prompt = "What kind of deployment is this (runner type)?"
-            menu.choice("MysqlToolboxRunner")
-            menu.choice("MysqlRunner")
-            menu.choice("SimpleRunner")
-          end
 
         troop_config[:cloud_variables] =
           choose do |menu|
@@ -74,7 +68,8 @@ module VirtualMonkey
         @@options[:cloud_variables] = File.join(@@cv_dir, config['cloud_variables'])
         @@options[:common_inputs] = config['common_inputs'].map { |cipath| File.join(@@ci_dir, cipath) }
         @@options[:feature] = File.join(@@features_dir, config['feature'])
-        @@options[:terminate] = config['runner']
+        @@options[:runner] = get_runner_class
+        @@options[:terminate] = true if @@options[:steps] =~ /(all)|(destroy)/
         unless @@options[:steps] =~ /(all)|(create)|(run)|(destroy)/
           raise "Invalid --steps argument. Valid steps are: 'all', 'create', 'run', or 'destroy'"
         end

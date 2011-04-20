@@ -6,6 +6,7 @@ module VirtualMonkey
     
     def initialize(deployment)
       @scripts_to_run = {}
+      @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
       @rerun_last_command = []
       @server_templates = []
       @deployment = Deployment.find_by_nickname_speed(deployment).first
@@ -19,14 +20,33 @@ module VirtualMonkey
     # Trust me, I know what's good for you. -- Tim R.
     private
 
-    def lookup_scripts
-      puts "WARNING: lookup_scripts is undefined, this must be set in mixin classes"
-      scripts = [
-                 [ 'script_ref1', 'name' ],
-                 [ 'script_ref2', 'name' ]
-               ]
-#      st = ServerTemplate.find(resource_id(s_two.server_template_href))
-#      lookup_scripts_table(st,scripts)
+    def deployment_base_blacklist
+      [
+        ["/var/log/messages", ".*", "exception"],
+        ["/var/log/messages", ".*", "error"],
+        ["/var/log/messages", ".*", "fatal"],
+        ["/var/log/messages", ".*", "BEGIN RSA PRIVATE KEY"]
+      ]
+    end
+
+    def deployment_base_exception_handle(e)
+      if e.message =~ /Insufficient capacity/
+        puts "Got \"Insufficient capacity\". Retrying...."
+        sleep 60
+        return "Exception Handled"
+      elsif e.message =~ /Service Temporarily Unavailable/
+        puts "Got \"Service Temporarily Unavailable\". Retrying...."
+        sleep 10
+        return "Exception Handled"
+      else
+        raise e
+      end
+    end
+
+    def __lookup_scripts__ # Master method, do NOT override
+      all_methods = self.methods + self.private_methods
+      lookup_script_methods = all_methods.select { |m| m =~ /lookup_scripts/ and m != "__lookup_scripts__" }
+      lookup_script_methods.each { |method_name| self.__send__(method_name) }
     end
 
     # Returns the API 1.0 integer id of the rest_connection object or href
@@ -39,8 +59,8 @@ module VirtualMonkey
     end
 
     # Loads a table of [friendly_name, script/recipe regex] from reference_template, attaching them to all templates in the deployment unless add_only_to_this_st is set
-    def lookup_scripts_table(reference_template,table,add_only_to_this_st=nil)
-      if add_only_to_this_st.is_a?(Server)
+    def load_script_table(reference_template, table, add_only_to_this_st = nil)
+      if add_only_to_this_st.is_a?(ServerInterface) or add_only_to_this_st.is_a?(Server)
         sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
       elsif add_only_to_this_st.is_a?(ServerTemplate)
         sts = [ add_only_to_this_st ]
@@ -49,16 +69,29 @@ module VirtualMonkey
       end
       sts.each { |st|
         table.each { |a|
-          @scripts_to_run[resource_id(st)] = {} unless @scripts_to_run[resource_id(st)]
-          @scripts_to_run[resource_id(st)][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
-          raise "WARNING: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[resource_id(st)][ a[0] ]
+          st_id = resource_id(st)
+          puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id]
+          @scripts_to_run[st_id] = {} unless @scripts_to_run[st_id]
+          @scripts_to_run[st_id][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
+          raise "FATAL: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[st_id][ a[0] ]
         }
       }
     end
 
+    def run_logger_audit(interactive = false, strict = false)
+      ret_string = ""
+      mc = MessageCheck.new(@log_checklists, strict)
+      logs = mc.logs_to_check(@server_templates)
+      logs.each do |st_href,logfile_array|
+        servers_to_check = @servers.select { |s| s.server_template_href == st_href }
+        logfile_array.each { |logfile| ret_string += mc.check_messages(servers_to_check, interactive, logfile) }
+      end
+      return ret_string
+    end
+
     # Loads a single hard-coded RightScript or Recipe, attaching it to all templates in the deployment unless add_only_to_this_st is set
-    def add_script_to_run(friendly_name, script, add_only_to_this_st=nil)
-      if add_only_to_this_st.is_a?(Server)
+    def load_script(friendly_name, script, add_only_to_this_st=nil)
+      if add_only_to_this_st.is_a?(ServerInterface) or add_only_to_this_st.is_a?(Server)
         sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
       elsif add_only_to_this_st.is_a?(ServerTemplate)
         sts = [ add_only_to_this_st ]
@@ -216,11 +249,11 @@ module VirtualMonkey
     # * set can be any way of denoting a set of servers to run on:
     # *** <~Array> will attempt to run the script on each server in set
     # *** <~String> will first attempt to find a function in the runner with that String to get
-    # ***           an Array/Server to run on (e.g. app_servers, s_one). If that fails, then it
+    # ***           an Array/ServerInterface to run on (e.g. app_servers, s_one). If that fails, then it
     # ***           will use the String as a regex to select a subset of servers.
-    # *** <~Symbol> will attempt to run a function in the runner to get an Array/Server to run
+    # *** <~Symbol> will attempt to run a function in the runner to get an Array/ServerInterface to run
     # ***           on (e.g. app_servers, s_one)
-    # *** <~Server> will run the script only on that one server
+    # *** <~ServerInterface> will run the script only on that one server
     # * wait<~Boolean> will wait for the script to complete on all servers (true) or return
     #                  audits for each
     # * options<~Hash> will pass specific inputs to the script to run with

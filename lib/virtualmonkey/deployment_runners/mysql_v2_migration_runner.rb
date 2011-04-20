@@ -1,5 +1,8 @@
 module VirtualMonkey
-  class MysqlV2MigrationRunner < VirtualMonkey::MysqlRunner
+  class MysqlV2MigrationRunner
+    include VirtualMonkey::DeploymentBase
+    include VirtualMonkey::EBS
+    include VirtualMonkey::Mysql
     attr_accessor :scripts_to_run
     attr_accessor :db_ebs_prefix
 
@@ -25,7 +28,7 @@ module VirtualMonkey
     end
 
     # lookup all the RightScripts that we will want to run
-    def lookup_scripts
+    def mysql_v2_migration_lookup_scripts
 #TODO fix this so epoch is not hard coded.
 puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1.b1"
      scripts = [
@@ -53,9 +56,9 @@ puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1.b1"
       raise "Did not find mysql toolbox template" unless db_tbx
 
       st_dbm = ServerTemplate.find(resource_id(s_two.server_template_href))
-      lookup_scripts_table(st_dbm,scripts,st_dbm)
-      lookup_scripts_table(ebs_tbx,ebs_toolbox_scripts,st_dbm)
-      lookup_scripts_table(db_tbx,mysql_toolbox_scripts,st_dbm)
+      load_script_table(st_dbm,scripts,st_dbm)
+      load_script_table(ebs_tbx,ebs_toolbox_scripts,st_dbm)
+      load_script_table(db_tbx,mysql_toolbox_scripts,st_dbm)
 
       # st_v2
       ebs_tbx = ServerTemplate.find_by(:nickname) { |n| n =~ /MySQL EBS Stripe Toolbox v2/ }.first
@@ -66,14 +69,14 @@ puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1.b1"
       raise "Did not find mysql toolbox template" unless db_tbx
 
       st_v2 = ServerTemplate.find(resource_id(s_one.server_template_href))
-      lookup_scripts_table(st_v2,scripts,st_v2)
-      lookup_scripts_table(ebs_tbx,ebs_toolbox_scripts,st_v2)
-      lookup_scripts_table(db_tbx,mysql_toolbox_scripts,st_v2)
+      load_script_table(st_v2,scripts,st_v2)
+      load_script_table(ebs_tbx,ebs_toolbox_scripts,st_v2)
+      load_script_table(db_tbx,mysql_toolbox_scripts,st_v2)
 
       # hardwired script! (this is an 'anyscript' that users typically use to setup the master dns)
       # This a special version of the register that uses MASTER_DB_DNSID instead of a test DNSID
       # This is identical to "DB register master" However it is not part of the template.
-      add_script_to_run('master_init', RightScript.new('href' => "/api/acct/2901/right_scripts/195053"))
+      load_script('master_init', RightScript.new('href' => "/api/acct/2901/right_scripts/195053"))
       raise "Did not find script" unless script_to_run?('master_init')
     end
 

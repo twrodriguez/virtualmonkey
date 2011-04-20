@@ -20,6 +20,30 @@ module VirtualMonkey
       return @@api0_1
     end
 
+    def self.api1_0?
+      unless class_variable_defined?("@@api1_0")
+        begin
+          Ec2SecurityGroup.find_all
+          @@api1_0 = true
+        rescue
+          @@api1_0 = false
+        end
+      end
+      return @@api1_0
+    end
+
+    def self.api1_5?
+      unless class_variable_defined?("@@api1_5")
+        begin
+          McServer.find_all
+          @@api1_5 = true
+        rescue
+          @@api1_5 = false
+        end
+      end
+      return @@api1_5
+    end
+
     def self.setup_paths
       @@sgs_file = File.join("config", "cloud_variables", "security_groups.json")
       @@keys_file = File.join("config", "cloud_variables", "ec2_keys.json")
@@ -64,14 +88,10 @@ module VirtualMonkey
           puts "Data found for cloud #{cloud}. Skipping..."
           next
         end
-        if File.exists?(multicloud_key_file)
-          key_name = "api_user_key"
+        if cloud <= 10
+          key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
         else
-          if cloud <= 10
-            key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
-          else
-            key_name = "monkey-1-#{ENV['RS_API_URL'].split("/").last}"
-          end
+          key_name = "api_user_key"
         end
         if cloud <= 10
           found = nil
@@ -88,13 +108,16 @@ module VirtualMonkey
           File.open(priv_key_file, "w") { |f| f.write(k.aws_material) } unless File.exists?(priv_key_file)
         else
           # Use API user's managed ssh key
-          puts "Using API user's managed ssh key"
+          puts "Using API user's managed ssh key, make sure \"~/.ssh/#{key_name}\" exists!"
+          keys["#{cloud}"] = {"parameters" =>
+                                {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
+                              }
           priv_key_file = multicloud_key_file
         end
 
         File.chmod(0700, priv_key_file)
         # Configure rest_connection config
-        rest_settings[:ssh_keys] << priv_key_file unless rest_settings[:ssh_keys].contains?(priv_key_file)
+        rest_settings[:ssh_keys] << priv_key_file unless rest_settings[:ssh_keys].include?(priv_key_file)
       }
 
       keys_out = keys.to_json(:indent => "  ",
@@ -119,7 +142,7 @@ module VirtualMonkey
       if api0_1?
         found = []
         cloud_ids.each { |c|
-          found << Ec2SshKeyInternal.find_by_cloud_id("#{c}").select { |obj| obj.aws_key_name =~ /#{key_name}/ }
+          found += Ec2SshKeyInternal.find_by_cloud_id("#{c}").select { |obj| obj.aws_key_name =~ /#{key_name}/ }
         }
         key_hrefs = found.select { |k| k.aws_key_name =~ /monkey/ }.map { |k| k.href }
       else
@@ -170,7 +193,7 @@ module VirtualMonkey
             sg = found
           else
             puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
-            default = McSecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
+            default = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /default/ }.first
             raise "Security Group 'default' not found in cloud #{cloud}." unless default
             sg = default
           end 

@@ -2,6 +2,14 @@ require File.join(File.dirname(__FILE__), "spec_helper")
 require 'ruby-debug'
 require 'json'
 
+cmd = "bin/monkey generate_ssh_keys "
+cmd += "--add-cloud #{ENV['ADD_CLOUD_SSH_KEY']}" if ENV['ADD_CLOUD_SSH_KEY']
+`cd ..; #{cmd}`
+
+exit(0)
+
+# Don't execute beyond here...legacy code
+
 begin
   require '/var/spool/cloud/user-data.rb'
 rescue

@@ -65,6 +65,40 @@ module VirtualMonkey
       run_script('create_mysql_ebs_stripe', server, options)
     end
 
+    # creates a MySQL enabled EBS stripe on the server and uses the dumpfile to restore the DB
+    def create_stripe_from_dumpfile(server)
+      options = { "EBS_MOUNT_POINT" => "text:/mnt/mysql", 
+              "EBS_STRIPE_COUNT" => "text:#{@stripe_count}", 
+              "EBS_VOLUME_SIZE" => "text:1", 
+              "DBAPPLICATION_USER" => "text:someuser", 
+#TODO: un-hard code the bucket and dumpfile
+#              "DB_MYSQLDUMP_BUCKET" => "text:#{@bucket}",
+#              "DB_MYSQLDUMP_FILENAME" => "text:#{@dumpfile}",
+              "DB_MYSQLDUMP_BUCKET" => "text:rightscale_tutorials",
+              "DB_MYSQLDUMP_FILENAME" => "text:phptest.sql.gz",
+              "AWS_ACCESS_KEY_ID" => "cred:AWS_ACCESS_KEY_ID",
+              "AWS_SECRET_ACCESS_KEY" => "cred:AWS_SECRET_ACCESS_KEY",
+              "DB_SCHEMA_NAME" => "text:monkey_schema",
+              "DBAPPLICATION_PASSWORD" => "text:somepass", 
+              "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:1",
+              "EBS_LINEAGE" => "text:#{@lineage}" }
+      run_script('create_mysql_ebs_stripe', server, options)
+    end
+
+    # Performs steps necessary to bootstrap a MySQL Master server from a pristine state using a dumpfile.
+    # * server<~Server> the server to use as MASTER
+    def config_master_from_scratch_from_dumpfile(server)
+      behavior(:create_stripe_from_dumpfile, server)
+      object_behavior(server, :spot_check_command, "service mysqld start")
+#TODO the service name depends on the OS
+#      server.spot_check_command("service mysql start")
+      behavior(:run_query, "create database mynewtest", server)
+      behavior(:set_master_dns, server)
+      # This sleep is to wait for DNS to settle - must sleep
+      sleep 120
+      behavior(:run_script, "backup", server)
+    end
+
     # Performs steps necessary to bootstrap a MySQL Master server from a pristine state.
     # * server<~Server> the server to use as MASTER
     def config_master_from_scratch(server)
@@ -175,13 +209,126 @@ module VirtualMonkey
       end
     end
 
-    # check that ulimit has been set correctly
-    # XXX: DEPRECATED
-    def ulimit_check
+    def init_slave_from_slave_backup
+      behavior(:config_master_from_scratch, s_one)
+      behavior(:run_script, "freeze_backups", s_one)
+      behavior(:wait_for_snapshots)
+      behavior(:slave_init_server, s_two)
+      behavior(:run_script, "backup", s_two)
+      s_two.relaunch
+      s_one['dns-name'] = nil
+      s_two.wait_for_operational_with_dns
+      behavior(:wait_for_snapshots)
+      #sleep 300
+      behavior(:slave_init_server, s_two)
+    end
+
+    def run_promotion_operations
+      behavior(:config_master_from_scratch, s_one)
+      object_behavior(s_one, :relaunch)
+      s_one.dns_name = nil
+      behavior(:wait_for_snapshots)
+# need to wait for ebs snapshot, otherwise this could easily fail
+      behavior(:restore_server, s_two)
+      object_behavior(s_one, :wait_for_operational_with_dns)
+      behavior(:wait_for_snapshots)
+      behavior(:slave_init_server, s_one)
+      behavior(:promote_server, s_one)
+    end
+
+    def run_reboot_operations
+# Duplicate code here because we need to wait between the master and the slave time
+      #reboot_all(true) # serially_reboot = true
+      @servers.each do |s|
+        object_behavior(s, :reboot, true)
+        object_behavior(s, :wait_for_state, "operational")
+      end
+      behavior(:wait_for_all, "operational")
+      behavior(:run_reboot_checks)
+    end
+
+    # This is where we perform multiple checks on the deployment after a reboot.
+    def run_reboot_checks
+      # one simple check we can do is the backup.  Backup can fail if anything is amiss
       @servers.each do |server|
-        result = server.spot_check_command("su - mysql -s /bin/bash -c \"ulimit -n\"")
-        raise "FATAL: ulimit wasn't set correctly" unless result[:output].to_i >= 1024
+        behavior(:run_script, "backup", server)
       end
     end
+
+    def migrate_slave
+      s_one.settings
+      object_behavior(s_one, :spot_check_command, "/tmp/init_slave.sh")
+      behavior(:run_script, "backup", s_one)
+    end
+   
+    def launch_v2_slave
+      s_two.settings
+      behavior(:wait_for_snapshots)
+      behavior(:run_script, "slave_init", s_two)
+    end
+
+    def run_restore_with_timestamp_override
+      object_behavior(s_one, :relaunch)
+      s_one.dns_name = nil
+      object_behavior(s_one, :wait_for_operational_with_dns)
+      behavior(:run_script, 'restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
+    end
+
+# Check for specific MySQL data.
+    def check_mysql_monitoring
+      mysql_plugins = [
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-delete"},
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_db"},
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_table"},
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-insert"},
+                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-show_databases"}
+                      ]
+      @servers.each do |server|
+        unless server.multicloud
+#mysql commands to generate data for collectd to return
+          for ii in 1...100
+#TODO: have to select db with every call.  figure a better way to do this and get rid of fast and ugly
+# cut and past hack.
+            behavior(:run_query, "show databases", server)
+            behavior(:run_query, "create database test#{ii}", server)
+            behavior(:run_query, "use test#{ii}; create table test#{ii}(test text)", server)
+            behavior(:run_query, "use test#{ii};show tables", server)
+            behavior(:run_query, "use test#{ii};insert into test#{ii} values ('1')", server)
+            behavior(:run_query, "use test#{ii};update test#{ii} set test='2'", server)
+            behavior(:run_query, "use test#{ii};select * from test#{ii}", server)
+            behavior(:run_query, "use test#{ii};delete from test#{ii}", server)
+            behavior(:run_query, "show variables", server)
+            behavior(:run_query, "show status", server)
+            behavior(:run_query, "use test#{ii};grant select on test.* to root", server)
+            behavior(:run_query, "use test#{ii};alter table test#{ii} rename to test2#{ii}", server)
+          end
+          mysql_plugins.each do |plugin|
+            monitor = server.get_sketchy_data({'start' => -60,
+                                               'end' => -20,
+                                               'plugin_name' => plugin['plugin_name'],
+                                               'plugin_type' => plugin['plugin_type']})
+            value = monitor['data']['value']
+            raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} data" unless value.length > 0
+            # Need to check for that there is at least one non 0 value returned.
+            for nn in 0...value.length
+              if value[nn] > 0
+                break
+              end
+            end
+            raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} time" unless nn < value.length
+            puts "Monitoring is OK for #{plugin['plugin_name']}-#{plugin['plugin_type']}"
+          end
+        end
+      end
+    end
+
+    def create_master
+      config_master_from_scratch(s_one)
+    end
+
+    def create_master_from_dumpfile
+      config_master_from_scratch_from_dumpfile(s_one)
+    end
+
   end
 end

@@ -44,13 +44,14 @@ module VirtualMonkey
       end
     end
 
-    def lookup_scripts
-      scripts = [
-                  [ 'apache_restart', 'WEB apache \(re\)start v2' ]
-                ]
-      st = ServerTemplate.find(resource_id(@servers.first.server_template_href))
-      lookup_scripts_table(st,scripts)
-    end 
+# XXX: This seems to be overridden everywhere. DEPRECATED
+#    def application_lookup_scripts
+#      scripts = [
+#                  [ 'apache_restart', 'WEB apache \(re\)start v2' ]
+#                ]
+#      st = ServerTemplate.find(resource_id(@servers.first.server_template_href))
+#      load_script_table(st,scripts)
+#    end 
 
     # Assumes the host machine is EC2, uses the meta-data to grab the IP address of this
     # 'tester server' eg. used for the input variation MASTER_DB_DNSNAME

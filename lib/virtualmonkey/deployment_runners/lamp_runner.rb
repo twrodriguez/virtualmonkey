@@ -4,13 +4,13 @@ module VirtualMonkey
     include VirtualMonkey::UnifiedApplication
     include VirtualMonkey::Mysql
 
-    def lookup_scripts
+    def lamp_lookup_scripts
       scripts = [
                   [ 'backup', 'mysqldump backup' ],
                   [ 'restart_apache', '\(re\)start' ]
                 ]
       st = ServerTemplate.find(resource_id(@servers.first.server_template_href))
-      lookup_scripts_table(st,scripts)
+      load_script_table(st,scripts)
     end
 
     # It's not that I'm a Java fundamentalist; I merely believe that mortals should

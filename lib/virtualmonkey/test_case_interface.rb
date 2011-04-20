@@ -1,12 +1,32 @@
+require 'ruby-debug'
+
+class Object
+  def raise(*args, &block)
+    if ENV["MONKEY_DEEP_DEBUG"] == "true" and block
+      begin
+        super(*args)
+      rescue Exception => e
+        puts "Got exception: #{e.message}" if e
+        puts "Backtrace: #{e.backtrace.join("\n")}" if e
+        puts "Pausing for inspection before continuing to raise Exception..."
+        debugger
+        super(*args)
+      end
+    else
+      super(*args)
+    end
+  end
+end
+
 module VirtualMonkey
   module TestCaseInterface
-    def set_var(sym, *args)
-      behavior(sym, *args)
+    def set_var(sym, *args, &block)
+      behavior(sym, *args, &block)
     end
 
     def behavior(sym, *args, &block)
       begin
-        rerun_test
+        push_rerun_test
         #pre-command
         populate_settings if @deployment
         #command
@@ -31,9 +51,9 @@ module VirtualMonkey
       result = ""
       select_set(set).each { |s|
         begin
-          rerun_test
+          push_rerun_test
           result_temp = s.spot_check_command(command)
-          if not yield(result_temp[:output])
+          if not yield(result_temp[:output],result_temp[:status])
             raise "FATAL: Server #{s.nickname} failed probe. Got #{result_temp[:output]}"
           end
           continue_test
@@ -51,7 +71,7 @@ module VirtualMonkey
         puts "Pausing for debugging..."
         debugger
       elsif e
-        exception_handle(e)
+        self.__send__(:__exception_handle__, e)
       else
         raise "'dev_mode?' function called improperly. An Exception needs to be passed or ENV['MONKEY_NO_DEBUG'] must not be set to 'true'"
       end
@@ -59,16 +79,29 @@ module VirtualMonkey
 
     private
 
-    def exception_handle(e)
-      puts "ATTENTION: Using default exception_handle(e). This can be overridden in mixin classes."
-      if e.message =~ /Insufficient capacity/
-        puts "Got \"Insufficient capacity\". Retrying...."
-        sleep 60
-      elsif e.message =~ /Service Temporarily Unavailable/
-        puts "Got \"Service Temporarily Unavailable\". Retrying...."
-        sleep 10
-      else
-        raise e
+    def __exception_handle__(e)
+      all_methods = self.methods + self.private_methods
+      exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m != "__exception_handle__" }
+      
+      exception_handle_methods.each { |m|
+        begin
+          self.__send__(m,e)
+          # If an exception_handle method doesn't raise an exception, it handled correctly
+          return "Exception Handled"
+        rescue
+        end
+      }
+      raise e
+    end
+
+    def __list_loader__
+      all_methods = self.methods + self.private_methods
+      ["whitelist", "blacklist", "needlist"].each do |list|
+        list_methods = all_methods.select { |m| m =~ /#{list}/ }
+        list_methods.each do |m|
+          result = self.__send__(m)
+          @log_checklists[list] += result if result.is_a?(Array)
+        end
       end
     end
 
@@ -110,7 +143,8 @@ module VirtualMonkey
           ret
         }
         @server_templates.uniq!
-        lookup_scripts
+        self.__send__(:__lookup_scripts__)
+        self.__send__(:__list_loader__)
         @populated = true
       end
     end
@@ -130,7 +164,7 @@ module VirtualMonkey
 
     def object_behavior(obj, sym, *args, &block)
       begin
-        rerun_test
+        push_rerun_test
         #pre-command
         populate_settings if @deployment
         #command
@@ -143,7 +177,7 @@ module VirtualMonkey
       result
     end
 
-    def rerun_test
+    def push_rerun_test
       @rerun_last_command.push(true)
     end
 

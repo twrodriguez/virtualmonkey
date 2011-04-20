@@ -11,10 +11,12 @@ module VirtualMonkey
         opt :breakpoint, "feature file line to stop at", :type => :integer, :short => '-b'
         opt :tag, "Tag to match prefix of the deployments.", :type => :string, :required => true, :short => "-t"
         opt :only, "regex string to use for subselection matching on deployments.  Eg. --only x86_64", :type => :string
-        opt :terminate, "Terminate using the specified runner if feature successfully completes. (No destroy)", :type => :string, :short => "-r"
+        opt :terminate, "Terminate if feature successfully completes. (No destroy)", :short => "-r"
         opt :no_resume, "Do not use current test-in-progress, start from scratch", :short => "-n"
         opt :yes, "Turn off confirmation", :short => "-y"
         opt :verbose, "Print all output to STDOUT as well as the log files", :short => "-v"
+        opt :list_trainer, "run through the interactive white- and black-list trainer after the tests complete, before the deployments are destroyed"
+        opt :qa, "Before destroying deployments, does a strict blacklist check (ignores whitelist)"
       end
 
       run_logic
