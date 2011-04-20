@@ -49,18 +49,18 @@ module VirtualMonkey
       @@ssh_dir = File.join(File.expand_path("~"), ".ssh")
       @@sgs_file = File.join(@@cloud_vars_dir, "security_groups.json")
       @@dcs_file = File.join(@@cloud_vars_dir, "datacenters.json")
-      @@keys_file = File.join(@@cloud_vars_dir, "ec2_keys.json")
+      @@keys_file = File.join(@@cloud_vars_dir, "ssh_keys.json")
       @@rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
     end
 
     def self.get_available_clouds
-      unless @@clouds
+      unless self.class_variable_defined?("@@clouds")
         @@clouds = [{"cloud_id" => 1, "name" => "AWS US-East"},
                     {"cloud_id" => 2, "name" => "AWS EU"},
                     {"cloud_id" => 3, "name" => "AWS US-West"},
                     {"cloud_id" => 4, "name" => "AWS AP-Singapore"},
                     {"cloud_id" => 5, "name" => "AWS AP-Tokyo"}]
-        @@clouds += Clouds.find_all.map { |c| {"cloud_id" => c.cloud_id.to_i, "name" => c.name} }
+        @@clouds += Cloud.find_all.map { |c| {"cloud_id" => c.cloud_id.to_i, "name" => c.name} }
       end
       @@clouds
     end
@@ -260,7 +260,7 @@ module VirtualMonkey
             dcs["#{cloud}"] = {"datacenter_href" => found.href}
           rescue
             puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
-            sgs["#{cloud}"] = {}
+            dcs["#{cloud}"] = {}
           end
         end 
       }
@@ -272,30 +272,35 @@ module VirtualMonkey
       File.open(@@dcs_file, "w") { |f| f.write(dcs_out) }
     end
 
-    def self.populate_all_cloud_variables
+    def self.populate_all_cloud_vars
       get_available_clouds()
 
-      aws_clouds_out = {}
-      all_clouds_out = {}
+      aws_clouds = {}
+      all_clouds = {}
 
       @@clouds.each { |c|
+        puts "Generating SSH Keys for cloud #{c['cloud_id']}..."
         self.generate_ssh_keys(c['cloud_id'])
+        puts "Populating Security Groups for cloud #{c['cloud_id']}..."
         self.populate_security_groups(c['cloud_id'])
+        puts "Populating Datacenters for cloud #{c['cloud_id']}..."
         self.populate_datacenters(c['cloud_id'])
         # Single File
         single_cloud_out = {"#{c['cloud_id']}" => {}}.to_json(:indent => "  ",
                                                               :object_nl => "\n",
                                                               :array_nl => "\n")
         # AWS Clouds
-        aws_clouds_out["#{c['cloud_id']}"] = {} if c['cloud_id'] <= 10
+        aws_clouds["#{c['cloud_id']}"] = {} if c['cloud_id'] <= 10
         # All Clouds
-        all_clouds_out["#{c['cloud_id']}"] = {}
+        all_clouds["#{c['cloud_id']}"] = {}
 
         c['name'].gsub!(/[- ]/, "_")
         c['name'].gsub!(/_+/, "_")
         c['name'].downcase!
         File.open(File.join(@@cloud_vars_dir, "#{c['name']}.json"), "w") { |f| f.write(single_cloud_out) }
       }
+      aws_clouds_out = aws_clouds.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
+      all_clouds_out = all_clouds.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
       File.open(File.join(@@cloud_vars_dir, "aws_clouds.json"), "w") { |f| f.write(aws_clouds_out) }
       File.open(File.join(@@cloud_vars_dir, "all_clouds.json"), "w") { |f| f.write(all_clouds_out) }
     end

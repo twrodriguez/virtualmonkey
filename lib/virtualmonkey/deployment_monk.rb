@@ -3,7 +3,7 @@ require 'rest_connection'
 
 class DeploymentMonk
   attr_accessor :common_inputs
-  attr_accessor :variables_for_cloud, :ec2_ssh_keys, :security_groups
+  attr_accessor :variables_for_cloud, :ssh_keys, :security_groups, :datacenters
   attr_accessor :deployments
   attr_reader :tag
 
@@ -24,7 +24,7 @@ class DeploymentMonk
     @server_templates = []
     @common_inputs = {}
     @variables_for_cloud = {}
-    @ec2_ssh_keys, @security_groups, @datacenters = {}, {}, {}
+    @ssh_keys, @security_groups, @datacenters = {}, {}, {}
     raise "Need either populated deployments or passed in server_template ids" if server_templates.empty? && @deployments.empty?
     if server_templates.empty?
       puts "loading server templates from all deployments"
@@ -129,10 +129,10 @@ class DeploymentMonk
             use_this_image = st.multi_cloud_images[0]['href']
           end
           inputs = []
-          unless @ec2_ssh_keys[cloud]
-#            `export ADD_CLOUD_SSH_KEY=#{cloud}; bash -cex "cd spec; ruby generate_ec2_ssh_keys.rb"`
+          unless @ssh_keys[cloud]
+#            `export ADD_CLOUD_SSH_KEY=#{cloud}; bash -cex "cd spec; ruby generate_ssh_keys.rb"`
             VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
-            @ec2_ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ec2_keys.json")))
+            @ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ssh_keys.json")))
           end
           unless @security_groups[cloud]
 #            `export ADD_CLOUD_SECURITY_GROUP=#{cloud}; bash -cex "cd spec; ruby get_security_groups.rb"`
@@ -144,7 +144,7 @@ class DeploymentMonk
             VirtualMonkey::Toolbox::populate_datacenters(cloud)
             @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","datacenters.json")))
           end
-          @variables_for_cloud[cloud].merge!(@ec2_ssh_keys[cloud])
+          @variables_for_cloud[cloud].merge!(@ssh_keys[cloud])
           @variables_for_cloud[cloud].merge!(@security_groups[cloud])
           @common_inputs.merge!(@variables_for_cloud[cloud]['parameters'])
           @common_inputs.each do |key,val|
@@ -214,7 +214,7 @@ class DeploymentMonk
   end
 
   def load_clouds(cloud_ids)
-    cloud_ids.each { |id| @variables_for_cloud.merge! {"#{id}" => {}} }
+    cloud_ids.each { |id| @variables_for_cloud.merge!("#{id}" => {}) }
   end
 
   def update_inputs

@@ -26,7 +26,7 @@ module VirtualMonkey
       @@available_commands = ["create", "destroy", "run", "list", "troop", "clone",
                               "update_inputs", "generate_ssh_keys", "destroy_ssh_keys",
                               "populate_security_groups", "populate_datacenters", "api_check",
-                              "audit_logs", "populate_all_cloud_variables", "help"]
+                              "audit_logs", "populate_all_cloud_vars", "help"]
 
       @@usage_msg = "Help usage: monkey <command> --help\n"
       @@usage_msg += "Valid commands for monkey: #{@@available_commands.join(", ")}"
@@ -51,7 +51,7 @@ module VirtualMonkey
       else
         raise "Usage Error! Need either --clouds or --cloud_variables"
       end
-      @@dm.ec2_ssh_keys = JSON::parse(IO.read(File.join(@@cv_dir, "ec2_keys.json")))
+      @@dm.ssh_keys = JSON::parse(IO.read(File.join(@@cv_dir, "ssh_keys.json")))
       @@dm.security_groups = JSON::parse(IO.read(File.join(@@cv_dir, "security_groups.json")))
       @@dm.datacenters = JSON::parse(IO.read(File.join(@@cv_dir, "security_groups.json")))
       @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }

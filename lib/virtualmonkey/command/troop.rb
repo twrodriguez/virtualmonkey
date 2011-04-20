@@ -32,7 +32,7 @@ module VirtualMonkey
           choose do |menu|
             menu.prompt = "Use a single cloud_variables config file, or a list of cloud_ids?"
             menu.index = :number
-            menu.choices("cloud_variables Config File", "List of Cloud IDs"
+            menu.choices("cloud_variables Config File", "List of Cloud IDs")
           end
 
         if file_or_nums =~ /cloud_variables/
