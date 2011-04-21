@@ -129,21 +129,7 @@ class DeploymentMonk
             use_this_image = st.multi_cloud_images[0]['href']
           end
           inputs = []
-          unless @ssh_keys[cloud]
-            VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
-            @ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ssh_keys.json")))
-          end
-          unless @security_groups[cloud]
-            VirtualMonkey::Toolbox::populate_security_groups(cloud)
-            @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","security_groups.json")))
-          end
-          unless @datacenters[cloud]
-            VirtualMonkey::Toolbox::populate_datacenters(cloud)
-            @datacenters = JSON::parse(IO.read(File.join("config","cloud_variables","datacenters.json")))
-          end
-          @variables_for_cloud[cloud].merge!(@ssh_keys[cloud])
-          @variables_for_cloud[cloud].merge!(@security_groups[cloud])
-          @variables_for_cloud[cloud].merge!(@datacenters[cloud])
+          load_vars_for_cloud(cloud)
           @common_inputs.merge!(@variables_for_cloud[cloud]['parameters'])
           @common_inputs.each do |key,val|
             inputs << { :name => key, :value => val }
@@ -216,17 +202,36 @@ class DeploymentMonk
   end
 
   def update_inputs
-    # TODO update for dynamic variables for cloud (ssh_keys, datacenters, security groups)
     @deployments.each do |d|
       if d.cloud_id
+        load_vars_for_cloud(d.cloud_id)
         @common_inputs.merge!(@variables_for_cloud[d.cloud_id]['parameters']) if @variables_for_cloud[d.cloud_id]
       end
       set_inputs(d, @common_inputs)
       d.servers.each { |s|
+        load_vars_for_cloud(s.cloud_id)
         cv_inputs = (@variables_for_cloud[s.cloud_id] ? @variables_for_cloud[s.cloud_id]['parameters'] : {})
         set_inputs(s, @common_inputs.merge(cv_inputs))
       }
     end
+  end
+
+  def load_vars_for_cloud(cloud)
+    unless @ssh_keys[cloud]
+      VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
+      @ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ssh_keys.json")))
+    end
+    unless @security_groups[cloud]
+      VirtualMonkey::Toolbox::populate_security_groups(cloud)
+      @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","security_groups.json")))
+    end
+    unless @datacenters[cloud]
+      VirtualMonkey::Toolbox::populate_datacenters(cloud)
+      @datacenters = JSON::parse(IO.read(File.join("config","cloud_variables","datacenters.json")))
+    end
+    @variables_for_cloud[cloud].merge!(@ssh_keys[cloud])
+    @variables_for_cloud[cloud].merge!(@security_groups[cloud])
+    @variables_for_cloud[cloud].merge!(@datacenters[cloud])
   end
 
   def set_inputs(obj, inputs)

@@ -51,9 +51,6 @@ module VirtualMonkey
       else
         raise "Usage Error! Need either --clouds or --cloud_variables"
       end
-      @@dm.ssh_keys = JSON::parse(IO.read(File.join(@@cv_dir, "ssh_keys.json")))
-      @@dm.security_groups = JSON::parse(IO.read(File.join(@@cv_dir, "security_groups.json")))
-      @@dm.datacenters = JSON::parse(IO.read(File.join(@@cv_dir, "security_groups.json")))
       @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
       @@dm.generate_variations(@@options)
     end

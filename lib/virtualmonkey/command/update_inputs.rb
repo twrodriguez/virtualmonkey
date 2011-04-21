@@ -10,7 +10,11 @@ module VirtualMonkey
         opt :tag, "Tag to use as nickname prefix for all deployments.", :type => :string, :required => true, :short => '-t'
       end
       @@dm = DeploymentMonk.new(@@options[:tag])
-      @@options[:cloud_variables].each { |cvpath| @@dm.load_cloud_variables(cvpath) }
+      if @@options[:clouds]
+        @@dm.load_clouds(@@options[:clouds])
+      elsif @@options[:cloud_variables]
+        @@options[:cloud_variables].each { |cvpath| @@dm.load_cloud_variables(cvpath) }
+      end
       @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
       @@dm.update_inputs
     end
