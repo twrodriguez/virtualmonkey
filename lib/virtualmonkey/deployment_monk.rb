@@ -130,22 +130,20 @@ class DeploymentMonk
           end
           inputs = []
           unless @ssh_keys[cloud]
-#            `export ADD_CLOUD_SSH_KEY=#{cloud}; bash -cex "cd spec; ruby generate_ssh_keys.rb"`
             VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
             @ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ssh_keys.json")))
           end
           unless @security_groups[cloud]
-#            `export ADD_CLOUD_SECURITY_GROUP=#{cloud}; bash -cex "cd spec; ruby get_security_groups.rb"`
             VirtualMonkey::Toolbox::populate_security_groups(cloud)
             @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","security_groups.json")))
           end
           unless @datacenters[cloud]
-#            `export ADD_CLOUD_SECURITY_GROUP=#{cloud}; bash -cex "cd spec; ruby get_security_groups.rb"`
             VirtualMonkey::Toolbox::populate_datacenters(cloud)
-            @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","datacenters.json")))
+            @datacenters = JSON::parse(IO.read(File.join("config","cloud_variables","datacenters.json")))
           end
           @variables_for_cloud[cloud].merge!(@ssh_keys[cloud])
           @variables_for_cloud[cloud].merge!(@security_groups[cloud])
+          @variables_for_cloud[cloud].merge!(@datacenters[cloud])
           @common_inputs.merge!(@variables_for_cloud[cloud]['parameters'])
           @common_inputs.each do |key,val|
             inputs << { :name => key, :value => val }
@@ -218,6 +216,7 @@ class DeploymentMonk
   end
 
   def update_inputs
+    # TODO update for dynamic variables for cloud (ssh_keys, datacenters, security groups)
     @deployments.each do |d|
       if d.cloud_id
         @common_inputs.merge!(@variables_for_cloud[d.cloud_id]['parameters']) if @variables_for_cloud[d.cloud_id]
