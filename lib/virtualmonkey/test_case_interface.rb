@@ -29,6 +29,11 @@ module VirtualMonkey
         push_rerun_test
         #pre-command
         populate_settings if @deployment
+        
+
+        puts("  "*@rerun_last_command.length + sym.to_s + "(#{args.join(", ")})")
+        
+        #File.open("output_stack.json", "w") { |f| f.write(@hsh.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")) }
         #command
         result = __send__(sym, *args)
         if block
