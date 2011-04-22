@@ -60,7 +60,7 @@ module VirtualMonkey
                     {"cloud_id" => 3, "name" => "AWS US-West"},
                     {"cloud_id" => 4, "name" => "AWS AP-Singapore"},
                     {"cloud_id" => 5, "name" => "AWS AP-Tokyo"}]
-        @@clouds += Cloud.find_all.map { |c| {"cloud_id" => c.cloud_id.to_i, "name" => c.name} }
+        @@clouds += Cloud.find_all.map { |c| {"cloud_id" => c.cloud_id.to_i, "name" => c.name} } if api1_5?
       end
       @@clouds
     end

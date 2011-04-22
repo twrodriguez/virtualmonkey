@@ -3,7 +3,6 @@ require 'rest_connection'
 
 class DeploymentMonk
   attr_accessor :common_inputs
-  attr_accessor :variables_for_cloud, :ssh_keys, :security_groups, :datacenters
   attr_accessor :deployments
   attr_reader :tag
 
@@ -217,6 +216,7 @@ class DeploymentMonk
   end
 
   def load_vars_for_cloud(cloud)
+    return nil unless @variables_for_cloud[cloud]
     unless @ssh_keys[cloud]
       VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
       @ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ssh_keys.json")))
