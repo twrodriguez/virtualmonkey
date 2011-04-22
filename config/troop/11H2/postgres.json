@@ -3,8 +3,9 @@
   "runner":"PostgresRunner",
   "common_inputs":"postgres.json",
   "server_template_ids":[
+    "98744",
     "98744"
   ],
   "feature":"postgres.rb",
-  "cloud_variables":"east.json"
+  "cloud_variables":"west.json"
 }
