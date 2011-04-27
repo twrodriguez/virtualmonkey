@@ -2,15 +2,20 @@
 require 'rubygems'
 require 'trollop'
 require 'highline/import'
-require 'virtualmonkey/command/create'
-require 'virtualmonkey/command/destroy'
-require 'virtualmonkey/command/run'
-require 'virtualmonkey/command/list'
-require 'virtualmonkey/command/troop'
-require 'virtualmonkey/command/clone'
-require 'virtualmonkey/command/update_inputs'
-require 'virtualmonkey/command/toolbox'
 require 'uri'
+some_not_included = true
+files = Dir.glob(File.join("lib", "virtualmonkey", "command", "**"))
+while some_not_included do
+  begin
+    some_not_included = false
+    for f in files do
+      some_not_included ||= require f.chomp(".rb")
+    end
+  rescue Exception => e
+    some_not_included = true
+    files.push(files.shift)
+  end
+end
 
 module VirtualMonkey
   module Command
@@ -185,7 +190,7 @@ module VirtualMonkey
       File.open(feature_file, "r") { |f|
         begin
           line = f.readline
-          ret = line.match(/VirtualMonkey.*Runner/)[0].split(":").last if line =~ /= VirtualMonkey.*Runner/
+          ret = line.match(/VirtualMonkey::.*Runner/)[0].split("::").last if line =~ /= VirtualMonkey.*Runner/
         rescue EOFError => e
           ret = ""
         end while !ret

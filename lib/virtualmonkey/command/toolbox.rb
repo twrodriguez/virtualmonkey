@@ -39,9 +39,10 @@ module VirtualMonkey
     def self.populate_all_cloud_vars
       @@options = Trollop::options do
         text "Populates all cloud vars necessary for testing in all clouds accessible by this account."
+        opt :force, "Forces command to continue if an exception is raised in a subcommand, populating as many files as possible."
       end
 
-      VirtualMonkey::Toolbox::populate_all_cloud_vars
+      VirtualMonkey::Toolbox::populate_all_cloud_vars(@@options[:force])
       puts "Cloud Variables folder populated."
     end
 

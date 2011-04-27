@@ -272,7 +272,7 @@ module VirtualMonkey
       File.open(@@dcs_file, "w") { |f| f.write(dcs_out) }
     end
 
-    def self.populate_all_cloud_vars
+    def self.populate_all_cloud_vars(force = false)
       get_available_clouds()
 
       aws_clouds = {}
@@ -280,11 +280,40 @@ module VirtualMonkey
 
       @@clouds.each { |c|
         puts "Generating SSH Keys for cloud #{c['cloud_id']}..."
-        self.generate_ssh_keys(c['cloud_id'])
+        if force
+          begin
+            self.generate_ssh_keys(c['cloud_id'])
+          rescue Exception => e
+            puts "Got exception: #{e.message}"
+            puts "Forcing continuation..."
+          end
+        else
+          self.generate_ssh_keys(c['cloud_id'])
+        end
+
         puts "Populating Security Groups for cloud #{c['cloud_id']}..."
-        self.populate_security_groups(c['cloud_id'])
+        if force
+          begin
+            self.populate_security_groups(c['cloud_id'])
+          rescue Exception => e
+            puts "Got exception: #{e.message}"
+            puts "Forcing continuation..."
+          end
+        else
+          self.populate_security_groups(c['cloud_id'])
+        end
+
         puts "Populating Datacenters for cloud #{c['cloud_id']}..."
-        self.populate_datacenters(c['cloud_id'])
+        if force
+          begin
+            self.populate_datacenters(c['cloud_id'])
+          rescue Exception => e
+            puts "Got exception: #{e.message}"
+            puts "Forcing continuation..."
+          end
+        else
+          self.populate_datacenters(c['cloud_id'])
+        end
         # Single File
         single_cloud_out = {"#{c['cloud_id']}" => {}}.to_json(:indent => "  ",
                                                               :object_nl => "\n",
