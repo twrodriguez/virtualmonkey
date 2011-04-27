@@ -6,5 +6,5 @@
     "84649"
   ],
   "feature":"db_toolbox_dumpfile.rb",
-  "cloud_variables":"east.json"
+  "cloud_variables":"aws_us_east.json"
 }

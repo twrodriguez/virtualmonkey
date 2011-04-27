@@ -6,6 +6,6 @@
     "27418",
     "27418"
   ],
-  "cloud_variables":"west.json",
+  "cloud_variables":"aws_us_west.json",
   "feature":"simple.feature"
 }

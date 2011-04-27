@@ -4,7 +4,7 @@
     "69025"
   ],
   "feature":"rightlink.feature",
-  "cloud_variables":"east.json",
+  "cloud_variables":"aws_us_east.json",
   "tag":"TROOP-rightlink",
   "common_inputs":"none.json"
 }
