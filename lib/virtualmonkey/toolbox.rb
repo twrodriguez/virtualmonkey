@@ -320,7 +320,7 @@ module VirtualMonkey
         single_file_name = File.join(@@cloud_vars_dir, "#{c['name']}.json")
 
         single_cloud_vars = {"#{c['cloud_id']}" => {}}
-        if File.exists?(file_name)
+        if File.exists?(single_file_name)
           single_cloud_vars = JSON::parse(IO.read(single_file_name))
         end
         # Single File
@@ -330,7 +330,7 @@ module VirtualMonkey
         # AWS Clouds
         aws_clouds.merge!(single_cloud_vars) if c['cloud_id'] <= 10
         # All Clouds
-        all_clouds.merge!(single_cloud_cars)
+        all_clouds.merge!(single_cloud_vars)
 
         File.open(single_file_name, "w") { |f| f.write(single_cloud_out) }
       }
