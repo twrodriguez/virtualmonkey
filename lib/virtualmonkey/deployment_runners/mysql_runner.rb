@@ -43,7 +43,7 @@ puts "WE ARE HARDCODING THE TOOL BOX NAMES TO USE 11H1"
 
       st = ServerTemplate.find(resource_id(s_one.server_template_href))
       load_script_table(st,scripts)
-      load_script_table(ebx_tbx,ebs_toolbox_scripts)
+      load_script_table(ebs_tbx,ebs_toolbox_scripts)
       load_script_table(db_tbx,mysql_toolbox_scripts)
       # hardwired script! (this is an 'anyscript' that users typically use to setup the master dns)
       # This a special version of the register that uses MASTER_DB_DNSID instead of a test DNSID

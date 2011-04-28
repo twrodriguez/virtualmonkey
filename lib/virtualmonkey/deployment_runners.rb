@@ -1,21 +1,13 @@
-require 'virtualmonkey/deployment_runners/ebs_runner'
-require 'virtualmonkey/deployment_runners/mysql_runner'
-require 'virtualmonkey/deployment_runners/mysql_toolbox_runner'
-require 'virtualmonkey/deployment_runners/fe_app_runner'
-require 'virtualmonkey/deployment_runners/php_aio_trial_chef_runner'
-require 'virtualmonkey/deployment_runners/rails_aio_developer_chef_runner'
-require 'virtualmonkey/deployment_runners/php_chef_runner'
-require 'virtualmonkey/deployment_runners/simple_runner'
-require 'virtualmonkey/deployment_runners/simple_windows_runner'
-require 'virtualmonkey/deployment_runners/simple_windows_blog_runner'
-require 'virtualmonkey/deployment_runners/simple_windows_net_aio_runner'
-require 'virtualmonkey/deployment_runners/simple_windows_ms_sql_runner'
-require 'virtualmonkey/deployment_runners/lamp_runner'
-require 'virtualmonkey/deployment_runners/onboarding_runner'
-require 'virtualmonkey/deployment_runners/elb_runner'
-require 'virtualmonkey/deployment_runners/patch_runner'
-require 'virtualmonkey/deployment_runners/shutdown_runner'
-require 'virtualmonkey/deployment_runners/nginx_runner'
-require 'virtualmonkey/deployment_runners/mysql_v2_migration_runner'
-require 'virtualmonkey/deployment_runners/monkey_self_test_runner'
-require 'virtualmonkey/deployment_runners/postgres_runner'
+some_not_included = true
+files = Dir.glob(File.join("lib", "virtualmonkey", "deployment_runners", "**"))
+while some_not_included do
+  begin
+    some_not_included = false
+    for f in files do
+      some_not_included ||= require f.chomp(".rb")
+    end
+  rescue Exception => e
+    some_not_included = true
+    files.push(files.shift)
+  end
+end

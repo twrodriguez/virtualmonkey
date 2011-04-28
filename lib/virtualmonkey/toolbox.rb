@@ -272,7 +272,7 @@ module VirtualMonkey
       File.open(@@dcs_file, "w") { |f| f.write(dcs_out) }
     end
 
-    def self.populate_all_cloud_vars
+    def self.populate_all_cloud_vars(force = false)
       get_available_clouds()
 
       aws_clouds = {}
@@ -280,24 +280,59 @@ module VirtualMonkey
 
       @@clouds.each { |c|
         puts "Generating SSH Keys for cloud #{c['cloud_id']}..."
-        self.generate_ssh_keys(c['cloud_id'])
-        puts "Populating Security Groups for cloud #{c['cloud_id']}..."
-        self.populate_security_groups(c['cloud_id'])
-        puts "Populating Datacenters for cloud #{c['cloud_id']}..."
-        self.populate_datacenters(c['cloud_id'])
-        # Single File
-        single_cloud_out = {"#{c['cloud_id']}" => {}}.to_json(:indent => "  ",
-                                                              :object_nl => "\n",
-                                                              :array_nl => "\n")
-        # AWS Clouds
-        aws_clouds["#{c['cloud_id']}"] = {} if c['cloud_id'] <= 10
-        # All Clouds
-        all_clouds["#{c['cloud_id']}"] = {}
+        if force
+          begin
+            self.generate_ssh_keys(c['cloud_id'])
+          rescue Exception => e
+            puts "Got exception: #{e.message}"
+            puts "Forcing continuation..."
+          end
+        else
+          self.generate_ssh_keys(c['cloud_id'])
+        end
 
+        puts "Populating Security Groups for cloud #{c['cloud_id']}..."
+        if force
+          begin
+            self.populate_security_groups(c['cloud_id'])
+          rescue Exception => e
+            puts "Got exception: #{e.message}"
+            puts "Forcing continuation..."
+          end
+        else
+          self.populate_security_groups(c['cloud_id'])
+        end
+
+        puts "Populating Datacenters for cloud #{c['cloud_id']}..."
+        if force
+          begin
+            self.populate_datacenters(c['cloud_id'])
+          rescue Exception => e
+            puts "Got exception: #{e.message}"
+            puts "Forcing continuation..."
+          end
+        else
+          self.populate_datacenters(c['cloud_id'])
+        end
         c['name'].gsub!(/[- ]/, "_")
         c['name'].gsub!(/_+/, "_")
         c['name'].downcase!
-        File.open(File.join(@@cloud_vars_dir, "#{c['name']}.json"), "w") { |f| f.write(single_cloud_out) }
+        single_file_name = File.join(@@cloud_vars_dir, "#{c['name']}.json")
+
+        single_cloud_vars = {"#{c['cloud_id']}" => {}}
+        if File.exists?(file_name)
+          single_cloud_vars = JSON::parse(IO.read(single_file_name))
+        end
+        # Single File
+        single_cloud_out = single_cloud_vars.to_json(:indent => "  ",
+                                                     :object_nl => "\n",
+                                                     :array_nl => "\n")
+        # AWS Clouds
+        aws_clouds.merge!(single_cloud_vars) if c['cloud_id'] <= 10
+        # All Clouds
+        all_clouds.merge!(single_cloud_cars)
+
+        File.open(single_file_name, "w") { |f| f.write(single_cloud_out) }
       }
       aws_clouds_out = aws_clouds.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
       all_clouds_out = all_clouds.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
