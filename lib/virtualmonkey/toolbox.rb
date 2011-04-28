@@ -53,7 +53,8 @@ module VirtualMonkey
       @@rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
     end
 
-    def self.get_available_clouds
+    def self.get_available_clouds(up_to = 1000000)
+      setup_paths()
       unless self.class_variable_defined?("@@clouds")
         @@clouds = [{"cloud_id" => 1, "name" => "AWS US-East"},
                     {"cloud_id" => 2, "name" => "AWS EU"},
@@ -62,7 +63,7 @@ module VirtualMonkey
                     {"cloud_id" => 5, "name" => "AWS AP-Tokyo"}]
         @@clouds += Cloud.find_all.map { |c| {"cloud_id" => c.cloud_id.to_i, "name" => c.name} } if api1_5?
       end
-      @@clouds
+      @@clouds.select { |h| h["cloud_id"] <= up_to }
     end
 
     def self.find_myself_in_api
@@ -78,14 +79,9 @@ module VirtualMonkey
       end
     end
 
-    def self.generate_ssh_keys(add_cloud = nil)
-      setup_paths()
-
-      cloud_ids = []
-      for i in 1..5
-        cloud_ids << i
-      end
-      cloud_ids << add_cloud.to_i if add_cloud
+    def self.generate_ssh_keys(single_cloud = nil)
+      cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
+      cloud_ids.reject! { |i| i != single_cloud } if single_cloud
 
       multicloud_key_file = File.join(@@ssh_dir, "api_user_key")
       rest_settings = YAML::load(IO.read(@@rest_yaml))
@@ -149,13 +145,28 @@ module VirtualMonkey
       File.open(@@rest_yaml, "w") { |f| f.write(rest_out) }
     end
 
-    def self.destroy_ssh_keys
-      setup_paths()
+    def self.destroy_all_unused_monkey_keys
+      raise "You cannot run this without API 0.1 Access" unless api0_1?
+      cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
 
-      cloud_ids = []
-      for i in 1..5
-        cloud_ids << i
-      end
+      puts "Go grab a snickers. This will take a while."
+      monkey_keys = []
+      cloud_ids.each { |c|
+        monkey_keys += Ec2SshKeyInternal.find_by_cloud_id("#{c}").select { |obj| obj.aws_key_name =~ /monkey/ }
+      }
+      remaining_keys = monkey_keys.map { |k| k.href }
+
+      all_servers = Server.find_all
+
+      all_servers.each { |s|
+        s.settings
+        remaining_keys.reject! { |k| k.href == s.ec2_ssh_key_href }
+      }
+      remaining_keys.each { |href| Ec2SshKey.new('href' => href).destroy }
+    end
+
+    def self.destroy_ssh_keys
+      cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
 
       rest_settings = YAML::load(IO.read(@@rest_yaml))
 
@@ -176,14 +187,9 @@ module VirtualMonkey
       rest_settings[:ssh_keys].each { |f| File.delete(f) if File.exists?(f) and f =~ /monkey/ }
     end
 
-    def self.populate_security_groups(add_cloud = nil)
-      setup_paths()
-
-      cloud_ids = []
-      for i in 1..5
-        cloud_ids << i
-      end
-      cloud_ids << add_cloud.to_i if add_cloud
+    def self.populate_security_groups(single_cloud = nil)
+      cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
+      cloud_ids.reject! { |i| i != single_cloud } if single_cloud
 
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {}) 
 
@@ -235,14 +241,9 @@ module VirtualMonkey
       File.open(@@sgs_file, "w") { |f| f.write(sgs_out) }
     end
 
-    def self.populate_datacenters(add_cloud = nil)
-      setup_paths()
-
-      cloud_ids = []
-      for i in 1..5
-        cloud_ids << i
-      end
-      cloud_ids << add_cloud.to_i if add_cloud
+    def self.populate_datacenters(single_cloud = nil)
+      cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
+      cloud_ids.reject! { |i| i != single_cloud } if single_cloud
 
       dcs = (File.exists?(@@dcs_file) ? JSON::parse(IO.read(@@dcs_file)) : {}) 
 
