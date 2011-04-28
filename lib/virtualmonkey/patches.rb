@@ -1,40 +1,23 @@
-require 'rest_connection'
-require 'fog'
-require 'fileutils'
-require 'virtualmonkey/patches'
-require 'virtualmonkey/deployment_monk'
-require 'virtualmonkey/grinder_monk'
-require 'virtualmonkey/shared_dns'
-require 'virtualmonkey/message_check'
-require 'virtualmonkey/test_case_interface'
-require 'virtualmonkey/command'
-require 'virtualmonkey/toolbox'
-require 'virtualmonkey/runner_mixins'
-require 'virtualmonkey/deployment_runners'
-
 class Hash
   # Merges self with another hash, recursively.
-  # 
+  #
   # This code was lovingly stolen from some random gem:
   # http://gemjack.com/gems/tartan-0.1.1/classes/Hash.html
-  # 
+  #
   # Thanks to whoever made it.
 
   def deep_merge(hash)
     target = dup
-    
     hash.keys.each do |key|
       if hash[key].is_a? Hash and self[key].is_a? Hash
         target[key] = target[key].deep_merge(hash[key])
         next
       end
-      
       target[key] = hash[key]
     end
-    
     target
   end
-
+  
   # From: http://www.gemtacular.com/gemdocs/cerberus-0.2.2/doc/classes/Hash.html
   # File lib/cerberus/utils.rb, line 42
 
@@ -45,6 +28,24 @@ class Hash
       else
         self[k] = second[k]
       end
+    end
+  end
+end
+
+class Object
+  def raise(*args, &block)
+    if ENV["MONKEY_DEEP_DEBUG"] == "true" and block
+      begin
+        super(*args)
+      rescue Exception => e
+        puts "Got exception: #{e.message}" if e
+        puts "Backtrace: #{e.backtrace.join("\n")}" if e
+        puts "Pausing for inspection before continuing to raise Exception..."
+        debugger
+        super(*args)
+      end
+    else
+      super(*args)
     end
   end
 end
