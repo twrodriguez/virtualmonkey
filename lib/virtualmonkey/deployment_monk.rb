@@ -129,7 +129,7 @@ class DeploymentMonk
           end
           inputs = []
           load_vars_for_cloud(cloud)
-          @common_inputs.merge!(@variables_for_cloud[cloud]['parameters'])
+          @common_inputs.deep_merge!(@variables_for_cloud[cloud]['parameters'])
           @common_inputs.each do |key,val|
             inputs << { :name => key, :value => val }
           end
@@ -152,14 +152,14 @@ class DeploymentMonk
 
           #This rescue block can be removed after the VM ServerTemplate defaults to multicloud rest_connection
           begin
-            server = ServerInterface.new(cloud).create(server_params.merge(@variables_for_cloud[cloud]))
+            server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
           rescue Exception => e
             puts "Got exception: #{e.message}"
             puts "Backtrace: #{e.backtrace.join("\n")}"
           end
           #AWS Cloud-specific Code XXX LEGACY XXX
           if cloud.to_i < 10
-            server = Server.create(server_params.merge(@variables_for_cloud[cloud])) unless server
+            server = Server.create(server_params.deep_merge(@variables_for_cloud[cloud])) unless server
             # since the create call does not set the parameters, we need to set them separate
             set_inputs(server, @variables_for_cloud[cloud]['parameters'])
             # uses a special internal call for setting the MCI on the server
@@ -189,28 +189,28 @@ class DeploymentMonk
   end
 
   def load_common_inputs(file)
-    @common_inputs.merge! JSON.parse(IO.read(file))
+    @common_inputs.deep_merge! JSON.parse(IO.read(file))
   end
 
   def load_cloud_variables(file)
-    @variables_for_cloud.merge! JSON.parse(IO.read(file))
+    @variables_for_cloud.deep_merge! JSON.parse(IO.read(file))
   end
 
   def load_clouds(cloud_ids)
-    cloud_ids.each { |id| @variables_for_cloud.merge!("#{id}" => {}) }
+    cloud_ids.each { |id| @variables_for_cloud.deep_merge!("#{id}" => {}) }
   end
 
   def update_inputs
     @deployments.each do |d|
       if d.cloud_id
         load_vars_for_cloud(d.cloud_id)
-        @common_inputs.merge!(@variables_for_cloud[d.cloud_id]['parameters']) if @variables_for_cloud[d.cloud_id]
+        @common_inputs.deep_merge!(@variables_for_cloud[d.cloud_id]['parameters']) if @variables_for_cloud[d.cloud_id]
       end
       set_inputs(d, @common_inputs)
       d.servers.each { |s|
         load_vars_for_cloud(s.cloud_id)
         cv_inputs = (@variables_for_cloud[s.cloud_id] ? @variables_for_cloud[s.cloud_id]['parameters'] : {})
-        set_inputs(s, @common_inputs.merge(cv_inputs))
+        set_inputs(s, @common_inputs.deep_merge(cv_inputs))
       }
     end
   end
@@ -229,9 +229,9 @@ class DeploymentMonk
       VirtualMonkey::Toolbox::populate_datacenters(cloud)
       @datacenters = JSON::parse(IO.read(File.join("config","cloud_variables","datacenters.json")))
     end
-    @variables_for_cloud[cloud].merge!(@ssh_keys[cloud])
-    @variables_for_cloud[cloud].merge!(@security_groups[cloud])
-    @variables_for_cloud[cloud].merge!(@datacenters[cloud])
+    @variables_for_cloud[cloud].deep_merge!(@ssh_keys[cloud])
+    @variables_for_cloud[cloud].deep_merge!(@security_groups[cloud])
+    @variables_for_cloud[cloud].deep_merge!(@datacenters[cloud])
   end
 
   def set_inputs(obj, inputs)

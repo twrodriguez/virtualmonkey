@@ -382,7 +382,7 @@ module VirtualMonkey
 #TODO: pass in some list of plugin info to check multiple values.  For now just
 # hardcoding the cpu check
         unless server.multicloud
-          sleep 60 # This is to allow monitoring data to accumulate
+          sleep 180 # This is to allow monitoring data to accumulate
           monitor = server.get_sketchy_data({'start' => -60,
                                              'end' => -20,
                                              'plugin_name' => "cpu-0",

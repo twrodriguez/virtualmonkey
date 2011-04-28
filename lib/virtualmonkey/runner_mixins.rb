@@ -1,3 +1,4 @@
+some_not_included = true
 files = Dir.glob(File.join("lib", "virtualmonkey", "runner_mixins", "**"))
 while some_not_included do
   begin
