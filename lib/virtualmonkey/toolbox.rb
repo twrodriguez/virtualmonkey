@@ -314,19 +314,25 @@ module VirtualMonkey
         else
           self.populate_datacenters(c['cloud_id'])
         end
-        # Single File
-        single_cloud_out = {"#{c['cloud_id']}" => {}}.to_json(:indent => "  ",
-                                                              :object_nl => "\n",
-                                                              :array_nl => "\n")
-        # AWS Clouds
-        aws_clouds["#{c['cloud_id']}"] = {} if c['cloud_id'] <= 10
-        # All Clouds
-        all_clouds["#{c['cloud_id']}"] = {}
-
         c['name'].gsub!(/[- ]/, "_")
         c['name'].gsub!(/_+/, "_")
         c['name'].downcase!
-        File.open(File.join(@@cloud_vars_dir, "#{c['name']}.json"), "w") { |f| f.write(single_cloud_out) }
+        single_file_name = File.join(@@cloud_vars_dir, "#{c['name']}.json")
+
+        single_cloud_vars = {"#{c['cloud_id']}" => {}}
+        if File.exists?(file_name)
+          single_cloud_vars = JSON::parse(IO.read(single_file_name))
+        end
+        # Single File
+        single_cloud_out = single_cloud_vars.to_json(:indent => "  ",
+                                                     :object_nl => "\n",
+                                                     :array_nl => "\n")
+        # AWS Clouds
+        aws_clouds.merge!(single_cloud_vars) if c['cloud_id'] <= 10
+        # All Clouds
+        all_clouds.merge!(single_cloud_cars)
+
+        File.open(single_file_name, "w") { |f| f.write(single_cloud_out) }
       }
       aws_clouds_out = aws_clouds.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
       all_clouds_out = all_clouds.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
