@@ -329,9 +329,9 @@ module VirtualMonkey
                                                      :object_nl => "\n",
                                                      :array_nl => "\n")
         # AWS Clouds
-        aws_clouds.merge!(single_cloud_vars) if c['cloud_id'] <= 10
+        aws_clouds.deep_merge!(single_cloud_vars) if c['cloud_id'] <= 10
         # All Clouds
-        all_clouds.merge!(single_cloud_vars)
+        all_clouds.deep_merge!(single_cloud_vars)
 
         File.open(single_file_name, "w") { |f| f.write(single_cloud_out) }
       }
