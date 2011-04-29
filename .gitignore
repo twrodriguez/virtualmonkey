@@ -22,6 +22,5 @@ log
 
 ## PROJECT::SPECIFIC
 virtualmonkey.gemspec
-config/cloud_variables/ec2_keys.json
-config/cloud_variables/security_groups.json
+config/cloud_variables/*
 test_states/

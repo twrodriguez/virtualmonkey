@@ -4,7 +4,7 @@
     "104181"
   ],
   "feature":"base.rb",
-  "cloud_variables":"all_clouds.json",
+  "cloud_variables":"cdc2.json",
   "tag":"TROOP-chef-base",
   "common_inputs":"none.json"
 }

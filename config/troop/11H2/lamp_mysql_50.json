@@ -1,7 +1,7 @@
 {
   "tag":"LAMP_MYSQL50_TROOP",
   "feature":"lamp.rb",
-  "cloud_variables":"east.json",
+  "cloud_variables":"aws_us_east.json",
   "runner":"SimpleRunner",
   "common_inputs":"lamp_11H2.json",
   "server_template_ids":[

@@ -1,7 +1,7 @@
 {
   "tag":"MEPHISTO_TROOP",
   "feature":"nginx_pass_aio.rb",
-  "cloud_variables":"east.json",
+  "cloud_variables":"aws_us_east.json",
   "runner":"SimpleRunner",
   "common_inputs":"nginx_pass_aio.json",
   "server_template_ids":[

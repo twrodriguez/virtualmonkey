@@ -8,5 +8,5 @@
     "84656"
   ],
   "feature":"ebs_toolbox.rb",
-  "cloud_variables":"east.json"
+  "cloud_variables":"aws_us_east.json"
 }

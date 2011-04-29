@@ -1,10 +1,10 @@
 {
-  "feature":"lamp.feature",
+  "feature":"lamp_chef.rb",
   "cloud_variables":"aws_us_west.json",
   "runner":"SimpleRunner",
-  "common_inputs":"lamp.json",
+  "common_inputs":"lamp_chef.json",
   "tag":"MONKEY_LAMP_TESTING",
   "server_template_ids":[
-    "8942"
+    "106233"
   ]
 }
