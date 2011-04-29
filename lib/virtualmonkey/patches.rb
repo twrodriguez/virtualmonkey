@@ -18,7 +18,7 @@ class Hash
         target[k] = target[k].deep_merge(second[k])
         next
       end
-      target[key] = second[key]
+      target[k] = second[k]
     end
     target
   end
