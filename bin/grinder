@@ -29,6 +29,7 @@ export MONKEY_NO_DEBUG=#{ENV['MONKEY_NO_DEBUG']}
 export MONKEY_NO_RESUME=#{ENV['MONKEY_NO_RESUME']}
 EOS
 
+
 raise usage unless ENV['DEPLOYMENT']
 raise usage unless ARGV[0] and File.exist?(ARGV[0])
 if ARGV[1]
@@ -46,6 +47,12 @@ end
 
 @testcase = File.open(ARGV[0], "r")
 testname = File.basename(ARGV[0])
+
+VirtualMonkey::feature_file = Array.new
+VirtualMonkey::feature_file << {"feature_file"=>ARGV[0]} # enter the name of the feature file
+
+
+ENV['feature_file_hash'] = ARGV[0]  # create an environemental variable to use for the stack realted to the coverage tool
 
 linenum = 1
 @resume = 0
@@ -120,3 +127,5 @@ $stdout.syswrite "Total time elapsed: #{elapsed} seconds\n"
 if linenum > @breakpoint and ENV['MONKEY_NO_DEBUG'] !~ /true/i
   eval("@runner.dev_mode?")
 end
+
+print VirtualMonkey::feature_file.to_yaml
