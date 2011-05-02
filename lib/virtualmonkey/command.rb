@@ -49,6 +49,7 @@ module VirtualMonkey
     end
 
     def self.create_logic
+      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       if @@options[:clouds]
         @@dm.load_clouds(@@options[:clouds])
       elsif @@options[:cloud_variables]
@@ -61,6 +62,7 @@ module VirtualMonkey
     end
 
     def self.run_logic
+      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] = get_runner_class
       unless VirtualMonkey.const_defined?(@@options[:runner])
         puts "WARNING: VirtualMonkey::#{@@options[:runner]} is not a valid class. Defaulting to SimpleRunner."
@@ -146,6 +148,7 @@ module VirtualMonkey
     end
 
     def self.destroy_all_logic
+      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] = get_runner_class
       @@dm.deployments.each do |deploy|
         runner = eval("VirtualMonkey::#{@@options[:runner]}.new(deploy.nickname)")

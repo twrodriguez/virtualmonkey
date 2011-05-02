@@ -3,6 +3,7 @@ module VirtualMonkey
 
 # monkey clone --deployment name --feature testcase.rb --breakpoint 4 --copies 7
     def self.clone
+      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options = Trollop::options do
         opt :deployment, "regex string to use for matching deployment", :type => :string, :short => '-d', :required => true
         opt :feature, "path to feature(s) to run against the deployments", :type => :string

@@ -86,7 +86,11 @@ module VirtualMonkey
         servers_to_check = @servers.select { |s| s.server_template_href == st_href }
         logfile_array.each { |logfile| ret_string += mc.check_messages(servers_to_check, interactive, logfile) }
       end
-      return ret_string
+      if ret_string =~ /ERROR/
+        raise ret_string
+      else
+        return ret_string
+      end
     end
 
     # Loads a single hard-coded RightScript or Recipe, attaching it to all templates in the deployment unless add_only_to_this_st is set

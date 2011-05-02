@@ -2,6 +2,7 @@ module VirtualMonkey
   module Command
     # This command does all the steps create/run/conditionaly destroy
     def self.troop
+      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options = Trollop::options do
         text "This command performs all the operations of the monkey in one execution.  Create/Run/Destroy"
         opt :file, "troop config, see config/troop/*sample.json for example format", :type => :string, :required => true
@@ -14,6 +15,8 @@ module VirtualMonkey
         opt :verbose, "Print all output to STDOUT as well as the log files", :short => "-v"
         opt :list_trainer, "run through the interactive white- and black-list trainer after the tests complete, before the deployments are destroyed"
         opt :qa, "Before destroying deployments, does a strict blacklist check (ignores whitelist)"
+        opt :cloud_override, "Space-separated list of cloud_ids to use", :type => :integers, :short => '-i'
+        opt :only, "Regex string to use for subselection matching on MCIs to enumerate Eg. --only Ubuntu", :type => :string
       end
 
       # PATHs SETUP
@@ -79,7 +82,8 @@ module VirtualMonkey
           @@options[:steps] = @@options[:steps].join(" ")
         end
         @@options[:steps] = "all" unless @@options[:steps] =~ /(create)|(run)|(destroy)/
-        @@options[:cloud_variables] = File.join(@@cv_dir, config['cloud_variables'])
+        @@options[:cloud_variables] = File.join(@@cv_dir, config['cloud_variables']) unless @@options[:cloud_override]
+        @@options[:clouds] = @@options[:cloud_override] if @@options[:cloud_override]
         @@options[:common_inputs] = config['common_inputs'].map { |cipath| File.join(@@ci_dir, cipath) }
         @@options[:feature] = File.join(@@features_dir, config['feature'])
         @@options[:runner] = get_runner_class

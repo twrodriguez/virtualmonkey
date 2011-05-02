@@ -63,14 +63,17 @@ class DeploymentMonk
     @server_templates.each do |st|
       new_st = ServerTemplateInternal.new(:href => st.href)
       st.multi_cloud_images = new_st.multi_cloud_images
-      @image_count = st.multi_cloud_images.size if st.multi_cloud_images.size > @image_count
       if options[:mci_override] && !options[:mci_override].empty?
         mci = MultiCloudImageInternal.new(:href => options[:mci_override].first)
         mci.reload
         multi_cloud_images = [mci]
+      elsif options[:only]
+        multi_cloud_images = new_st.multi_cloud_images.select { |mci| mci['name'] =~ /#{options[:only]}/ }
+        raise "No MCI on ServerTemplate '#{new_st.nickname}' matches regex /#{options[:only]}/" if multi_cloud_images.empty?
       else
         multi_cloud_images = new_st.multi_cloud_images
       end
+      @image_count = multi_cloud_images.size if multi_cloud_images.size > @image_count
       multi_cloud_images.each { |mci|
         @clouds.concat( mci["multi_cloud_image_cloud_settings"].map { |s| [ "#{s["cloud_id"]}" ] } )
       }
@@ -93,6 +96,13 @@ class DeploymentMonk
           if options[:mci_override] && !options[:mci_override].empty?
             mci = MultiCloudImageInternal.new(:href => options[:mci_override][index])
 	          mci.reload
+          elsif options[:only]
+            subset = new_st.multi_cloud_images.select { |mci| mci['name'] =~ /#{options[:only]}/ }
+            if subset[index]
+              mci = subset[index]
+            else
+              mci = subset[0]
+            end
           elsif new_st.multi_cloud_images[index]
             mci = new_st.multi_cloud_images[index]
           else
@@ -116,11 +126,19 @@ class DeploymentMonk
           #Select an MCI to use
           if options[:mci_override] && !options[:mci_override].empty?
             mci = MultiCloudImageInternal.new(:href => options[:mci_override][index])
-	    mci.reload
+	          mci.reload
             use_this_image_setting = mci['multi_cloud_image_cloud_settings'].detect { |setting| setting["image_href"].include?("cloud_id=#{cloud}") }
             use_this_image = use_this_image_setting["image_href"]
             use_this_instance_type = use_this_image_setting["aws_instance_type"]
             dep_image_list << MultiCloudImage.find(options[:mci_override][index]).name.gsub(/ /,'_')
+          elsif options[:only]
+            subset = st.multi_cloud_images.select { |mci| mci['name'] =~ /#{options[:only]}/ }
+            if subset[index]
+              dep_image_list << subset[index]['name'].gsub(/ /,'_')
+              use_this_image = subset[index]['href']
+            else
+              use_this_image = subset[0]['href']
+            end
           elsif st.multi_cloud_images[index]
             dep_image_list << st.multi_cloud_images[index]['name'].gsub(/ /,'_')
             use_this_image = st.multi_cloud_images[index]['href']
