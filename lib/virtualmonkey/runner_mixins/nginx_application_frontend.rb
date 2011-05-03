@@ -1,7 +1,10 @@
 module VirtualMonkey
   module NginxApplicationFrontend
+    include VirtualMonkey::Frontend
+    include VirtualMonkey::Application
+    include VirtualMonkey::UnifiedApplication
     include VirtualMonkey::ApplicationFrontend
-    
+
     def log_rotation_checks
       detect_os
 
