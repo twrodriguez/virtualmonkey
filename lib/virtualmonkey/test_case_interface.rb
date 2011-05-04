@@ -1,12 +1,28 @@
 require 'ruby-debug'
 
 module VirtualMonkey
+  def self.feature_file=(obj)
+    @@feature_file = obj
+  end
+
+  def self.feature_file
+    @@feature_file ||= nil
+  end
+
   module TestCaseInterface
     def set_var(sym, *args, &block)
       behavior(sym, *args, &block)
     end
-
+  
+    def test_case_interface_init
+      @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
+      @rerun_last_command = []
+      @stack_objects = []         # array holding the top most objects in the stack
+      @iterating_stack = []       # stack that iterates
+    end
+    
     def behavior(sym, *args, &block)
+      execution_stack_trace(sym, args)
       begin
         push_rerun_test
         #pre-command
@@ -31,7 +47,10 @@ module VirtualMonkey
     def probe(set, command, &block)
       # run command on set over ssh
       result = ""
-      select_set(set).each { |s|
+      set_ary = select_set(set)
+      execution_stack_trace("probe", [set_ary, command])
+
+      set_ary.each { |s|
         begin
           push_rerun_test
           result_temp = s.spot_check_command(command)
@@ -44,6 +63,14 @@ module VirtualMonkey
         end while @rerun_last_command.pop
         result += result_temp[:output]
       }
+    end
+
+    def add_probe_command(command)
+       command_empty = []
+       add_command = {"probe-command:"+(command.inspect) => command_empty} 
+       @iterating_stack  = @stack_objects.last # get the last objevt from the object stack
+       @iterating_stack <<   add_command # here were are adding to iterating stack
+       @stack_objects.push(command_empty)
     end
 
     def dev_mode?(e = nil)
@@ -145,6 +172,7 @@ module VirtualMonkey
     end
 
     def object_behavior(obj, sym, *args, &block)
+      execution_stack_trace(sym, args, obj)
       begin
         push_rerun_test
         #pre-command
@@ -166,6 +194,47 @@ module VirtualMonkey
     def continue_test
       @rerun_last_command.pop
       @rerun_last_command.push(false)
+    end
+
+    def execution_stack_trace(sym, args, obj=nil)
+      return nil unless VirtualMonkey::feature_file
+
+      # Stringify Call
+      arg_ary = args.map { |item| stringify_arg(item) }
+      call = sym.to_s + "(#{arg_ary.join(", ")})"
+      call = stringify_arg(obj) + "." + call if obj
+      add_hash = { call => [] }
+
+      # Add string to proper place
+      if @rerun_last_command.length >= @stack_objects.length # deeper call
+        if @rerun_last_command.empty? # new feature file line
+          @stack_objects.clear
+          @stack_objects << VirtualMonkey::feature_file
+        end
+      else # shallower or same level call
+        @stack_objects.pop(Math.abs(@stack_objects.length - @rerun_last_command.length))
+      end
+      @iterating_stack = @stack_objects.last # get the last object from the object stack
+      @iterating_stack << add_hash # here were are adding to iterating stack
+      @stack_objects << []
+    end
+
+    def stringify_arg(arg)
+      ret = ""
+      if arg.is_a?(String)
+        ret = arg
+      elsif arg.is_a?(Array)
+        ret = arg.map { |item| stringify_arg(item) }.inspect
+      elsif arg.is_a?(Hash)
+        new_hsh = {}
+        arg.each { |k,v| new_hsh[ stringify_arg(k) ] = stringify_arg(v) }
+        ret = new_hsh.inspect
+      elsif arg.is_a?(ServerInterface) or arg.is_a?(Server)
+        ret = arg.nickname
+      elsif arg.is_a?(AuditEntry)
+        ret = arg.class.to_s
+      end
+      return ret
     end
   end
 end

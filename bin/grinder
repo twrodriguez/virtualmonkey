@@ -27,7 +27,9 @@ export DEPLOYMENT=#{ENV['DEPLOYMENT']}
 export REST_CONNECTION_LOG=#{ENV['REST_CONNECTION_LOG']}
 export MONKEY_NO_DEBUG=#{ENV['MONKEY_NO_DEBUG']}
 export MONKEY_NO_RESUME=#{ENV['MONKEY_NO_RESUME']}
+export EXECUTION_TRACE_LOG=#{ENV['EXECUTION_TRACE_LOG']}
 EOS
+
 
 raise usage unless ENV['DEPLOYMENT']
 raise usage unless ARGV[0] and File.exist?(ARGV[0])
@@ -46,6 +48,15 @@ end
 
 @testcase = File.open(ARGV[0], "r")
 testname = File.basename(ARGV[0])
+
+VirtualMonkey::feature_file = Array.new
+VirtualMonkey::feature_file << {"feature_file"=>ARGV[0]} # enter the name of the feature file
+
+if ENV['EXECUTION_TRACE_LOG']
+  trace_log = File.open(ENV['EXECUTION_TRACE_LOG'], "w")
+else
+  trace_log = STDOUT
+end
 
 linenum = 1
 @resume = 0
@@ -120,3 +131,6 @@ $stdout.syswrite "Total time elapsed: #{elapsed} seconds\n"
 if linenum > @breakpoint and ENV['MONKEY_NO_DEBUG'] !~ /true/i
   eval("@runner.dev_mode?")
 end
+
+trace_file.write( VirtualMonkey::feature_file.to_yaml )
+trace_file.close unless trace_file == STDOUT

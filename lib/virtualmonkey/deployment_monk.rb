@@ -221,13 +221,11 @@ class DeploymentMonk
   def update_inputs
     @deployments.each do |d|
       if d.cloud_id
-        load_vars_for_cloud(d.cloud_id)
-        @common_inputs.deep_merge!(@variables_for_cloud[d.cloud_id]['parameters']) if @variables_for_cloud[d.cloud_id]
+        @common_inputs.deep_merge!(@variables_for_cloud[d.cloud_id]['parameters']) if load_vars_for_cloud(d.cloud_id)
       end
       set_inputs(d, @common_inputs)
       d.servers.each { |s|
-        load_vars_for_cloud(s.cloud_id)
-        cv_inputs = (@variables_for_cloud[s.cloud_id] ? @variables_for_cloud[s.cloud_id]['parameters'] : {})
+        cv_inputs = (load_vars_for_cloud(s.cloud_id) ? @variables_for_cloud[s.cloud_id]['parameters'] : {})
         set_inputs(s, @common_inputs.deep_merge(cv_inputs))
       }
     end
@@ -250,6 +248,7 @@ class DeploymentMonk
     @variables_for_cloud[cloud].deep_merge!(@ssh_keys[cloud])
     @variables_for_cloud[cloud].deep_merge!(@security_groups[cloud])
     @variables_for_cloud[cloud].deep_merge!(@datacenters[cloud])
+    true
   end
 
   def set_inputs(obj, inputs)
@@ -274,6 +273,14 @@ class DeploymentMonk
     deployments = []
     @deployments.each { |v| deployments << v.nickname }
     deployments 
+  end
+
+  def set_server_params
+    @deployments.each do |d|
+      d.servers.each { |s|
+        s.update(@variables_for_cloud[s.cloud_id]) if load_vars_for_cloud(s.cloud_id)
+      }
+    end
   end
 
 end
