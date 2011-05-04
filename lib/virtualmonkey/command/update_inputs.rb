@@ -19,6 +19,7 @@ module VirtualMonkey
         @@options[:common_inputs].each { |cipath| @@dm.load_common_inputs(cipath) }
       end
       @@dm.update_inputs
+      @@dm.set_server_params
     end
   end
 end

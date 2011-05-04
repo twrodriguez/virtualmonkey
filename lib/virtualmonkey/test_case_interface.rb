@@ -9,85 +9,24 @@ module VirtualMonkey
     @@feature_file ||= nil
   end
 
-def rec_Ary_and_hsh(hsh_or_ary)
-    if hsh_or_ary.is_a?(Array)
-
-      hsh_or_ary.each_with_index {|ary_obj, index|
-         if(rec_Ary_and_hsh(ary_obj)) # if the element is a server interface true
-           hsh_or_ary[index] = ary_obj.nickname
-         end
-      }
-    elsif hsh_or_ary.is_a?(Hash)
-     
-       hsh_or_ary.each { |key,object|
-           if (rec_Ary_and_hsh(hsh_or_ary[key])) # if the element is a server interface true
-            hsh_or_ary[key] = object.nickname
-           end
-        }
-    else
-      if(hsh_or_ary.is_a?(ServerInterface))     # replace with server Interface
-        return true
-      else
-        return false
-      end
-
-    end
- end
-
   module TestCaseInterface
     def set_var(sym, *args, &block)
       behavior(sym, *args, &block)
     end
   
+    def test_case_interface_init
+      @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
+      @rerun_last_command = []
+      @stack_objects = []         # array holding the top most objects in the stack
+      @iterating_stack = []       # stack that iterates
+    end
     
     def behavior(sym, *args, &block)
+      execution_stack_trace(sym, args)
       begin
         push_rerun_test
         #pre-command
         populate_settings if @deployment
-        
-        #luke code begins here  ***********************
-        empty_array = []
-        
-        #check if the stack is not empty
-        if(!@rerun_last_command.empty?)
-            
-              new_array = [] 
-              args.each{|item|
-                  if( item.is_a?(Hash) or item.is_a?(String)or item.is_a?(Array))
-                    new_array << item.inspect          
-                  elsif (item.is_a?(ServerInterface)or item.is_a?(Server))
-                    new_array << item.nickname
-                  end   
-                    
-              }
-               add_hash = { (sym.to_s + "(#{new_array.join(", ")})") => empty_array}
-                           
-               if(@rerun_last_command.length > (@stack_objects.length-1))
-                  if(@rerun_last_command.length == 1)
-                     @stack_objects.clear # clear the objects stack because this is a new stack call     
-                     VirtualMonkey::feature_file <<  add_hash if VirtualMonkey::feature_file 
-                     @stack_objects.push(VirtualMonkey::feature_file)if VirtualMonkey::feature_file
-                     @stack_objects.push(empty_array)
-                     @iterating_stack = VirtualMonkey::feature_file if VirtualMonkey::feature_file  # point the iterating_stack to the feature file object
-                  else
-                     @iterating_stack  = @stack_objects.last # get the last objevt from the object stack
-                     @iterating_stack <<   add_hash # here were are adding to iterating stack
-                     @stack_objects.push(empty_array)
-                 end
-              elsif(@rerun_last_command.length < (@stack_objects.length-1))
-                 @stack_objects.pop(@stack_objects.length - @rerun_last_command.length)
-                 @iterating_stack  = @stack_objects.last # get the last objevt from the object stack
-                 @iterating_stack <<  add_hash # here were are adding to iterating stack
-                 @stack_objects.push(empty_array)
-              else
-               @iterating_stack <<  add_hash# here were are adding to iterating stack
-               @stack_objects.pop
-               @stack_objects.push(empty_array)
-
-              end
-     end
-        #luke code ends here **************************
         #command
         result = __send__(sym, *args)
         if block
@@ -108,59 +47,10 @@ def rec_Ary_and_hsh(hsh_or_ary)
     def probe(set, command, &block)
       # run command on set over ssh
       result = ""
-      select_ary_set = select_set(set)
-      #my_printable_ary = select_ary_set.map {|s| s.nickname }
+      set_ary = select_set(set)
+      execution_stack_trace("probe", [set_ary, command])
 
-     my_printable_ary  = select_ary_set
-      
-               print "rerun:" +@rerun_last_command.length.to_s  + "\n"
-
-               if(@rerun_last_command.length ==0 )
-                @stack_objects.clear # clear the objects stack because this is a new stack call     
-                empty_array = []
-                new_array = []
-                new_array << select_ary_set.inspect 
-                add_hash = {new_array.join(", ")=> empty_array}
-                print "rerun:" +@rerun_last_command.length.to_s  + "\n"
-                @stack_objects.push(VirtualMonkey::feature_file)if VirtualMonkey::feature_file
-                
-                add_probe_command(command)
-               
-                 @iterating_stack = @stack_objects.last
-                @iterating_stack << add_hash
-                @stack_objects.push(empty_array)
-               elsif(!@rerun_last_command.empty?)
-            
-                empty_array = []
-                new_array = []
-                new_array << select_ary_set.inspect 
-                add_hash = {new_array.join(", ")=> empty_array}
-                print "rerun:" +@rerun_last_command.length.to_s  + "\n"
-                
-                  if(@rerun_last_command.length > (@stack_objects.length-1))
-                     add_probe_command(command)
-                     @iterating_stack  = @stack_objects.last # get the last objevt from the object stack
-                     @iterating_stack <<   add_hash # here were are adding to iterating stack
-                     @stack_objects.push(empty_array)
-        
-                  elsif(@rerun_last_command.length < (@stack_objects.length-1))
-                   @stack_objects.pop(@stack_objects.length - @rerun_last_command.length)
-                  add_probe_command(command)
-                  @iterating_stack  = @stack_objects.last # get the last objevt from the object stack
-                  @iterating_stack  = @stack_objects.last # get the last objevt from the object stack
-                  @iterating_stack <<  add_hash # here were are adding to iterating stack
-                  @stack_objects.push(empty_array)
-                else
-                  add_probe_command(command)
-                  @iterating_stack  = @stack_objects.last # get the last objevt from the object stack
-                  @iterating_stack <<  add_hash# here were are adding to iterating stack
-                  @stack_objects.pop
-                  @stack_objects.push(empty_array)
-                end
-             end
-
-        return # ****************** take me out please****************** 
-      select_ary_set.each { |s|
+      set_ary.each { |s|
         begin
           push_rerun_test
           result_temp = s.spot_check_command(command)
@@ -282,6 +172,7 @@ def rec_Ary_and_hsh(hsh_or_ary)
     end
 
     def object_behavior(obj, sym, *args, &block)
+      execution_stack_trace(sym, args, obj)
       begin
         push_rerun_test
         #pre-command
@@ -303,6 +194,47 @@ def rec_Ary_and_hsh(hsh_or_ary)
     def continue_test
       @rerun_last_command.pop
       @rerun_last_command.push(false)
+    end
+
+    def execution_stack_trace(sym, args, obj=nil)
+      return nil unless VirtualMonkey::feature_file
+
+      # Stringify Call
+      arg_ary = args.map { |item| stringify_arg(item) }
+      call = sym.to_s + "(#{arg_ary.join(", ")})"
+      call = stringify_arg(obj) + "." + call if obj
+      add_hash = { call => [] }
+
+      # Add string to proper place
+      if @rerun_last_command.length >= @stack_objects.length # deeper call
+        if @rerun_last_command.empty? # new feature file line
+          @stack_objects.clear
+          @stack_objects << VirtualMonkey::feature_file
+        end
+      else # shallower or same level call
+        @stack_objects.pop(Math.abs(@stack_objects.length - @rerun_last_command.length))
+      end
+      @iterating_stack = @stack_objects.last # get the last object from the object stack
+      @iterating_stack << add_hash # here were are adding to iterating stack
+      @stack_objects << []
+    end
+
+    def stringify_arg(arg)
+      ret = ""
+      if arg.is_a?(String)
+        ret = arg
+      elsif arg.is_a?(Array)
+        ret = arg.map { |item| stringify_arg(item) }.inspect
+      elsif arg.is_a?(Hash)
+        new_hsh = {}
+        arg.each { |k,v| new_hsh[ stringify_arg(k) ] = stringify_arg(v) }
+        ret = new_hsh.inspect
+      elsif arg.is_a?(ServerInterface) or arg.is_a?(Server)
+        ret = arg.nickname
+      elsif arg.is_a?(AuditEntry)
+        ret = arg.class.to_s
+      end
+      return ret
     end
   end
 end

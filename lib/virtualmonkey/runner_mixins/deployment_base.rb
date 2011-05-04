@@ -5,16 +5,10 @@ module VirtualMonkey
     attr_accessor :scripts_to_run
     
     def initialize(deployment)
+      test_case_interface_init()
       @scripts_to_run = {}
-      @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
-      @rerun_last_command = []
       @server_templates = []
       @deployment = Deployment.find_by_nickname_speed(deployment).first
-      @current_max_stack_count = 0 #variable holding information about the local max count of the stack depth
-      @stack_objects = []         # array holding the top most objects in the stack 
-      
-      @iterating_stack = []      #stack that iterates
-      @is_func_new_behavior = true # variable to check if its a new bheavior function from feature file
       raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
       behavior(:populate_settings)
     end
