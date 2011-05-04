@@ -6,7 +6,7 @@
 #Scenario: LAMP Server Template Test
 #
 # Given A LAMP deployment
-  @runner = VirtualMonkey::LampRunner.new(ENV['DEPLOYMENT'])
+  @runner = VirtualMonkey::LampChefRunner.new(ENV['DEPLOYMENT'])
 
 # Then I should stop the servers
   @runner.behavior(:stop_all)
@@ -18,13 +18,10 @@
   @runner.behavior(:wait_for_all, "operational")
 
 # Then I should run LAMP checks
-  @runner.behavior(:run_lamp_checks)
+  @runner.behavior(:run_lamp_chef_checks)
 
-## Then I should run mysqlslap stress test
-#  @runner.behavior(:run_mysqlslap_check)
-#
 # Then I should check that ulimit was set correctly
-  @runner.probe(".*", "su - mysql -s /bin/bash -c \"ulimit -n\"") { |r,st| r.to_i > 1024 }
+#  @runner.probe(".*", "su - mysql -s /bin/bash -c \"ulimit -n\"") { |r,st| r.to_i > 1024 }
 
 # Then I should check that monitoring is enabled
   @runner.behavior(:check_monitoring)
