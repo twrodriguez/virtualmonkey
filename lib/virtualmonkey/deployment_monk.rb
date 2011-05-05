@@ -221,17 +221,18 @@ class DeploymentMonk
   def update_inputs
     @deployments.each do |d|
       if d.cloud_id
-        @common_inputs.deep_merge!(@variables_for_cloud[d.cloud_id]['parameters']) if load_vars_for_cloud(d.cloud_id)
+        @common_inputs.deep_merge!(@variables_for_cloud[d.cloud_id.to_s]['parameters']) if load_vars_for_cloud(d.cloud_id)
       end
       set_inputs(d, @common_inputs)
       d.servers.each { |s|
-        cv_inputs = (load_vars_for_cloud(s.cloud_id) ? @variables_for_cloud[s.cloud_id]['parameters'] : {})
+        cv_inputs = (load_vars_for_cloud(s.cloud_id) ? @variables_for_cloud[s.cloud_id.to_s]['parameters'] : {})
         set_inputs(s, @common_inputs.deep_merge(cv_inputs))
       }
     end
   end
 
   def load_vars_for_cloud(cloud)
+    cloud = cloud.to_s
     return nil unless @variables_for_cloud[cloud]
     unless @ssh_keys[cloud]
       VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
@@ -252,11 +253,11 @@ class DeploymentMonk
   end
 
   def set_inputs(obj, inputs)
-    if obj.respond_to?(:set_inputs)
+#    if obj.respond_to?(:set_inputs)
       obj.set_inputs(inputs)
-    else
-      inputs.each { |key,val| obj.set_input(key,val) }
-    end
+#    else
+#      inputs.each { |key,val| obj.set_input(key,val) }
+#    end
   end
 
   def destroy_all
@@ -278,7 +279,8 @@ class DeploymentMonk
   def set_server_params
     @deployments.each do |d|
       d.servers.each { |s|
-        s.update(@variables_for_cloud[s.cloud_id]) if load_vars_for_cloud(s.cloud_id)
+        s.settings
+        s.update(@variables_for_cloud[s.cloud_id.to_s]) if load_vars_for_cloud(s.cloud_id)
       }
     end
   end

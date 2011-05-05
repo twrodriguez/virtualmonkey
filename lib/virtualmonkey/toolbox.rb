@@ -121,7 +121,7 @@ module VirtualMonkey
           # Use API user's managed ssh key
           puts "Using API user's managed ssh key, make sure \"~/.ssh/#{key_name}\" exists!"
           keys["#{cloud}"] = {"parameters" =>
-                                {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
+                                {"PRIVATE_SSH_KEY" => "key:publish-test:1"}
                               }
           begin
             found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first
