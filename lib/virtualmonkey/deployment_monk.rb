@@ -225,7 +225,8 @@ class DeploymentMonk
       end
       set_inputs(d, @common_inputs)
       d.servers.each { |s|
-        cv_inputs = (load_vars_for_cloud(s.cloud_id) ? @variables_for_cloud[s.cloud_id.to_s]['parameters'] : {})
+        cid = VirtualMonkey::Toolbox::determine_cloud_id(s).to_s
+        cv_inputs = (load_vars_for_cloud(cid) ? @variables_for_cloud[cid]['parameters'] : {})
         set_inputs(s, @common_inputs.deep_merge(cv_inputs))
       }
     end
@@ -279,8 +280,8 @@ class DeploymentMonk
   def set_server_params
     @deployments.each do |d|
       d.servers.each { |s|
-        s.settings
-        s.update(@variables_for_cloud[s.cloud_id.to_s]) if load_vars_for_cloud(s.cloud_id)
+        cid = VirtualMonkey::Toolbox::determine_cloud_id(s).to_s
+        s.update(@variables_for_cloud[cid]) if load_vars_for_cloud(cid)
       }
     end
   end
