@@ -149,23 +149,23 @@ class DeploymentMonk
           load_vars_for_cloud(cloud)
           @common_inputs.deep_merge!(@variables_for_cloud[cloud]['parameters'])
           @common_inputs.each do |key,val|
-            inputs << { :name => key, :value => val }
+            inputs << { "name" => key, "value" => val }
           end
           #Set Server Creation Parameters
-          server_params = { :nickname => "#{@tag}-tempserver-#{rand(1000000)}-#{st.nickname}", 
-                            :deployment_href => new_deploy.href.dup, 
-                            :server_template_href => st.href.dup, 
-                            :cloud_id => cloud,
-                            :inputs => inputs,
-                            :mci_href => use_this_image
-                            #:ec2_image_href => image['image_href'], 
-                            #:instance_type => image['aws_instance_type'] 
+          server_params = { "nickname" => "#{@tag}-tempserver-#{rand(1000000)}-#{st.nickname}",
+                            "deployment_href" => new_deploy.href.dup,
+                            "server_template_href" => st.href.dup,
+                            "cloud_id" => cloud,
+                            "inputs" => inputs,
+                            "mci_href" => use_this_image
+                            #"ec2_image_href" => image['image_href'],
+                            #"instance_type" => image['aws_instance_type']
                           }
           # If overriding the multicloudimage need to specify the ec2 image href because you can't set an MCI that's not in the ServerTemplate
           if options[:mci_override] && !options[:mci_override].empty?
-            server_params.reject! {|k,v| k == :mci_href}
-            server_params[:ec2_image_href] = use_this_image
-            server_params[:instance_type] = use_this_instance_type
+            server_params.reject! {|k,v| k == "mci_href"}
+            server_params["ec2_image_href"] = use_this_image
+            server_params["instance_type"] = use_this_instance_type
           end
 
           #This rescue block can be removed after the VM ServerTemplate defaults to multicloud rest_connection
