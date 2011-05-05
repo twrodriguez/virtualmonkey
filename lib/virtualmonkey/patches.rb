@@ -1,3 +1,5 @@
+require 'ruby-debug'
+
 # Hash Patches
 
 class Hash

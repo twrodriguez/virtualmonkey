@@ -132,5 +132,6 @@ if linenum > @breakpoint and ENV['MONKEY_NO_DEBUG'] !~ /true/i
   eval("@runner.dev_mode?")
 end
 
+puts "Execution Trace:" if trace_log == $stdout
 trace_log.write( VirtualMonkey::feature_file.to_yaml )
 trace_log.close unless trace_log == $stdout
