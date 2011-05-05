@@ -41,6 +41,7 @@ module VirtualMonkey
           dev_mode?(e)
         end
       end while @rerun_last_command.pop
+      clean_stack_trace
       result
     end
 
@@ -63,14 +64,7 @@ module VirtualMonkey
         end while @rerun_last_command.pop
         result += result_temp[:output]
       }
-    end
-
-    def add_probe_command(command)
-       command_empty = []
-       add_command = {"probe-command:"+(command.inspect) => command_empty} 
-       @iterating_stack  = @stack_objects.last # get the last objevt from the object stack
-       @iterating_stack <<   add_command # here were are adding to iterating stack
-       @stack_objects.push(command_empty)
+      clean_stack_trace
     end
 
     def dev_mode?(e = nil)
@@ -184,6 +178,7 @@ module VirtualMonkey
       rescue Exception => e
         dev_mode?(e)
       end while @rerun_last_command.pop
+      clean_stack_trace
       result
     end
 
@@ -199,42 +194,62 @@ module VirtualMonkey
     def execution_stack_trace(sym, args, obj=nil)
       return nil unless VirtualMonkey::feature_file
 
+      referenced_ary = []
+
       # Stringify Call
       arg_ary = args.map { |item| stringify_arg(item) }
       call = sym.to_s + "(#{arg_ary.join(", ")})"
       call = stringify_arg(obj) + "." + call if obj
-      add_hash = { call => [] }
+      add_hash = { call => referenced_ary }
 
       # Add string to proper place
-      if @rerun_last_command.length >= @stack_objects.length # deeper call
-        if @rerun_last_command.empty? # new feature file line
-          @stack_objects.clear
-          @stack_objects << VirtualMonkey::feature_file
-        end
-      else # shallower or same level call
+      if @rerun_last_command.length < @stack_objects.length # shallower or same level call
         @stack_objects.pop(Math.abs(@stack_objects.length - @rerun_last_command.length))
       end
-      @iterating_stack = @stack_objects.last # get the last object from the object stack
-      @iterating_stack << add_hash # here were are adding to iterating stack
-      @stack_objects << []
+      if @stack_objects.empty?
+        VirtualMonkey::feature_file << add_hash
+      else
+        @iterating_stack = @stack_objects.last # get the last object from the object stack
+        @iterating_stack << add_hash # here were are adding to iterating stack
+      end
+      @stack_objects << referenced_ary
     end
 
-    def stringify_arg(arg)
-      ret = ""
-      if arg.is_a?(String)
-        ret = arg
-      elsif arg.is_a?(Array)
-        ret = arg.map { |item| stringify_arg(item) }.inspect
-      elsif arg.is_a?(Hash)
-        new_hsh = {}
-        arg.each { |k,v| new_hsh[ stringify_arg(k) ] = stringify_arg(v) }
-        ret = new_hsh.inspect
-      elsif arg.is_a?(ServerInterface) or arg.is_a?(Server)
-        ret = arg.nickname
-      elsif arg.is_a?(AuditEntry)
-        ret = arg.class.to_s
+    def clean_stack_trace
+      # This is ugly code...I apologize, but it works
+      return nil unless VirtualMonkey::feature_file
+      ary = @stack_objects
+      ary = VirtualMonkey::feature_file if ary.first.empty?
+      ary.each { |temp|
+        temp = VirtualMonkey::feature_file unless temp.is_a?(Array)
+        temp.each_index { |i|
+          if temp[i].is_a?(Hash)
+            key = temp[i].keys.first
+            if temp[i][key].is_a?(Array) and temp[i][key].empty?
+              temp[i] = key
+            end
+          end
+        }
+      }
+    end
+
+    def stringify_arg(arg, will_be_inspected = false)
+      return (will_be_inspected ? arg : arg.inspect) if arg.is_a?(String)
+      return stringify_arg(arg.nickname, will_be_inspected) if arg.is_a?(ServerInterface) or arg.is_a?(Server)
+      return arg.class.to_s if arg.is_a?(AuditEntry)
+
+      if arg.is_a?(Array)
+        new_ary = arg.map { |item| stringify_arg(item, true) }
+        return (will_be_inspected ? new_ary : new_ary.inspect)
       end
-      return ret
+
+      if arg.is_a?(Hash)
+        new_hsh = {}
+        arg.each { |k,v| new_hsh[ stringify_arg(k, true) ] = stringify_arg(v, true) }
+        return (will_be_inspected ? new_hsh : new_hsh.inspect)
+      end
+
+      return ""
     end
   end
 end

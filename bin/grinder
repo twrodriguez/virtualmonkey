@@ -55,7 +55,7 @@ VirtualMonkey::feature_file << {"feature_file"=>ARGV[0]} # enter the name of the
 if ENV['EXECUTION_TRACE_LOG']
   trace_log = File.open(ENV['EXECUTION_TRACE_LOG'], "w")
 else
-  trace_log = STDOUT
+  trace_log = $stdout
 end
 
 linenum = 1
@@ -132,5 +132,5 @@ if linenum > @breakpoint and ENV['MONKEY_NO_DEBUG'] !~ /true/i
   eval("@runner.dev_mode?")
 end
 
-trace_file.write( VirtualMonkey::feature_file.to_yaml )
-trace_file.close unless trace_file == STDOUT
+trace_log.write( VirtualMonkey::feature_file.to_yaml )
+trace_log.close unless trace_log == $stdout
