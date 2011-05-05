@@ -70,11 +70,12 @@ module VirtualMonkey
       server.settings
       return server.cloud_id if server.cloud_id
       # API 1.5 has cloud_id under .settings even on inactive server, so must be API 1.0
+      cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
 
       # Try ssh keys
-      if server.ec2_ssh_key_href
+      if server.ec2_ssh_key_href and api0_1?
         ref = server.ec2_ssh_key_href
-        get_available_clouds(10).each { |cloud|
+        cloud_ids.each { |cloud|
           if Ec2SshKeyInternal.find_by_cloud_id(cloud.to_s).select { |o| o.href == ref }.first
             return cloud
           end
@@ -84,7 +85,7 @@ module VirtualMonkey
       # Try security groups
       if server.ec2_security_groups_href
         server.ec2_security_groups_href.each { |sg|
-          get_available_clouds(10).each { |cloud|
+          cloud_ids.each { |cloud|
             if Ec2SecurityGroup.find_by_cloud_id(cloud.to_s).select { |o| o.href == sg.href }.first
               return cloud
             end
