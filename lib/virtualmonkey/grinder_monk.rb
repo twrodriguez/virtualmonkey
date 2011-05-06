@@ -5,7 +5,7 @@ require 'eventmachine'
 require 'right_popen'
 
 class GrinderJob
-  attr_accessor :status, :output, :logfile, :deployment, :rest_log, :no_resume, :verbose
+  attr_accessor :status, :output, :logfile, :deployment, :rest_log, :trace_log, :no_resume, :verbose
 
   def link_to_rightscale
     i = deployment.href.split(/\//).last
@@ -62,6 +62,7 @@ class GrinderJob
                                             "AWS_ACCESS_KEY_ID" => Fog.credentials[:aws_access_key_id],
                                             "AWS_SECRET_ACCESS_KEY" => Fog.credentials[:aws_secret_access_key],
                                             "REST_CONNECTION_LOG" => @rest_log,
+                                            "EXECUTION_TRACE_LOG" => @trace_log,
                                             "MONKEY_NO_RESUME" => "#{@no_resume}",
                                             "MONKEY_NO_DEBUG" => "true"},
                         :stdout_handler => :on_read_stdout,
@@ -76,10 +77,11 @@ class GrinderMonk
   # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
   # * feature<~String> the feature filename 
-  def run_test(deployment, feature, break_point = 1000000)
+  def run_test(deployment, feature)
     new_job = GrinderJob.new
     new_job.logfile = File.join(@log_dir, "#{deployment.nickname}.log")
-    new_job.rest_log = "#{@log_dir}/#{deployment.nickname}.rest_connection.log"
+    new_job.rest_log = File.join(@log_dir, "#{deployment.nickname}.rest_connection.log")
+    new_job.trace_log = File.join(@log_dir, "#{File.basename(feature, ".rb")}.yaml")
     new_job.deployment = deployment
     new_job.no_resume = "true" if @options[:no_resume]
     new_job.verbose = true if @options[:verbose]
@@ -167,6 +169,7 @@ class GrinderMonk
         done = 0
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.logfile)}", IO.read(j.logfile), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.rest_log)}", IO.read(j.rest_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
+        s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.trace_log)}", IO.read(j.trace_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         done = 1
       rescue Exception => e
         unless e.message =~ /Bad file descriptor|no such file or directory/i

@@ -5,9 +5,8 @@ module VirtualMonkey
     attr_accessor :scripts_to_run
     
     def initialize(deployment)
+      test_case_interface_init()
       @scripts_to_run = {}
-      @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
-      @rerun_last_command = []
       @server_templates = []
       @deployment = Deployment.find_by_nickname_speed(deployment).first
       raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment

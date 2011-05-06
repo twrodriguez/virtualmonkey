@@ -66,6 +66,36 @@ module VirtualMonkey
       @@clouds.select { |h| h["cloud_id"] <= up_to }
     end
 
+    def self.determine_cloud_id(server)
+      server.settings
+      return server.cloud_id if server.cloud_id
+      # API 1.5 has cloud_id under .settings even on inactive server, so must be API 1.0
+      cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
+
+      # Try ssh keys
+      if server.ec2_ssh_key_href and api0_1?
+        ref = server.ec2_ssh_key_href
+        cloud_ids.each { |cloud|
+          if Ec2SshKeyInternal.find_by_cloud_id(cloud.to_s).select { |o| o.href == ref }.first
+            return cloud
+          end
+        }
+      end
+
+      # Try security groups
+      if server.ec2_security_groups_href
+        server.ec2_security_groups_href.each { |sg|
+          cloud_ids.each { |cloud|
+            if Ec2SecurityGroup.find_by_cloud_id(cloud.to_s).select { |o| o.href == sg.href }.first
+              return cloud
+            end
+          }
+        }
+      end
+
+      raise "Could not determine cloud_id...try setting an ssh key or security group"
+    end
+
     def self.find_myself_in_api
       if ENV['I_AM_IN_EC2']
         myself = Server.find_with_filter('aws_id' => ENV['EC2_INSTANCE_ID']).first
@@ -121,7 +151,7 @@ module VirtualMonkey
           # Use API user's managed ssh key
           puts "Using API user's managed ssh key, make sure \"~/.ssh/#{key_name}\" exists!"
           keys["#{cloud}"] = {"parameters" =>
-                                {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
+                                {"PRIVATE_SSH_KEY" => "key:publish-test:1"}
                               }
           begin
             found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first

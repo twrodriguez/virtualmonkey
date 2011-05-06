@@ -1,3 +1,5 @@
+require 'ruby-debug'
+
 # Hash Patches
 
 class Hash
@@ -91,5 +93,11 @@ class Object
     else
       super(*args)
     end
+  end
+end
+
+module Math
+  def self.abs(n)
+    (n > 0 ? n : 0 - n)
   end
 end

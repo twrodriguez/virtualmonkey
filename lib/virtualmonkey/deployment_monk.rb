@@ -149,23 +149,23 @@ class DeploymentMonk
           load_vars_for_cloud(cloud)
           @common_inputs.deep_merge!(@variables_for_cloud[cloud]['parameters'])
           @common_inputs.each do |key,val|
-            inputs << { :name => key, :value => val }
+            inputs << { "name" => key, "value" => val }
           end
           #Set Server Creation Parameters
-          server_params = { :nickname => "#{@tag}-tempserver-#{rand(1000000)}-#{st.nickname}", 
-                            :deployment_href => new_deploy.href.dup, 
-                            :server_template_href => st.href.dup, 
-                            :cloud_id => cloud,
-                            :inputs => inputs,
-                            :mci_href => use_this_image
-                            #:ec2_image_href => image['image_href'], 
-                            #:instance_type => image['aws_instance_type'] 
+          server_params = { "nickname" => "#{@tag}-tempserver-#{rand(1000000)}-#{st.nickname}",
+                            "deployment_href" => new_deploy.href.dup,
+                            "server_template_href" => st.href.dup,
+                            "cloud_id" => cloud,
+                            "inputs" => inputs,
+                            "mci_href" => use_this_image
+                            #"ec2_image_href" => image['image_href'],
+                            #"instance_type" => image['aws_instance_type']
                           }
           # If overriding the multicloudimage need to specify the ec2 image href because you can't set an MCI that's not in the ServerTemplate
           if options[:mci_override] && !options[:mci_override].empty?
-            server_params.reject! {|k,v| k == :mci_href}
-            server_params[:ec2_image_href] = use_this_image
-            server_params[:instance_type] = use_this_instance_type
+            server_params.reject! {|k,v| k == "mci_href"}
+            server_params["ec2_image_href"] = use_this_image
+            server_params["instance_type"] = use_this_instance_type
           end
 
           #This rescue block can be removed after the VM ServerTemplate defaults to multicloud rest_connection
@@ -221,19 +221,19 @@ class DeploymentMonk
   def update_inputs
     @deployments.each do |d|
       if d.cloud_id
-        load_vars_for_cloud(d.cloud_id)
-        @common_inputs.deep_merge!(@variables_for_cloud[d.cloud_id]['parameters']) if @variables_for_cloud[d.cloud_id]
+        @common_inputs.deep_merge!(@variables_for_cloud[d.cloud_id.to_s]['parameters']) if load_vars_for_cloud(d.cloud_id)
       end
       set_inputs(d, @common_inputs)
       d.servers.each { |s|
-        load_vars_for_cloud(s.cloud_id)
-        cv_inputs = (@variables_for_cloud[s.cloud_id] ? @variables_for_cloud[s.cloud_id]['parameters'] : {})
+        cid = VirtualMonkey::Toolbox::determine_cloud_id(s).to_s
+        cv_inputs = (load_vars_for_cloud(cid) ? @variables_for_cloud[cid]['parameters'] : {})
         set_inputs(s, @common_inputs.deep_merge(cv_inputs))
       }
     end
   end
 
   def load_vars_for_cloud(cloud)
+    cloud = cloud.to_s
     return nil unless @variables_for_cloud[cloud]
     unless @ssh_keys[cloud]
       VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
@@ -250,14 +250,15 @@ class DeploymentMonk
     @variables_for_cloud[cloud].deep_merge!(@ssh_keys[cloud])
     @variables_for_cloud[cloud].deep_merge!(@security_groups[cloud])
     @variables_for_cloud[cloud].deep_merge!(@datacenters[cloud])
+    true
   end
 
   def set_inputs(obj, inputs)
-    if obj.respond_to?(:set_inputs)
+#    if obj.respond_to?(:set_inputs)
       obj.set_inputs(inputs)
-    else
-      inputs.each { |key,val| obj.set_input(key,val) }
-    end
+#    else
+#      inputs.each { |key,val| obj.set_input(key,val) }
+#    end
   end
 
   def destroy_all
@@ -274,6 +275,15 @@ class DeploymentMonk
     deployments = []
     @deployments.each { |v| deployments << v.nickname }
     deployments 
+  end
+
+  def set_server_params
+    @deployments.each do |d|
+      d.servers.each { |s|
+        cid = VirtualMonkey::Toolbox::determine_cloud_id(s).to_s
+        s.update(@variables_for_cloud[cid]) if load_vars_for_cloud(cid)
+      }
+    end
   end
 
 end
