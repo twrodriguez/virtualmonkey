@@ -131,7 +131,7 @@ module VirtualMonkey
     end
 
     # Use the termination script to stop all the servers (this cleans up the volumes)
-    def stop_all
+    def stop_all(wait=true)
       @servers.each do |s|
         terminate_server(s) if s.state == 'operational' || s.state == 'stranded'
       end
