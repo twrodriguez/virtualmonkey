@@ -69,14 +69,15 @@ module VirtualMonkey
     def self.find_myself_in_api
       if ENV['I_AM_IN_EC2']
         myself = Server.find_with_filter('aws_id' => ENV['EC2_INSTANCE_ID']).first
-        my_deploy = Deployment.find(myself['deployment_href'])
-        ENV['MONKEY_SELF_SERVER_HREF'] = myself['href']
-        ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = myself['deployment_href']
-        ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.nickname
-        return myself
-      else
-        return false
+        if myself
+          my_deploy = Deployment.find(myself['deployment_href'])
+          ENV['MONKEY_SELF_SERVER_HREF'] = myself['href']
+          ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = myself['deployment_href']
+          ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.nickname
+          return myself
+        end
       end
+      return false
     end
 
     def self.generate_ssh_keys(single_cloud = nil)
