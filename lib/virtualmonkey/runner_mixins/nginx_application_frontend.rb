@@ -10,7 +10,7 @@ module VirtualMonkey
 
       fe_servers.each do |server|
         behavior(:force_log_rotation, server)
-        behavior(:log_check, server, "/var/log/nginx/access.log.1")
+        behavior(:log_check, server, "/var/log/nginx/access.log.1*")
       end
     end
 

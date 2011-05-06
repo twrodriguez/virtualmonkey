@@ -11,6 +11,9 @@
 # Then I should stop the servers
   @runner.behavior(:stop_all)
 
+# Then I should set a variation for connecting to shared database host
+  @runner.set_var(:set_master_db_dnsname)
+
 # When I launch the "Front End" servers
   @runner.behavior(:launch_set, "Front End")
 
