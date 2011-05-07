@@ -25,8 +25,6 @@ module VirtualMonkey
     end
     def function5
       set = ["hello1","hello2","hello3","hello4"]
-  command1 =  "check running"
-     probe(set,command1)
   #return "hello"     
     end
     #def monkey_self_test_lookup_scripts

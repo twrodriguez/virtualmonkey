@@ -42,51 +42,41 @@ module VirtualMonkey
     # Trust me, I know what's good for you. -- Tim R.
     private
 
-    def retry_elb_fn(fn, *args)
-      backoff = 60
-      retry_loop = 0
-      begin
-        begin
-          result = @elb.__send__(fn, *args)
-          done = true
-        rescue Exception => e
-          if e.message =~ /Throttling/
-            puts "Rescuing ELB error: #{e.message}"
-            raise "FATAL: Exceeded ELB retry limit" unless retry_loop < 10
-            sleep (rand(backoff))
-            retry_loop += 1
-          else
-            raise e
-          end
-        end
-      end while !done
-      result
+    def elb_exception_handle(e)
+      if e.message =~ /throttling/i
+        puts "Rescuing ELB error: #{e.message}"
+        raise "FATAL: Exceeded ELB retry limit" unless @retry_loop.last < 10
+        sleep (rand(60))
+        incr_retry_loop
+      else
+        raise e
+      end  
     end
 
     def set_elb_name
-      @deployment.set_input("ELB_NAME", "text:#{@elb_name}")
+      obj_behavior(@deployment, :set_input, "ELB_NAME", "text:#{@elb_name}")
     end
     
     # The ELB should be serving up the unified app after boot
     def run_elb_checks
-      run_unified_application_check(elb_href, ELB_PORT)
+      behavior(:run_unified_application_check, elb_href, ELB_PORT)
     end
     
     # Check if :all or :none of the app servers are registered
     def elb_registration_check(type)
-      details = retry_elb_fn("describe_load_balancers",@elb_name)
+      details = obj_behavior(@elb, :describe_load_balancers, @elb_name)
       instances = details.first[:instances]
       case type
       when :all
         @servers.each do |server|
-          server.settings
+          obj_behavior(server, :settings)
           aws_id = server["aws-id"]
-          unless instances.include?(aws_id)
+          unless obj_behavior(instances, :include?, aws_id)
             raise "ERROR: Did not find aws id for #{aws_id}. ID list: #{instances.inspect}"
           end
         end
       when :none
-        unless instances.empty?
+        unless obj_behavior(instances, :empty?)
           raise "ERROR: found registered instances when there should be none. ID list: #{instances.inspect}"
         end
       else
@@ -96,13 +86,13 @@ module VirtualMonkey
     
     def elb_disconnect_all
       @servers.each do |server|
-        disconnect_server(server)
+        behavior(:disconnect_server, server)
       end
     end
     
     # Used to make sure everyone is disconnected
     def elb_response_code(elb_expected_code)
-      test_http_response(elb_expected_code, elb_href, ELB_PORT)
+      behavior(:test_http_response, elb_expected_code, elb_href, ELB_PORT)
     end
     
     # Grab the scripts we plan to excersize
@@ -117,7 +107,7 @@ module VirtualMonkey
     
     # This is really just a PHP server check. relocate?
     def log_rotation_checks
-      detect_os
+      behavior(:detect_os)
       
       # this works for php
       app_servers.each do |server|
@@ -127,29 +117,29 @@ module VirtualMonkey
     end
     
     def create_elb
-      begin
-        array = retry_elb_fn("describe_load_balancers",@elb_name)
-      rescue Exception => e
-        if e.message =~ /Cannot find Load Balancer|LoadBalancerNotFound/
-          array = []
-        else
-          raise e
+      # Check if elb exists
+      ary = []
+      obj_behavior(@elb, :describe_load_balancers, @elb_name) { |result|
+        if result.is_a?(Exception)
+          return result.message =~ /Cannot find Load Balancer|LoadBalancerNotFound/
         end
-      end
-      if array.length == 1
-        @elb_dns = array.first[:dns_name]
+        ary = result
+      }
+      
+      if ary.length == 1
+        @elb_dns = ary.first[:dns_name]
       else
-        raise "ERROR: More than one ELB with name \"#{@elb_name}\" found." if array.length > 1
+        raise "ERROR: More than one ELB with name \"#{@elb_name}\" found." if ary.length > 1
         az = ELBS[@deployment.cloud_id][:azs]
         puts "Using az: #{az}"
-        @elb_dns = retry_elb_fn("create_load_balancer", @elb_name, az, [{ :protocol => :http,
-                                                                          :load_balancer_port => ELB_PORT,
-                                                                          :instance_port => ELB_PORT_FORWARD }])
+        @elb_dns = obj_behavior(@elb, :create_load_balancer, @elb_name, az, [{:protocol => :http,
+                                                                              :load_balancer_port => ELB_PORT,
+                                                                              :instance_port => ELB_PORT_FORWARD }])
       end
     end
     
     def destroy_elb
-      success = retry_elb_fn("delete_load_balancer",@elb_name)
+      success = obj_behavior(@elb, :delete_load_balancer, @elb_name)
       raise "ERROR: unable to delete ELB name=#{@elb_name}" unless success
     end
    
@@ -159,12 +149,12 @@ module VirtualMonkey
     
     # run the ELB connect script
     def connect_server(server)
-      run_script('connect', server)
+      behavior(:run_script, 'connect', server)
     end
 
     # run the ELB disconnect script
     def disconnect_server(server)
-      run_script('disconnect', server)
+      behavior(:run_script, 'disconnect', server)
     end
     
    end

@@ -21,7 +21,7 @@
 #  @runner.behavior(:check_monitoring)
 
 # Then I should check all the scripts in the template
-  @runner.behavior(:run_script, "backup_database", @runner.behavior(:s_one))
-  @runner.behavior(:run_script, "backup_database_check", @runner.behavior(:s_one))
-  @runner.behavior(:run_script, "drop_database", @runner.behavior(:s_one))
-  @runner.behavior(:run_script, "restore_database", @runner.behavior(:s_one))
+  @runner.behavior(:run_script_on_all, "backup_database")
+  @runner.behavior(:run_script_on_all, "backup_database_check")
+  @runner.behavior(:run_script_on_all, "drop_database")
+  @runner.behavior(:run_script_on_all, "restore_database")
