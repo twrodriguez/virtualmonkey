@@ -6,13 +6,13 @@ module VirtualMonkey
     
     # a custom startup sequence is required for fe/app deployments (inputs workaround)
     def startup_sequence
-      fe_servers.each { |s| s.start }
-      fe_servers.each { |s| s.wait_for_operational_with_dns }
+      fe_servers.each { |s| obj_behavior(s, :start) }
+      fe_servers.each { |s| obj_behavior(s, :wait_for_operational_with_dns) }
       
-      set_lb_hostname
+      set_var(:set_lb_hostname)
 
-      app_servers.each { |s| s.start }
-      app_servers.each { |s| s.wait_for_operational_with_dns }
+      app_servers.each { |s| obj_behavior(s, :start) }
+      app_servers.each { |s| obj_behavior(s, :wait_for_operational_with_dns) }
     end
 
     def run_reboot_operations
@@ -31,7 +31,7 @@ module VirtualMonkey
       #  force_log_rotation(server)
       #  log_check(server,"/mnt/log/#{server.apache_str}/access.log.1")
       #end
-      detect_os
+      behavior(:detect_os)
 
       fe_servers.each do |server|
         behavior(:force_log_rotation, server)

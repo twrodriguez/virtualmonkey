@@ -13,15 +13,24 @@ module VirtualMonkey
     def set_var(sym, *args, &block)
       behavior(sym, *args, &block)
     end
+
+    def `(cmd)
+      execution_stack_trace("system", [cmd])
+      ret = super(cmd)
+      clean_stack_trace
+      ret
+    end
   
     def test_case_interface_init
       @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
       @rerun_last_command = []
       @stack_objects = []         # array holding the top most objects in the stack
       @iterating_stack = []       # stack that iterates
+      @retry_loop = []
     end
     
     def behavior(sym, *args, &block)
+      @retry_loop << 0
       execution_stack_trace(sym, args)
       begin
         push_rerun_test
@@ -42,12 +51,15 @@ module VirtualMonkey
         end
       end while @rerun_last_command.pop
       clean_stack_trace
+      @retry_loop.pop
       result
     end
 
     def probe(set, command, &block)
       # run command on set over ssh
-      result = ""
+      result_output = ""
+      result_status = true
+      @retry_loop << 0
       set_ary = select_set(set)
       execution_stack_trace("probe", [set_ary, command])
 
@@ -55,28 +67,30 @@ module VirtualMonkey
         begin
           push_rerun_test
           result_temp = s.spot_check_command(command)
-          if not yield(result_temp[:output],result_temp[:status])
-            raise "FATAL: Server #{s.nickname} failed probe. Got #{result_temp[:output]}"
+          if block
+            if not yield(result_temp[:output],result_temp[:status])
+              raise "FATAL: Server #{s.nickname} failed probe. Got #{result_temp[:output]}"
+            end
           end
           continue_test
         rescue Exception => e
           dev_mode?(e)
         end while @rerun_last_command.pop
-        result += result_temp[:output]
+        result_output += result_temp[:output]
+        result_status &&= (result_temp[:status] == 0)
       }
       clean_stack_trace
+      @retry_loop.pop
+      result_status
     end
 
     def dev_mode?(e = nil)
+      self.__send__(:__exception_handle__, e) if e
       if ENV['MONKEY_NO_DEBUG'] !~ /true/i
         puts "Got exception: #{e.message}" if e
         puts "Backtrace: #{e.backtrace.join("\n")}" if e
         puts "Pausing for debugging..."
         debugger
-      elsif e
-        self.__send__(:__exception_handle__, e)
-      else
-        raise "'dev_mode?' function called improperly. An Exception needs to be passed or ENV['MONKEY_NO_DEBUG'] must not be set to 'true'"
       end
     end
 
@@ -165,20 +179,29 @@ module VirtualMonkey
       return set
     end
 
-    def object_behavior(obj, sym, *args, &block)
+    def obj_behavior(obj, sym, *args, &block)
       execution_stack_trace(sym, args, obj)
+      @retry_loop << 0
       begin
         push_rerun_test
         #pre-command
         populate_settings if @deployment
         #command
         result = obj.__send__(sym, *args)
+        if block
+          raise "FATAL: Failed behavior verification. Result was:\n#{result.inspect}" if not yield(result)
+        end
         #post-command
         continue_test
       rescue Exception => e
-        dev_mode?(e)
+        if block and e.message !~ /^FATAL: Failed behavior verification/
+          dev_mode?(e) if not yield(e)
+        else
+          dev_mode?(e)
+        end
       end while @rerun_last_command.pop
       clean_stack_trace
+      @retry_loop.pop
       result
     end
 
@@ -189,6 +212,10 @@ module VirtualMonkey
     def continue_test
       @rerun_last_command.pop
       @rerun_last_command.push(false)
+    end
+
+    def incr_retry_loop
+      @retry_loop.push(@retry_loop.pop() + 1)
     end
 
     def execution_stack_trace(sym, args, obj=nil)
@@ -234,22 +261,22 @@ module VirtualMonkey
     end
 
     def stringify_arg(arg, will_be_inspected = false)
-      return (will_be_inspected ? arg : arg.inspect) if arg.is_a?(String)
-      return stringify_arg(arg.nickname, will_be_inspected) if arg.is_a?(ServerInterface) or arg.is_a?(Server)
       return arg.class.to_s if arg.is_a?(AuditEntry)
+      return arg.inspect if arg.is_a?(Class)
 
       if arg.is_a?(Array)
         new_ary = arg.map { |item| stringify_arg(item, true) }
-        return (will_be_inspected ? new_ary : new_ary.inspect)
+        return (will_be_inspected ? new_ary : new_ary.trace_inspect)
       end
 
       if arg.is_a?(Hash)
         new_hsh = {}
         arg.each { |k,v| new_hsh[ stringify_arg(k, true) ] = stringify_arg(v, true) }
-        return (will_be_inspected ? new_hsh : new_hsh.inspect)
+        return (will_be_inspected ? new_hsh : new_hsh.trace_inspect)
       end
 
-      return ""
+      return (will_be_inspected ? arg : arg.trace_inspect) if arg.respond_to?(:trace_inspect)
+      return arg.class.to_s
     end
   end
 end

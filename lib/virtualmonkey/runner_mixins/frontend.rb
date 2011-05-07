@@ -41,7 +41,7 @@ module VirtualMonkey
       app_servers.each { |app| server_ips << app['private-ip-address'] }
       fe_servers.each do |fe|
         fe.settings
-        haproxy_config = object_behavior(fe, :spot_check_command, 'flock -n /home/haproxy/rightscale_lb.cfg -c "cat /home/haproxy/rightscale_lb.cfg | grep server"')
+        haproxy_config = obj_behavior(fe, :spot_check_command, 'flock -n /home/haproxy/rightscale_lb.cfg -c "cat /home/haproxy/rightscale_lb.cfg | grep server"')
         puts "INFO: flock status was #{haproxy_config[:status]}"
         server_ips.each do |ip|
           if haproxy_config.to_s.include?(ip) == false
@@ -53,30 +53,30 @@ module VirtualMonkey
 
       # restart haproxy and check that it succeeds
       fe_servers.each_with_index do |server,i|
-        response = object_behavior(server, :spot_check_command?, 'service haproxy stop')
+        response = probe(server, 'service haproxy stop')
         raise "Haproxy stop command failed" unless response
 
         stopped = false
         count = 0
         until response || count > 3 do
-          response = object_behavior(server, :spot_check_command, server.haproxy_check)
+          response = obj_behavior(server, :spot_check_command, server.haproxy_check)
           stopped = response.include?("not running")
           break if stopped
           count += 1
           sleep 10
         end
 
-        response = object_behavior(server, :spot_check_command?, 'service haproxy start')
+        response = probe(server, 'service haproxy start')
         raise "Haproxy start failed" unless response
       end
 
       # restart apache and check that it succeeds
-      run_script_on_set('apache_restart', fe_servers, true)
+      behavior(:run_script_on_set, 'apache_restart', fe_servers, true)
       fe_servers.each_with_index do |server,i|
         response = nil
         count = 0
         until response || count > 3 do
-          response = object_behavior(server, :spot_check_command?, server.apache_check)
+          response = probe(server, server.apache_check)
           break if response	
           count += 1
           sleep 10
@@ -88,7 +88,7 @@ module VirtualMonkey
 
     def cross_connect_frontends
       options = { :LB_HOSTNAME => behavior(:get_lb_hostname_input) }
-      run_script_on_set('connect', fe_servers, true, options)
+      behavior(:run_script_on_set, 'connect', fe_servers, true, options)
     end
 
     def frontend_lookup_scripts
