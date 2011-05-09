@@ -44,7 +44,7 @@ module VirtualMonkey
 #        res = server.spot_check_command("logrotate --force -v /etc/logrotate.d/mysql-server")
 #        raise "LOGROTATE FAILURE, exited with non-zero status" if res[:status] != 0
 #        raise "DID NOT FIND mysqlslow.log in the log rotation!" if res[:output] !~ /mysqlslow/
-      end
+#      end
 
     end
 
