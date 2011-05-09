@@ -64,6 +64,7 @@ module VirtualMonkey
     def self.run_logic
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] = get_runner_class
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
       unless VirtualMonkey.const_defined?(@@options[:runner])
         puts "WARNING: VirtualMonkey::#{@@options[:runner]} is not a valid class. Defaulting to SimpleRunner."
         @@options[:runner] = "SimpleRunner"
@@ -130,12 +131,14 @@ module VirtualMonkey
 
     def self.audit_log_deployment_logic(deployment, interactive = false)
       @@options[:runner] = get_runner_class
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
       runner = eval("VirtualMonkey::#{@@options[:runner]}.new(deployment.nickname)")
       puts runner.behavior(:run_logger_audit, interactive, @@options[:qa])
     end
 
     def self.destroy_job_logic(job)
       @@options[:runner] = get_runner_class
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
       runner = eval("VirtualMonkey::#{@@options[:runner]}.new(job.deployment.nickname)")
       puts "Destroying successful deployment: #{runner.deployment.nickname}"
       runner.behavior(:stop_all, false)
@@ -150,7 +153,9 @@ module VirtualMonkey
     def self.destroy_all_logic
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] = get_runner_class
-      @@dm.deployments.each do |deploy|
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
+      @@do_these = @@dm.deployments unless @@do_these
+      @@do_these.each do |deploy|
         runner = eval("VirtualMonkey::#{@@options[:runner]}.new(deploy.nickname)")
         runner.behavior(:stop_all, false)
         state_dir = File.join(@@global_state_dir, deploy.nickname)
@@ -195,7 +200,7 @@ module VirtualMonkey
           line = f.readline
           ret = line.match(/VirtualMonkey::.*Runner/)[0].split("::").last if line =~ /= VirtualMonkey.*Runner/
         rescue EOFError => e
-          ret = ""
+          ret = nil
         end while !ret
       }
       return ret
