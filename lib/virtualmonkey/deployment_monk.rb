@@ -215,7 +215,9 @@ class DeploymentMonk
   end
 
   def load_clouds(cloud_ids)
-    cloud_ids.each { |id| @variables_for_cloud.deep_merge!("#{id}" => {}) }
+    VirtualMonkey::Toolbox::populate_all_cloud_vars(:force)
+    all_clouds = JSON::parse(IO.read(File.join("config","cloud_variables","all_clouds.json")))
+    cloud_ids.each { |id| @variables_for_cloud.deep_merge!(id.to_s => all_clouds[id.to_s]) }
   end
 
   def update_inputs
