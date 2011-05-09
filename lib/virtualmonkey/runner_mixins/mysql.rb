@@ -133,7 +133,7 @@ module VirtualMonkey
         options = { "DB_TERMINATE_SAFETY" => "text:off" }
         @servers.each { |s| behavior(:run_script, 'terminate', s, options) unless s.state == 'stopped' }
       else
-        @servers.each { |s| obj_behavior(s :stop) }
+        @servers.each { |s| obj_behavior(s, :stop) }
       end
 
       behavior(:wait_for_all, "stopped") if wait
