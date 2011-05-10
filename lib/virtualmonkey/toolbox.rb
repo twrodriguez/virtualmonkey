@@ -1,5 +1,5 @@
 begin
-  require '/var/spool/cloud/user-data-cache'
+  require '/var/spool/cloud/user-data'
   require '/var/spool/cloud/meta-data-cache'
   ENV['I_AM_IN_EC2'] = "true"
 rescue
