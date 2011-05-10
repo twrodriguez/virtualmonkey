@@ -78,6 +78,14 @@ class Array
   def trace_inspect
     inspect
   end
+
+  def method_missing(method_name, *args, &block)
+    if self.all? { |item| item.respond_to?(method_name) }
+      return self.collect { |item| item.__send__(method_name, *args, &block) }
+    else
+      raise NoMethodError.new("undefined method '#{method_name}' for Array")
+    end
+  end
 end
 
 # Object Patches

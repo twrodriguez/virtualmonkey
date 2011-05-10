@@ -71,15 +71,8 @@ module VirtualMonkey
 
       @@options[:runner] = get_runner_class
       @@dm = DeploymentMonk.new(@@options[:tag])
-      @@do_these ||= @@dm.deployments
-      if @@options[:only]
-        @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ }
-      end
-
-      @@do_these.each { |d| say d.nickname }
       puts "Note: This tool is not as effective without an associated runner class." unless @@options[:runner]
-      confirm = ask("Train lists on these #{@@do_these.length} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
-      raise "Aborting." unless confirm
+      select_only_logic("Train lists on")
 
       if @@options[:runner]
         @@do_these.each { |d| audit_log_deployment_logic(d, @@options[:list_trainer]) }

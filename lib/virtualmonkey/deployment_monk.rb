@@ -16,6 +16,10 @@ class DeploymentMonk
     Deployment.find_by(:nickname) {|n| n =~ /^#{tag}/ }.each { |d| puts d.nickname }
   end
 
+  def list
+    @deployments.each { |d| puts "#{d.nickname} : #{d.servers.status.inspect}" }
+  end
+
   def initialize(tag, server_templates = [], extra_images = [], suppress_monkey_warning = false)
     @clouds = []
     @tag = tag

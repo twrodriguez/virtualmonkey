@@ -52,6 +52,26 @@ module VirtualMonkey
       puts @@usage_msg
     end
 
+    def self.select_only_logic(message)
+      @@do_these ||= @@dm.deployments
+      if @@options[:only]
+        @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ }
+      end   
+      unless @@options[:no_resume] or @@command =~ /destroy|audit/
+        temp = @@do_these.select do |d| 
+          File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(@@options[:feature])))
+        end 
+        @@do_these = temp if temp.length > 0 
+      end 
+
+      raise "No deployments matched!" unless @@do_these.length > 0 
+      @@do_these.each { |d| say "#{d.nickname} : #{d.servers.status.inspect}" }
+      unless @@options[:yes] or @@command == "troop"
+        confirm = ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) }) 
+        raise "Aborting." unless confirm
+      end   
+    end
+
     def self.create_logic
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       if @@options[:clouds]
@@ -77,27 +97,10 @@ module VirtualMonkey
       EM.run {
         @@gm ||= GrinderMonk.new
         @@dm ||= DeploymentMonk.new(@@options[:tag])
-        @@do_these ||= @@dm.deployments
         @@options[:runner] = get_runner_class
-        if @@options[:only]
-          @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ }
-        end 
-
-        unless @@options[:no_resume]
-          temp = @@do_these.select do |d| 
-            File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(@@options[:feature])))
-          end 
-          @@do_these = temp if temp.length > 0 
-        end 
+        select_only_logic("Run tests on")
 
         @@gm.options = @@options
-        raise "No deployments matched!" unless @@do_these.length > 0 
-        @@do_these.each { |d| say d.nickname }
-
-        unless @@options[:yes] or @@command == "troop"
-          confirm = ask("Run tests on these #{@@do_these.length} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
-          raise "Aborting." unless confirm
-        end
 
         @@do_these.each do |deploy|
           @@gm.run_test(deploy, @@options[:feature])
