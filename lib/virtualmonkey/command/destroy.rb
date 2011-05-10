@@ -22,15 +22,7 @@ module VirtualMonkey
       end
 
       @@dm = DeploymentMonk.new(@@options[:tag])
-      if @@options[:only]
-        @@do_these = @@dm.deployments.select { |d| d.nickname =~ /#{@@options[:only]}/ }
-      end
-      @@do_these.each { |d| say d.nickname }
-      unless @@options[:yes]
-        confirm = ask("Really destroy these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
-        raise "Aborting." unless confirm
-      end
-
+      select_only_logic("Really destroy")
       destroy_all_logic
     end
 
