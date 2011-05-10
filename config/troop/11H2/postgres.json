@@ -7,5 +7,5 @@
     "98744"
   ],
   "feature":"postgres.rb",
-  "cloud_variables":"west.json"
+  "cloud_variables":"aws_us_east.json"
 }

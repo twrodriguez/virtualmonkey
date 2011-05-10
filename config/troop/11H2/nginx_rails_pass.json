@@ -2,10 +2,8 @@
   "feature":"nginx_pass_rails.rb",
   "runner":"SimpleRunner",
   "server_template_ids":[
-    "108179",
-    "108179",
-    "108178",
-    "108178"
+    "108409",
+    "108410"
   ],
   "cloud_variables":"aws_us_east.json",
   "common_inputs": [ "rails.json", "devtools.json"],
