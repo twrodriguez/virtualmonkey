@@ -5,16 +5,20 @@ require 'highline/import'
 require 'uri'
 some_not_included = true
 files = Dir.glob(File.join("lib", "virtualmonkey", "command", "**"))
-while some_not_included do
+retry_loop = 0
+while some_not_included and retry_loop < (files.size ** 2) do
   begin
     some_not_included = false
     for f in files do
       some_not_included ||= require f.chomp(".rb")
     end
+  rescue SyntaxError => se
+    raise se
   rescue Exception => e
     some_not_included = true
     files.push(files.shift)
   end
+  retry_loop += 1
 end
 
 module VirtualMonkey
@@ -48,6 +52,26 @@ module VirtualMonkey
       puts @@usage_msg
     end
 
+    def self.select_only_logic(message)
+      @@do_these ||= @@dm.deployments
+      if @@options[:only]
+        @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ }
+      end   
+      unless @@options[:no_resume] or @@command =~ /destroy|audit/
+        temp = @@do_these.select do |d| 
+          File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(@@options[:feature])))
+        end 
+        @@do_these = temp if temp.length > 0 
+      end 
+
+      raise "No deployments matched!" unless @@do_these.length > 0 
+      @@do_these.each { |d| say "#{d.nickname} : #{d.servers.map { |s| s.state }.inspect}" }
+      unless @@options[:yes] or @@command == "troop"
+        confirm = ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) }) 
+        raise "Aborting." unless confirm
+      end   
+    end
+
     def self.create_logic
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       if @@options[:clouds]
@@ -64,6 +88,7 @@ module VirtualMonkey
     def self.run_logic
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] = get_runner_class
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
       unless VirtualMonkey.const_defined?(@@options[:runner])
         puts "WARNING: VirtualMonkey::#{@@options[:runner]} is not a valid class. Defaulting to SimpleRunner."
         @@options[:runner] = "SimpleRunner"
@@ -72,27 +97,10 @@ module VirtualMonkey
       EM.run {
         @@gm ||= GrinderMonk.new
         @@dm ||= DeploymentMonk.new(@@options[:tag])
-        @@do_these ||= @@dm.deployments
         @@options[:runner] = get_runner_class
-        if @@options[:only]
-          @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ }
-        end 
-
-        unless @@options[:no_resume]
-          temp = @@do_these.select do |d| 
-            File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(@@options[:feature])))
-          end 
-          @@do_these = temp if temp.length > 0 
-        end 
+        select_only_logic("Run tests on")
 
         @@gm.options = @@options
-        raise "No deployments matched!" unless @@do_these.length > 0 
-        @@do_these.each { |d| say d.nickname }
-
-        unless @@options[:yes] or @@command == "troop"
-          confirm = ask("Run tests on these #{@@do_these.length} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
-          raise "Aborting." unless confirm
-        end
 
         @@do_these.each do |deploy|
           @@gm.run_test(deploy, @@options[:feature])
@@ -130,12 +138,14 @@ module VirtualMonkey
 
     def self.audit_log_deployment_logic(deployment, interactive = false)
       @@options[:runner] = get_runner_class
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
       runner = eval("VirtualMonkey::#{@@options[:runner]}.new(deployment.nickname)")
       puts runner.behavior(:run_logger_audit, interactive, @@options[:qa])
     end
 
     def self.destroy_job_logic(job)
       @@options[:runner] = get_runner_class
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
       runner = eval("VirtualMonkey::#{@@options[:runner]}.new(job.deployment.nickname)")
       puts "Destroying successful deployment: #{runner.deployment.nickname}"
       runner.behavior(:stop_all, false)
@@ -150,7 +160,9 @@ module VirtualMonkey
     def self.destroy_all_logic
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] = get_runner_class
-      @@dm.deployments.each do |deploy|
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
+      @@do_these = @@dm.deployments unless @@do_these
+      @@do_these.each do |deploy|
         runner = eval("VirtualMonkey::#{@@options[:runner]}.new(deploy.nickname)")
         runner.behavior(:stop_all, false)
         state_dir = File.join(@@global_state_dir, deploy.nickname)
@@ -195,7 +207,7 @@ module VirtualMonkey
           line = f.readline
           ret = line.match(/VirtualMonkey::.*Runner/)[0].split("::").last if line =~ /= VirtualMonkey.*Runner/
         rescue EOFError => e
-          ret = ""
+          ret = nil
         end while !ret
       }
       return ret

@@ -35,10 +35,10 @@ module VirtualMonkey
 #            # bug was missing graphs.
 #          end
           passenger_plugins.each do |plugin|
-            monitor = server.get_sketchy_data({'start' => -60,
-                                               'end' => -20,
-                                               'plugin_name' => plugin['plugin_name'],
-                                               'plugin_type' => plugin['plugin_type']})
+            monitor = obj_behavior(server, :get_sketchy_data, {'start' => -60,
+                                                               'end' => -20,
+                                                               'plugin_name' => plugin['plugin_name'],
+                                                               'plugin_type' => plugin['plugin_type']})
             value = monitor['data']["#{plugin['field']}"]
             puts "Checking #{plugin['plugin_name']}-#{plugin['plugin_type']}: value #{value}"
             raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} data" unless value.length > 0

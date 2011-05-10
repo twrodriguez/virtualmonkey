@@ -9,6 +9,8 @@ module VirtualMonkey
         opt :feature, "path to feature(s) to run against the deployments", :type => :string
         opt :breakpoint, "feature file line to stop at", :type => :integer, :short => '-b'
         opt :copies, "number of copies to make (default is 1)", :type => :integer, :short => '-c'
+        opt :yes, "Turn off confirmation", :short => "-y"
+        opt :verbose, "Print all output to STDOUT as well as the log files", :short => "-v"
         opt :list_trainer, "run through the interactive white- and black-list trainer after the tests complete"
         opt :qa, "Before destroying deployments, does a strict blacklist check (ignores whitelist)"
       end
@@ -28,6 +30,10 @@ module VirtualMonkey
       for i in 1 .. @@options[:copies]
         new_deploy = origin.clone
         new_deploy.nickname = "#{origin.nickname}-clone-#{i}"
+        new_deploy.servers.each { |s|
+          s.nickname = "#{s.nickname}-clone-#{i}"
+          s.save
+        }
         new_deploy.save
         @@do_these << new_deploy
       end

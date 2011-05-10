@@ -16,7 +16,7 @@ module VirtualMonkey
 
     def run_nginx_checks
       # check that the standard unified app is responding on port 80
-      run_unified_application_checks(@servers, 80)     
+      behavior(:run_unified_application_checks, @servers, 80)
     end
 
   end

@@ -12,7 +12,7 @@ module VirtualMonkey
     
     # sets LB_HOSTNAME on the deployment using the private dns of the fe_servers
     def set_lb_hostname
-      @deployment.set_input("LB_HOSTNAME", get_lb_hostname_input)
+      obj_behavior(@deployment, :set_input, "LB_HOSTNAME", behavior(:get_lb_hostname_input))
     end
 
     # returns true if the http response contains the expected_string
@@ -37,10 +37,11 @@ module VirtualMonkey
       end
     end
     
-    def run_rails_demo_application_checks(run_on=@servers,port=80)
+    def run_rails_demo_application_checks(set = @servers, port = 80)
+      run_on = select_set(set)
       run_on.each do |server|
         url_base = "#{server.dns_name}:#{port}"
-        test_http_response("Mephisto", url_base, port) 
+        behavior(:test_http_response, "Mephisto", url_base, port) 
       end
     end
 

@@ -39,6 +39,10 @@ class Hash
       end
     end
   end
+
+  def trace_inspect
+    inspect
+  end
 end
 
 # Array Patches
@@ -70,6 +74,18 @@ class Array
       end
     end
   end
+
+  def trace_inspect
+    inspect
+  end
+
+  def method_missing(method_name, *args, &block)
+    if self.all? { |item| item.respond_to?(method_name) }
+      return self.collect { |item| item.__send__(method_name, *args, &block) }
+    else
+      raise NoMethodError.new("undefined method '#{method_name}' for Array")
+    end
+  end
 end
 
 # Object Patches
@@ -99,5 +115,31 @@ end
 module Math
   def self.abs(n)
     (n > 0 ? n : 0 - n)
+  end
+end
+
+module RightScale
+  module Api
+    module Base
+      def trace_inspect
+        if self.nickname
+          return "#{self.class.to_s}[#{self.nickname.inspect}]"
+        else
+          return "#{self.class.to_s}[#{self.href.split(/\//).last.to_i}]"
+        end
+      end
+    end
+  end
+end
+
+class String
+  def trace_inspect
+    inspect
+  end
+end
+
+class Symbol
+  def trace_inspect
+    inspect
   end
 end

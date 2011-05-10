@@ -9,23 +9,20 @@ module VirtualMonkey
         opt :feature, "Terminate using the runner from the specified feature file", :type => :string, :short => "-f"
         opt :no_delete, "only terminate, no deletion."
         opt :yes, "Turn off confirmation for destroy operation"
+        opt :only, "regex string to use for subselection matching on deployments.  Eg. --only x86_64", :type => :string
       end
 
       raise "Either --runner OR --feature is required" unless @@options[:feature] or @@options[:runner]
       @@options[:runner] = get_runner_class
       @@options[:terminate] = true
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
       unless VirtualMonkey.const_defined?(@@options[:runner])
         puts "WARNING: VirtualMonkey::#{@@options[:runner]} is not a valid class. Defaulting to SimpleRunner."
         @@options[:runner] = "SimpleRunner"
       end
 
       @@dm = DeploymentMonk.new(@@options[:tag])
-      @@dm.deployments.each { |d| say d.nickname }
-      unless @@options[:yes]
-        confirm = ask("Really destroy these #{@@dm.deployments.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
-        raise "Aborting." unless confirm
-      end
-
+      select_only_logic("Really destroy")
       destroy_all_logic
     end
 
