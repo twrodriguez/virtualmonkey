@@ -13,11 +13,12 @@ class DeploymentMonk
   end
 
   def self.list(tag)
-    Deployment.find_by(:nickname) {|n| n =~ /^#{tag}/ }.each { |d| puts "#{d.nickname} : #{d.servers.state.inspect}" }
+    deployments = Deployment.find_by(:nickname) {|n| n =~ /^#{tag}/ }
+    deployments.each { |d| puts "#{d.nickname} : #{d.servers.map { |s| s.state }.inspect}" }
   end
 
   def list
-    @deployments.each { |d| puts "#{d.nickname} : #{d.servers.state.inspect}" }
+    @deployments.each { |d| puts "#{d.nickname} : #{d.servers.map { |s| s.state }.inspect}" }
   end
 
   def initialize(tag, server_templates = [], extra_images = [], suppress_monkey_warning = false)

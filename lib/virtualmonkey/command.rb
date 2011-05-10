@@ -65,7 +65,7 @@ module VirtualMonkey
       end 
 
       raise "No deployments matched!" unless @@do_these.length > 0 
-      @@do_these.each { |d| say "#{d.nickname} : #{d.servers.state.inspect}" }
+      @@do_these.each { |d| say "#{d.nickname} : #{d.servers.map { |s| s.state }.inspect}" }
       unless @@options[:yes] or @@command == "troop"
         confirm = ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) }) 
         raise "Aborting." unless confirm
