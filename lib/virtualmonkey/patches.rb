@@ -143,3 +143,21 @@ class Symbol
     inspect
   end
 end
+
+class Fixnum
+  def trace_inspect
+    inspect
+  end
+end
+
+class NilClass
+  def trace_inspect
+    inspect
+  end
+end
+
+class ServerInterface
+  def trace_inspect
+    @impl.trace_inspect
+  end
+end
