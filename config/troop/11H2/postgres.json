@@ -1,0 +1,11 @@
+{
+  "tag":"PGSQL_TROOP",
+  "runner":"PostgresRunner",
+  "common_inputs":"postgres.json",
+  "server_template_ids":[
+    "98744",
+    "98744"
+  ],
+  "feature":"postgres.rb",
+  "cloud_variables":"aws_us_east.json"
+}
