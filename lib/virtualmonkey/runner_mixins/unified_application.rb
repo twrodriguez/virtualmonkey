@@ -4,7 +4,7 @@ module VirtualMonkey
     # * url<~String> url to perform http request
     # * expected_string<~String> regex compatible string used to match against the response output
     def test_http_response(expected_string, url, port)
-      cmd = "curl -s #{url} 2> /dev/null "
+      cmd = "curl -sk #{url} 2> /dev/null "
       puts cmd
       timeout=300
       begin

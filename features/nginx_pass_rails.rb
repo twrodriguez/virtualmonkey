@@ -1,12 +1,12 @@
 #@lb_test
 #
-#Feature: PHP Server Templates
-#  Tests the PHP servers
+#Feature: Nginx/Rails/Passenger Server Templates
+#  Tests the Rails servers
 #
-#Scenario: PHP server test
+#Scenario: Rails server test
 #
 # Given A frontend with application servers deployment
-  @runner = VirtualMonkey::FeAppRunner.new(ENV['DEPLOYMENT'])
+  @runner = VirtualMonkey::NginxFeAppRunner.new(ENV['DEPLOYMENT'])
 
 # Then I should stop the servers
   @runner.behavior(:stop_all)
@@ -39,16 +39,13 @@
   @runner.behavior(:cross_connect_frontends)
 
 # Then I should run unified application checks
-  @runner.behavior(:run_unified_application_checks, :app_servers)
+  @runner.behavior(:run_unified_application_checks, @runner.send(:app_servers))
 
 # Then I should run frontend checks
   @runner.behavior(:frontend_checks)
 
 # Then I should run log rotation checks
   @runner.behavior(:log_rotation_checks)
-
-# Test setup of SSL vhost
-  @runner.behavior(:setup_https_vhost)
 
 # Then I should test reboot operations on the deployment
   @runner.behavior(:run_reboot_operations)

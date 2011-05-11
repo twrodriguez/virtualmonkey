@@ -91,9 +91,17 @@ module VirtualMonkey
       behavior(:run_script_on_set, 'connect', fe_servers, true, options)
     end
 
+    def setup_https_vhost
+      behavior(:run_script_on_set, fe_servers, 'https_vhost')
+      fe_servers.each_with_index do |server,i|
+        behavior(:test_http_response, "html serving succeeded", "https://" + server.dns_name + "/index.html", "443")
+      end
+    end
+
     def frontend_lookup_scripts
       fe_scripts = [
-                    [ 'apache_restart', 'WEB apache \(re\)start' ]
+                    [ 'apache_restart', 'WEB apache \(re\)start' ],
+		    [ 'https_vhost', 'WEB apache FrontEnd https vhost' ]
                    ]
       app_scripts = [
                      [ 'connect', 'LB [app|application|mongrels]+ to HA[ pP]+roxy connect' ]
