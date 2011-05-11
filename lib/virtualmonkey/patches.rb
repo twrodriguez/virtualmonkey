@@ -125,7 +125,7 @@ module RightScale
         begin
           return "#{self.class.to_s}[#{self.nickname.inspect}]"
         rescue
-          return "#{self.class.to_s}[#{self.href.split(/\//).last.to_i}]"
+          return "#{self.class.to_s}[#{self.rs_id}]"
         end
       end
     end
