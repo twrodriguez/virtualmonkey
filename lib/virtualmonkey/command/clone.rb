@@ -29,6 +29,7 @@ module VirtualMonkey
       # clone deployment
       for i in 1 .. @@options[:copies]
         new_deploy = origin.clone
+        new_deploy.reload
         new_deploy.nickname = "#{origin.nickname}-clone-#{i}"
         new_deploy.servers.each { |s|
           s.nickname = "#{s.nickname}-clone-#{i}"
