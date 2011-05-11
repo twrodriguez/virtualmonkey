@@ -13,7 +13,12 @@ class DeploymentMonk
   end
 
   def self.list(tag)
-    Deployment.find_by(:nickname) {|n| n =~ /^#{tag}/ }.each { |d| puts d.nickname }
+    deployments = Deployment.find_by(:nickname) {|n| n =~ /^#{tag}/ }
+    deployments.each { |d| puts "#{d.nickname} : #{d.servers.map { |s| s.state }.inspect}" }
+  end
+
+  def list
+    @deployments.each { |d| puts "#{d.nickname} : #{d.servers.map { |s| s.state }.inspect}" }
   end
 
   def initialize(tag, server_templates = [], extra_images = [], suppress_monkey_warning = false)
@@ -215,7 +220,9 @@ class DeploymentMonk
   end
 
   def load_clouds(cloud_ids)
-    cloud_ids.each { |id| @variables_for_cloud.deep_merge!("#{id}" => {}) }
+    VirtualMonkey::Toolbox::populate_all_cloud_vars(:force)
+    all_clouds = JSON::parse(IO.read(File.join("config","cloud_variables","all_clouds.json")))
+    cloud_ids.each { |id| @variables_for_cloud.deep_merge!(id.to_s => all_clouds[id.to_s]) }
   end
 
   def update_inputs

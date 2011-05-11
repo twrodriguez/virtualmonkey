@@ -22,7 +22,7 @@ module VirtualMonkey
 
     def run_promotion_operations
       behavior(:config_master_from_scratch, s_one)
-      object_behavior(s_one, :relaunch)
+      obj_behavior(s_one, :relaunch)
       s_one.dns_name = nil
       behavior(:wait_for_snapshots)
     end

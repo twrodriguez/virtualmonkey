@@ -29,13 +29,15 @@ module VirtualMonkey
     end
 
     def deployment_base_exception_handle(e)
-      if e.message =~ /Insufficient capacity/
+      if e.message =~ /Insufficient capacity/ and @retry_loop.last < 10
         puts "Got \"Insufficient capacity\". Retrying...."
         sleep 60
+        incr_retry_loop
         return "Exception Handled"
-      elsif e.message =~ /Service Temporarily Unavailable/
+      elsif e.message =~ /Service Temporarily Unavailable/ and @retry_loop.last < 30
         puts "Got \"Service Temporarily Unavailable\". Retrying...."
         sleep 10
+        incr_retry_loop
         return "Exception Handled"
       else
         raise e
@@ -80,10 +82,10 @@ module VirtualMonkey
     def run_logger_audit(interactive = false, strict = false)
       ret_string = ""
       mc = MessageCheck.new(@log_checklists, strict)
-      logs = mc.logs_to_check(@server_templates)
+      logs = obj_behavior(mc, :logs_to_check, @server_templates)
       logs.each do |st_href,logfile_array|
         servers_to_check = @servers.select { |s| s.server_template_href == st_href }
-        logfile_array.each { |logfile| ret_string += mc.check_messages(servers_to_check, interactive, logfile) }
+        logfile_array.each { |logfile| ret_string += obj_behavior(mc, :check_messages, servers_to_check, interactive, logfile) }
       end
       if ret_string =~ /ERROR/
         raise ret_string
@@ -128,7 +130,7 @@ module VirtualMonkey
     def launch_all
       @servers.each { |s|
         begin
-          object_behavior(s, :start)
+          obj_behavior(s, :start)
         rescue Exception => e
           raise e unless e.message =~ /AlreadyLaunchedError/
         end
@@ -137,9 +139,9 @@ module VirtualMonkey
 
     # sets the MASTER_DB_DNSNAME to this machine's ip address
     def set_master_db_dnsname
-      the_name = get_tester_ip_addr
-      @deployment.set_input("MASTER_DB_DNSNAME", the_name) 
-      @deployment.set_input("DB_HOST_NAME", the_name) 
+      the_name = behavior(:get_tester_ip_addr)
+      obj_behavior(@deployment, :set_input, "MASTER_DB_DNSNAME", the_name) 
+      obj_behavior(@deployment, :set_input, "DB_HOST_NAME", the_name) 
     end
 
     # Launch server(s) that match nickname_substr
@@ -148,7 +150,7 @@ module VirtualMonkey
       set = select_set(nickname_substr)  
       set.each { |s|
         begin
-          object_behavior(s, :start)
+          obj_behavior(s, :start)
         rescue Exception => e
           raise e unless e.message =~ /AlreadyLaunchedError/
         end
@@ -159,7 +161,7 @@ module VirtualMonkey
     def relaunch_all
       @servers.each { |s|
         begin
-          object_behavior(s, :relaunch)
+          obj_behavior(s, :relaunch)
         rescue Exception => e
           raise e #unless e.message =~ /AlreadyLaunchedError/
         end
@@ -171,7 +173,7 @@ module VirtualMonkey
       @servers.each do |s|
         # can't unset ALL tags, so we must set a bogus one
         s.tags = [{"name"=>"removeme:now=1"}]
-        s.save
+        obj_behavior(s, :save)
       end
     end
 
@@ -189,9 +191,9 @@ module VirtualMonkey
     def state_wait(set, state, timeout=1200)
       # do a special wait, if waiting for operational (for dns)
       if state == "operational"
-        set.each { |server| server.wait_for_operational_with_dns(timeout) }
+        set.each { |server| obj_behavior(server, :wait_for_operational_with_dns, timeout) }
       else
-        set.each { |server| server.wait_for_state(state, timeout) }
+        set.each { |server| obj_behavior(server, :wait_for_state, state, timeout) }
       end
     end
     
@@ -202,43 +204,43 @@ module VirtualMonkey
     end
 
     def start_ebs_all(wait=true)
-      @servers.each { |s| s.start_ebs }
-      wait_for_all("operational") if wait
+      @servers.each { |s| obj_behavior(s, :start_ebs) }
+      behavior(:wait_for_all, "operational") if wait
       @servers.each { |s| 
         s.dns_name = nil 
         s.private_dns_name = nil
-        }
+      }
     end
 
     def stop_ebs_all(wait=true)
-      @servers.each { |s| s.stop_ebs }
-      wait_for_all("stopped") if wait
+      @servers.each { |s| obj_behavior(s, :stop_ebs) }
+      behavior(:wait_for_all, "stopped") if wait
       @servers.each { |s| 
         s.dns_name = nil 
         s.private_dns_name = nil
-        }
+      }
     end
 
     def stop_all(wait=true)
-      @servers.each { |s| s.stop }
-      wait_for_all("stopped") if wait
+      @servers.each { |s| obj_behavior(s, :stop) }
+      behavior(:wait_for_all, "stopped") if wait
       @servers.each { |s| 
         s.dns_name = nil 
         s.private_dns_name = nil
-        }
+      }
     end
 
     def reboot_all(serially_reboot = false)
       wait_for_reboot = true
       # Do NOT thread this each statement
       @servers.each do |s| 
-        object_behavior(s, :reboot, wait_for_reboot)
+        obj_behavior(s, :reboot, wait_for_reboot)
         if serially_reboot
-          object_behavior(s, :wait_for_state, "operational")
+          obj_behavior(s, :wait_for_state, "operational")
         end
       end
       @servers.each do |s| 
-        object_behavior(s, :wait_for_state, "operational")
+        obj_behavior(s, :wait_for_state, "operational")
       end
     end
 
@@ -267,7 +269,7 @@ module VirtualMonkey
         audits << behavior(:launch_script, friendly_name, s, options)
       end
       if wait
-        audits.each { |a| object_behavior(a, :wait_for_completed) }
+        audits.each { |a| obj_behavior(a, :wait_for_completed) }
       elsif audits.size == 1
         return audits.first
       else
@@ -283,7 +285,7 @@ module VirtualMonkey
     # Run a script on server in the deployment asynchronously
     def launch_script(friendly_name, server, options = nil)
       raise "No script registered with friendly_name #{friendly_name} for server #{server.inspect}" unless script_to_run?(friendly_name, server)
-      server.run_executable(@scripts_to_run[resource_id(server.server_template_href)][friendly_name], options)
+      obj_behavior(server, :run_executable, @scripts_to_run[resource_id(server.server_template_href)][friendly_name], options)
     end
 
     # Call run_script_on_set with out-of-order params passed in as a hash
@@ -319,7 +321,8 @@ module VirtualMonkey
     def detect_os
       @server_os = Array.new
       @servers.each do |server|
-        if object_behavior(server, :spot_check_command?, "lsb_release -is | grep Ubuntu")
+#        if obj_behavior(server, :spot_check_command?, "lsb_release -is | grep Ubuntu")
+        if probe(server, "lsb_release -is | grep Ubuntu")
           puts "setting server to ubuntu"
           server.os = "ubuntu"
           server.apache_str = "apache2"
@@ -350,7 +353,8 @@ module VirtualMonkey
     
     # Log rotation
     def force_log_rotation(server)
-      response = server.spot_check_command?('logrotate -f /etc/logrotate.conf')
+#      response = obj_behavior(server, :spot_check_command?, 'logrotate -f /etc/logrotate.conf')
+      response = probe(server, 'logrotate -f /etc/logrotate.conf')
       raise "Logrotate restart failed" unless response
     end
     
@@ -358,7 +362,8 @@ module VirtualMonkey
       response = nil
       count = 0
       until response || count > 3 do
-        response = server.spot_check_command?("test -f #{logfile}")
+#        response = obj_behavior(server, :spot_check_command?, "test -f #{logfile}")
+        response = probe(server, "test -f #{logfile}")
         break if response
         count += 1
         sleep 10
@@ -369,12 +374,12 @@ module VirtualMonkey
     # Checks that monitoring is enabled on all servers in the deployment.  Will raise an error if monitoring is not enabled.
     def check_monitoring
       @servers.each do |server|
-        server.settings
+        obj_behavior(server, :settings)
         response = nil
         count = 0
         until response || count > 20 do
           begin
-            response = server.monitoring
+            response = obj_behavior(server, :monitoring)
           rescue
             response = nil
             count += 1
@@ -386,10 +391,10 @@ module VirtualMonkey
 # hardcoding the cpu check
         unless server.multicloud
           sleep 60 # This is to allow monitoring data to accumulate
-          monitor = server.get_sketchy_data({'start' => -60,
-                                             'end' => -20,
-                                             'plugin_name' => "cpu-0",
-                                             'plugin_type' => "cpu-idle"})
+          monitor = obj_behavior(server, :get_sketchy_data, {'start' => -60,
+                                                                'end' => -20,
+                                                                'plugin_name' => "cpu-0",
+                                                                'plugin_type' => "cpu-idle"})
           idle_values = monitor['data']['value']
           raise "No cpu idle data" unless idle_values.length > 0
           raise "CPU idle time is < 0: #{idle_values}" unless idle_values[0] > 0
@@ -419,7 +424,7 @@ module VirtualMonkey
 #       Do this for all? Or just the one?
 #       @servers.each { |server| server.wait_for_operational_with_dns }
         s = @servers.first
-        object_behavior(s, :wait_for_operational_with_dns)
+        obj_behavior(s, :wait_for_operational_with_dns)
         # Verify operational
         behavior(:run_simple_check, s)
         behavior(:check_monitoring)
@@ -431,21 +436,21 @@ module VirtualMonkey
     # Copy configuration files into some location for usage after start
     def save_configuration_files(server)
       puts "Saving config files"
-      object_behavior(server, :spot_check_command, 'mkdir -p /root/start_stop_backup')
-      object_behavior(server, :spot_check_command, 'cp /etc/postfix/main.cf /root/start_stop_backup/.')
-      object_behavior(server, :spot_check_command, 'cp /etc/syslog-ng/syslog-ng.conf /root/start_stop_backup/.')
+      probe(server, 'mkdir -p /root/start_stop_backup')
+      probe(server, 'cp /etc/postfix/main.cf /root/start_stop_backup/.')
+      probe(server, 'cp /etc/syslog-ng/syslog-ng.conf /root/start_stop_backup/.')
     end
 
     # Diff the new config file with the saved one and check that the only
     # line that is different is the one that has the mydestination change
     def test_mail_config(server)
-      res = server.spot_check_command('diff /etc/postfix/main.cf /root/start_stop_backup/main.cf')
+      res = probe(server, 'diff /etc/postfix/main.cf /root/start_stop_backup/main.cf')
 # This is lame - assuming if the file is modified then it's okay
         raise "ERROR: postfix main.cf configuration file did not change when restarted" unless res
     end
     
     def test_syslog_config(server)
-      res = server.spot_check_command('diff /etc/syslog-ng/syslog-ng.conf /root/start_stop_backup/syslog-ng.conf')
+      res = probe(server, 'diff /etc/syslog-ng/syslog-ng.conf /root/start_stop_backup/syslog-ng.conf')
 # This is lame - assuming if the file is modified then it's okay
       raise "ERROR: syslog-ng configuration file did not change when restarted" unless res
     end

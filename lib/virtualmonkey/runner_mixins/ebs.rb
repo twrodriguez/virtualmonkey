@@ -10,7 +10,7 @@ module VirtualMonkey
     # * count<~String> eg. "3"
     def set_variation_stripe_count(count)
       @stripe_count = count
-      @deployment.set_input("EBS_STRIPE_COUNT", "text:#{@stripe_count}")
+      obj_behavior(@deployment, :set_input, "EBS_STRIPE_COUNT", "text:#{@stripe_count}")
     end
 
     # sets the volume size n GB for the runner
@@ -32,11 +32,11 @@ module VirtualMonkey
       if kind
         raise "Only support nil kind for ebs lineage"
       else
-        @deployment.set_input('EBS_LINEAGE', "text:#{@lineage}")
+        obj_behavior(@deployment, :set_input, 'EBS_LINEAGE', "text:#{@lineage}")
         # unset all server level inputs in the deployment to ensure use of 
         # the setting from the deployment level
         @servers.each do |s|
-          s.set_input('EBS_LINEAGE', "text:")
+          obj_behavior(s, :set_input, 'EBS_LINEAGE', "text:")
         end
       end
     end
@@ -48,7 +48,7 @@ module VirtualMonkey
       while timeout > 0
         puts "Checking for snapshot completed"
         snapshots = behavior(:find_snapshots)
-        status= snapshots.map { |x| x.aws_status } 
+        status = snapshots.map { |x| x.aws_status } 
         break unless status.include?("pending")
         sleep step
         timeout -= step
@@ -80,7 +80,7 @@ module VirtualMonkey
               "EBS_STRIPE_COUNT" => "text:#{@stripe_count}",
               "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:#{@volume_size}",
               "EBS_LINEAGE" => "text:#{@lineage}" }
-      run_script('create_stripe', server, options)
+      behavior(:run_script, 'create_stripe', server, options)
     end
 
     # * server<~Server> the server to restore to
@@ -88,7 +88,7 @@ module VirtualMonkey
       options = { "EBS_MOUNT_POINT" => "text:#{@mount_point}",
               "OPT_DB_FORCE_RESTORE" => "text:#{force}",
               "EBS_LINEAGE" => "text:#{@lineage}" }
-      run_script('restore', server, options)
+      behavior(:run_script, 'restore', server, options)
     end
 
     # * server<~Server> the server to restore to
@@ -97,12 +97,12 @@ module VirtualMonkey
               "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:#{new_size}",
               "OPT_DB_FORCE_RESTORE" => "text:#{force}",
               "EBS_LINEAGE" => "text:#{@lineage}" }
-      run_script('grow_volume', server, options)
+      behavior(:run_script, 'grow_volume', server, options)
     end
 
     # Verify that the volume has special data on it.
     def test_volume_data(server)
-      server.spot_check_command("test -f #{@mount_point}/data.txt")
+      probe(server, "test -f #{@mount_point}/data.txt")
     end
 
     # Verify that the volume is the expected size
@@ -110,7 +110,7 @@ module VirtualMonkey
       error_range = 0.05
       puts "Testing with a +/- #{error_range * 100}% margin of error: #{@mount_point} #{expected_size}GB"
       expected_size *= 1048576 # expected_size is given in GB, df is given in KB
-      probe(server.nickname, "df -k | grep #{@mount_point}") { |response,status|
+      probe(server, "df -k | grep #{@mount_point}") { |response,status|
         val = response.match(/[0-9]+/)[0].to_i
         ret = (val < (expected_size * (1.0 + error_range)) and val > (expected_size * (1.0 - error_range)))
         ret
@@ -120,22 +120,22 @@ module VirtualMonkey
     # Writes data to the EBS volume so snapshot restores can be verified
     # Not sure what to write...... Maybe pass a string to write to a file??..
     def populate_volume(server)
-       server.spot_check_command(" echo \"blah blah blah\" > #{@mount_point}/data.txt")
+      probe(server, " echo \"blah blah blah\" > #{@mount_point}/data.txt")
     end
 
     # * server<~Server> the server to terminate
     def terminate_server(server)
       options = { "EBS_MOUNT_POINT" => "text:#{@mount_point}",
               "EBS_TERMINATE_SAFETY" => "text:off" }
-      run_script('terminate', server, options)
+      behavior(:run_script, 'terminate', server, options)
     end
 
     # Use the termination script to stop all the servers (this cleans up the volumes)
     def stop_all(wait=true)
       @servers.each do |s|
-        terminate_server(s) if s.state == 'operational' || s.state == 'stranded'
+        behavior(:terminate_server, s) if s.state == 'operational' || s.state == 'stranded'
       end
-      @servers.each { |s| s.wait_for_state("stopped") }
+      @servers.each { |s| obj_behavior(s, :wait_for_state, "stopped") }
       # unset dns in our local cached copy..
       @servers.each { |s| s.params['dns-name'] = nil }
     end
@@ -167,21 +167,21 @@ module VirtualMonkey
       backup_script="/usr/local/bin/ebs-backup.rb"
       # create backup scripts
       behavior(:run_script, "create_backup_scripts", s_one)
-      object_behavior(s_one, :spot_check_command, "test -x #{backup_script}")
+      probe(s_one, "test -x #{backup_script}")
       # enable continuous backups
       behavior(:run_script, "continuous_backup", s_one)
-      object_behavior(s_one, :spot_check_command, "egrep \"^[0-6].*#{backup_script}\" /etc/crontab")
+      probe(s_one, "egrep \"^[0-6].*#{backup_script}\" /etc/crontab")
       # freeze backups
       behavior(:run_script, "freeze", s_one)
-      object_behavior(s_one, :spot_check_command, "egrep \"^#[0-6].*#{backup_script}\" /etc/crontab")
+      probe(s_one, "egrep \"^#[0-6].*#{backup_script}\" /etc/crontab")
       # unfreeze backups
       behavior(:run_script, "unfreeze", s_one)
-      object_behavior(s_one, :spot_check_command, "egrep \"^[0-6].*#{backup_script}\" /etc/crontab")
+      probe(s_one, "egrep \"^[0-6].*#{backup_script}\" /etc/crontab")
     end
 
     def run_reboot_operations
-      object_behavior(s_one, :reboot, true)
-      object_behavior(s_one, :wait_for_state, "operational")
+      obj_behavior(s_one, :reboot, true)
+      obj_behavior(s_one, :wait_for_state, "operational")
       behavior(:create_backup)
     end
   end

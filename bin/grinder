@@ -98,11 +98,8 @@ begin
   line = @testcase.readline
   if line =~ /((=)|(set_var))/ or (@resume < linenum and linenum <= @breakpoint)
     unless line =~ /^[ \t]*#/ or line =~ /^[ \t]*$/
-      sleep(0.01)
       $stdout.syswrite("#{"=" * line.length}\n")
-      sleep(0.01)
       $stdout.syswrite(line)
-      sleep(0.01)
       $stdout.syswrite("#{"=" * line.length}\n")
       line_timer = Time.now
       eval(line)

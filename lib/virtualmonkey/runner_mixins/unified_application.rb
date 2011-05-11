@@ -21,7 +21,8 @@ module VirtualMonkey
       end
     end
     
-    def run_unified_application_checks(run_on=@servers, port=8000)
+    def run_unified_application_checks(set = @servers, port=8000)
+      run_on = select_set(set)
       run_on.each do |server| 
         behavior(:run_unified_application_check, server.dns_name, port)
       end

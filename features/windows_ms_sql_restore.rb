@@ -21,6 +21,6 @@
 #  @runner.behavior(:check_monitoring)
 
 # Then I should check all the scripts in the template
-  @runner.behavior(:run_script, "DB SQLS restore data volume", @runner.behavior(:s_one))
-  @runner.behavior(:run_script, "sql_db_check", @runner.behavior(:s_one))
+  @runner.behavior(:run_script_on_all, "DB SQLS restore data volume")
+  @runner.behavior(:run_script_on_all, "sql_db_check")
 

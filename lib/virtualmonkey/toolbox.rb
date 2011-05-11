@@ -1,6 +1,6 @@
 begin
-  require '/var/spool/cloud/user-data.rb'
-  require '/var/spool/cloud/meta-data-cache.rb'
+  require '/var/spool/cloud/user-data'
+  require '/var/spool/cloud/meta-data-cache'
   ENV['I_AM_IN_EC2'] = "true"
 rescue
   ENV['RS_API_URL'] = "#{ENV['USER']}-#{`hostname`}".strip
@@ -68,6 +68,7 @@ module VirtualMonkey
 
     def self.determine_cloud_id(server)
       server.settings
+      ret = nil
       return server.cloud_id if server.cloud_id
       # API 1.5 has cloud_id under .settings even on inactive server, so must be API 1.0
       cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
@@ -77,22 +78,24 @@ module VirtualMonkey
         ref = server.ec2_ssh_key_href
         cloud_ids.each { |cloud|
           if Ec2SshKeyInternal.find_by_cloud_id(cloud.to_s).select { |o| o.href == ref }.first
-            return cloud
+            ret = cloud
           end
         }
       end
 
+      return ret if ret
       # Try security groups
       if server.ec2_security_groups_href
         server.ec2_security_groups_href.each { |sg|
           cloud_ids.each { |cloud|
             if Ec2SecurityGroup.find_by_cloud_id(cloud.to_s).select { |o| o.href == sg.href }.first
-              return cloud
+              ret = cloud
             end
           }
         }
       end
 
+      return ret if ret
       raise "Could not determine cloud_id...try setting an ssh key or security group"
     end
 
