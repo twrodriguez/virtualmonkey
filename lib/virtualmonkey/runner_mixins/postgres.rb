@@ -178,12 +178,12 @@ module VirtualMonkey
 
     def run_promotion_operations
       behavior(:config_master_from_scratch, s_one)
-      object_behavior(s_one, :relaunch)
+      obj_behavior(s_one, :relaunch)
       s_one.dns_name = nil
       behavior(:wait_for_snapshots)
 # need to wait for ebs snapshot, otherwise this could easily fail
       behavior(:restore_server, s_two)
-      object_behavior(s_one, :wait_for_operational_with_dns)
+      obj_behavior(s_one, :wait_for_operational_with_dns)
       behavior(:slave_init_server, s_one)
       behavior(:promote_server, s_one)
     end
@@ -192,8 +192,8 @@ module VirtualMonkey
 # Duplicate code here because we need to wait between the master and the slave time
       #reboot_all(true) # serially_reboot = true
       @servers.each do |s|
-        object_behavior(s, :reboot, true)
-        object_behavior(s, :wait_for_state, "operational")
+        obj_behavior(s, :reboot, true)
+        obj_behavior(s, :wait_for_state, "operational")
       end
       behavior(:wait_for_all, "operational")
       behavior(:run_reboot_checks)
@@ -208,9 +208,9 @@ module VirtualMonkey
     end
 
     def run_restore_with_timestamp_override
-      object_behavior(s_one, :relaunch)
+      obj_behavior(s_one, :relaunch)
       s_one.dns_name = nil
-      object_behavior(s_one, :wait_for_operational_with_dns)
+      obj_behavior(s_one, :wait_for_operational_with_dns)
       behavior(:run_script, 'restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
     end
 

@@ -24,7 +24,7 @@ module VirtualMonkey
       app_servers.each { |app| server_ips << app['private-ip-address'] }
       fe_servers.each do |fe|
         fe.settings
-        nginx_config = object_behavior(fe, :spot_check_command, 'flock -n /etc/nginx/sites-enabled/lb -c "grep -E ^server /etc/nginx/sites-enabled/lb"')
+        nginx_config = obj_behavior(fe, :spot_check_command, 'flock -n /etc/nginx/sites-enabled/lb -c "grep -E ^server /etc/nginx/sites-enabled/lb"')
         puts "INFO: flock status was #{nginx_config[:status]}"
         server_ips.each do |ip|
           if nginx_config.to_s.include?(ip) == false
@@ -40,7 +40,7 @@ module VirtualMonkey
         response = nil
         count = 0
         until response || count > 3 do
-          response = object_behavior(server, :spot_check_command?, "service nginx status")
+          response = obj_behavior(server, :spot_check_command?, "service nginx status")
           break if response
           count += 1
           sleep 10
