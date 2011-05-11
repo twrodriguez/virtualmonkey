@@ -12,6 +12,7 @@ class Hash
 
   def deep_merge(second)
     target = dup
+    return target unless second
     second.keys.each do |k|
       if second[k].is_a? Array and self[k].is_a? Array
         target[k] = target[k].deep_merge(second[k])
@@ -29,6 +30,7 @@ class Hash
   # File lib/cerberus/utils.rb, line 42
 
   def deep_merge!(second)
+    return nil unless second
     second.each_pair do |k,v|
       if self[k].is_a?(Array) and second[k].is_a?(Array)
         self[k].deep_merge!(second[k])
@@ -50,6 +52,7 @@ end
 class Array
   def deep_merge(second)
     target = dup
+    return target unless second
     second.each_index do |k|
       if second[k].is_a? Array and self[k].is_a? Array
         target[k] = target[k].deep_merge(second[k])
@@ -64,6 +67,7 @@ class Array
   end
 
   def deep_merge!(second)
+    return nil unless second
     second.each_index do |k|
       if self[k].is_a?(Array) and second[k].is_a?(Array)
         self[k].deep_merge!(second[k])
