@@ -14,25 +14,21 @@ class GrinderJob
   end
 
   def on_read_stdout(data)
-#    @output ||= ""
-#    @output << data
     data_ary = data.split("\n")
     data_ary.each_index do |i|
       data_ary[i] = timestamp + data_ary[i]
       $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n") if @verbose
     end
-    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n")) }
+    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
   end
 
   def on_read_stderr(data)
-#    @output ||= ""
-#    @output << data
     data_ary = data.split("\n")
     data_ary.each_index do |i|
       data_ary[i] = timestamp + data_ary[i]
       $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n") if @verbose
     end
-    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n")) }
+    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
   end
 
   def timestamp

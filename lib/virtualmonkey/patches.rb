@@ -122,6 +122,10 @@ module RightScale
   module Api
     module Base
       def trace_inspect
+        inspect
+      end
+
+      def inspect
         begin
           return "#{self.class.to_s}[#{self.nickname.inspect}]"
         rescue
