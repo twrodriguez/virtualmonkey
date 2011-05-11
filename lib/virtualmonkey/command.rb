@@ -161,7 +161,7 @@ module VirtualMonkey
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] = get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
-      @@do_these = @@dm.deployments unless @@do_these
+      @@do_these ||= @@dm.deployments
       @@do_these.each do |deploy|
         runner = eval("VirtualMonkey::#{@@options[:runner]}.new(deploy.nickname)")
         runner.behavior(:stop_all, false)

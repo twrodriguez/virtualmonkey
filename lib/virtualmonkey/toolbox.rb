@@ -1,6 +1,6 @@
 begin
-  require '/var/spool/cloud/user-data.rb'
-  require '/var/spool/cloud/meta-data.rb'
+  require '/var/spool/cloud/user-data'
+  require '/var/spool/cloud/meta-data-cache'
   ENV['I_AM_IN_EC2'] = "true"
 rescue
   ENV['RS_API_URL'] = "#{ENV['USER']}-#{`hostname`}".strip
