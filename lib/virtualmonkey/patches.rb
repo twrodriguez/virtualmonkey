@@ -122,9 +122,9 @@ module RightScale
   module Api
     module Base
       def trace_inspect
-        if self.nickname
+        begin
           return "#{self.class.to_s}[#{self.nickname.inspect}]"
-        else
+        rescue
           return "#{self.class.to_s}[#{self.href.split(/\//).last.to_i}]"
         end
       end
