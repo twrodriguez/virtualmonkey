@@ -2,12 +2,12 @@
   "feature":"nginx_pass_rails.rb",
   "runner":"SimpleRunner",
   "server_template_ids":[
-    "108409",
-    "108409",
-    "108410",
-    "108410"
+    "109707",
+    "109707",
+    "109706",
+    "109706"
   ],
   "cloud_variables":"aws_us_east.json",
-  "common_inputs": [ "rails.json", "devtools.json"],
-  "tag":"TROOP_NGNXPASSRAIL"
+  "common_inputs":"php.json",
+  "tag":"TROOP_NGNXPHP"
 }

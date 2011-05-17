@@ -363,7 +363,8 @@ module VirtualMonkey
       count = 0
       until response || count > 3 do
 #        response = obj_behavior(server, :spot_check_command?, "test -f #{logfile}")
-        response = probe(server, "test -f #{logfile}")
+        # test -f will only work if 1 file is returned.
+        response = probe(server, "ls #{logfile}")
         break if response
         count += 1
         sleep 10
