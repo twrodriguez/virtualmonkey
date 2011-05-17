@@ -171,7 +171,7 @@ class GrinderMonk
         done = 0
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.logfile)}", IO.read(j.logfile), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.rest_log)}", IO.read(j.rest_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
-        s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.trace_log)}", IO.read(j.trace_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
+        s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.trace_log)}", IO.read(j.trace_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read') if j.status == 0
         done = 1
       rescue Exception => e
         unless e.message =~ /Bad file descriptor|no such file or directory/i

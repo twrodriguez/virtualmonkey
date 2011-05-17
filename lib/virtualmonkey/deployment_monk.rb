@@ -1,5 +1,6 @@
 require 'rubygems'
 require 'rest_connection'
+require 'pp'
 
 class DeploymentMonk
   attr_accessor :common_inputs
@@ -14,11 +15,11 @@ class DeploymentMonk
 
   def self.list(tag)
     deployments = Deployment.find_by(:nickname) {|n| n =~ /^#{tag}/ }
-    deployments.each { |d| puts "#{d.nickname} : #{d.servers.map { |s| s.state }.inspect}" }
+    pp deployments.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
   end
 
   def list
-    @deployments.each { |d| puts "#{d.nickname} : #{d.servers.map { |s| s.state }.inspect}" }
+    pp @deployments.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
   end
 
   def initialize(tag, server_templates = [], extra_images = [], suppress_monkey_warning = false)
