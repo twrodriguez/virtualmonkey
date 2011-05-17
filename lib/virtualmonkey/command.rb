@@ -209,10 +209,10 @@ module VirtualMonkey
           line = f.readline
           ret = line.match(/VirtualMonkey::.*Runner/)[0].split("::").last if line =~ /= VirtualMonkey.*Runner/
         rescue EOFError => e
-          ret = nil
+          ret = ""
         end while !ret
       }
-      return ret
+      return (ret == "" ? nil : ret)
     end
   end
 end
