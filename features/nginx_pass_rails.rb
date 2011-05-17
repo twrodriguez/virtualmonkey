@@ -17,9 +17,6 @@
 # When I launch the "Front End" servers
   @runner.behavior(:launch_set, "Front End")
 
-# Then I should wait for the state of "Front End" servers to be "booting"
-  @runner.behavior(:wait_for_set, "Front End", "booting")
-
 # Then I should wait for the state of "Front End" servers to be "operational"
   @runner.behavior(:wait_for_set, "Front End", "operational")
 
@@ -28,9 +25,6 @@
 
 # When I launch the "App Server" servers
   @runner.behavior(:launch_set, "App Server")
-
-# Then I should wait for the state of "App Server" servers to be "booting"
-  @runner.behavior(:wait_for_set, "App Server", "booting")
 
 # Then I should wait for the state of "App Server" servers to be "operational"
   @runner.behavior(:wait_for_set, "App Server", "operational")

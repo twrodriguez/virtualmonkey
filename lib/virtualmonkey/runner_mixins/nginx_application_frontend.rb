@@ -10,7 +10,7 @@ module VirtualMonkey
 
       fe_servers.each do |server|
         behavior(:force_log_rotation, server)
-        behavior(:log_check, server, "/var/log/nginx/access.log.1*")
+        behavior(:log_check, server, "/var/log/nginx/*access.log.1*")
       end
     end
 
@@ -52,7 +52,7 @@ module VirtualMonkey
 
     def frontend_lookup_scripts
       fe_scripts = [
-                    [ 'nginx_restart', 'WEB Nginx \(re\)start' ]
+                    [ 'nginx_restart', 'WEB Nginx.* \(re\)start' ]
                    ]
       app_scripts = [
                      [ 'connect', 'LB Application to Nginx connect' ]
