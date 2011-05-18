@@ -61,6 +61,7 @@
 # Then I should run a restore using OPT_DB_RESTORE_TIMESTAMP_OVERRIDE
 #  @runner.behavior(:run_restore_with_timestamp_override)
 
+  @runner.behavior(:run_logger_audit)
 # 
 # PHASE 4) Terminate
 #

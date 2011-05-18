@@ -11,29 +11,29 @@ module VirtualMonkey
     def set_variation_lineage(kind = nil)
       @lineage = "testlineage#{resource_id(@deployment)}"
       if kind == "chef"
-        @deployment.set_input('db/backup/lineage', "text:#{@lineage}")
+        obj_behavior(@deployment, :set_input, 'db/backup/lineage', "text:#{@lineage}")
         # unset all server level inputs in the deployment to ensure use of 
         # the setting from the deployment level
         @servers.each do |s|
-          s.set_input('db/backup/lineage', "text:")
+          obj_behavior(s, :set_input, 'db/backup/lineage', "text:")
         end
       else
-        @deployment.set_input('DB_LINEAGE_NAME', "text:#{@lineage}")
+        obj_behavior(@deployment, :set_input, 'DB_LINEAGE_NAME', "text:#{@lineage}")
         # unset all server level inputs in the deployment to ensure use of 
         # the setting from the deployment level
         @servers.each do |s|
-          s.set_input('DB_LINEAGE_NAME', "text:")
+          obj_behavior(s, :set_input, 'DB_LINEAGE_NAME', "text:")
         end
       end
     end
 
     def set_variation_bucket
-       bucket = "text:testingcandelete#{resource_id(@deployment)}"
-      @deployment.set_input('remote_storage/default/container', bucket)
+      bucket = "text:testingcandelete#{resource_id(@deployment)}"
+      obj_behavior(@deployment, :set_input, 'remote_storage/default/container', bucket)
       # unset all server level inputs in the deployment to ensure use of 
       # the setting from the deployment level
       @servers.each do |s|
-        s.set_input('remote_storage/default/container', "text:")
+        obj_behavior(s, :set_input, 'remote_storage/default/container', "text:")
       end
     end
 
@@ -51,7 +51,7 @@ module VirtualMonkey
               "DBAPPLICATION_PASSWORD" => "text:somepass",
               "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:1",
               "DB_LINEAGE_NAME" => "text:#{@lineage}" }
-      run_script('create_stripe', server, options)
+      behavior(:run_script, 'create_stripe', server, options)
     end
 
     # creates a MySQL enabled EBS stripe on the server and uses the dumpfile to restore the DB
@@ -71,7 +71,7 @@ module VirtualMonkey
               "DBAPPLICATION_PASSWORD" => "text:somepass",
               "EBS_TOTAL_VOLUME_GROUP_SIZE" => "text:1",
               "DB_LINEAGE_NAME" => "text:#{@lineage}" }
-      run_script('create_stripe', server, options)
+      behavior(:run_script, 'create_stripe', server, options)
     end
 
     # Performs steps necessary to bootstrap a MySQL Master server from a pristine state using a dumpfile.
@@ -101,25 +101,25 @@ module VirtualMonkey
     # * server<~Server> the server to run the query on 
     def run_query(query, server)
       query_command = "psql -U postgres -c \"#{query}\""
-      server.spot_check_command(query_command)
+      probe(server, query_command)
     end
 
     # Sets DNS record for the Master server to point at server
     # * server<~Server> the server to use as MASTER
     def set_master_dns(server)
-      run_script('master_init', server)
+      behavior(:run_script, 'master_init', server)
     end
 
     # Use the termination script to stop all the servers (this cleans up the volumes)
     def stop_all(wait=true)
       if script_to_run?('terminate')
         options = { "DB_TERMINATE_SAFETY" => "text:off" }
-        @servers.each { |s| run_script('terminate', s, options) unless s.state == 'stopped' }
+        @servers.each { |s| behavior(:run_script, 'terminate', s, options) unless s.state == 'stopped' }
       else
-        @servers.each { |s| s.stop }
+        @servers.each { |s| obj_behavior(s, :stop) }
       end
 
-      wait_for_all("stopped") if wait
+      behavior(:wait_for_all, "stopped") if wait
       # unset dns in our local cached copy..
       @servers.each { |s| s.params['dns-name'] = nil } 
     end
@@ -139,24 +139,24 @@ module VirtualMonkey
     end
 
     def promote_server(server)
-      run_script("promote", server)
+      behavior(:run_script, "promote", server)
     end
 
     def slave_init_server(server)
-      run_script("slave_init", server)
+      behavior(:run_script, "slave_init", server)
     end
 
     def restore_server(server)
-      run_script("restore", server)
+      behavior(:run_script, "restore", server)
     end
 
     # These are PostgreSQL specific checks
     def run_checks
       # check that backup cron script exits success
       @servers.each do |server|
-        chk1 = server.spot_check_command?("/usr/local/bin/pgsql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+        chk1 = probe(server, "/usr/local/bin/pgsql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
 
-        chk2 = server.spot_check_command?("/usr/local/bin/pgsql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+        chk2 = probe(server, "/usr/local/bin/pgsql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
 
         raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2) 
       end
@@ -168,9 +168,9 @@ module VirtualMonkey
       behavior(:wait_for_snapshots)
       behavior(:slave_init_server, s_two)
       behavior(:run_script, "backup", s_two)
-      s_two.relaunch
+      obj_behavior(s_two, :relaunch)
       s_one['dns-name'] = nil
-      s_two.wait_for_operational_with_dns
+      obj_behavior(s_two, :wait_for_operational_with_dns)
       behavior(:wait_for_snapshots)
       #sleep 300
       behavior(:slave_init_server, s_two)
@@ -263,11 +263,11 @@ module VirtualMonkey
     end
 
     def create_master
-      config_master_from_scratch(s_one)
+      behavior(:config_master_from_scratch, s_one)
     end
 
     def create_master_from_dumpfile
-      config_master_from_scratch_from_dumpfile(s_one)
+      behavior(:config_master_from_scratch_from_dumpfile, s_one)
     end
   end
 end

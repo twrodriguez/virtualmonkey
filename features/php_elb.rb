@@ -35,6 +35,7 @@
 # Then all instances should be registered with ELB
   @runner.behavior(:elb_registration_check, :all)
 
+  @runner.behavior(:run_logger_audit)
 ## Then I should run log rotation checks
 #  @runner.behavior(:log_rotation_checks)
 #
