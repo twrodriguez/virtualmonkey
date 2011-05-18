@@ -38,4 +38,4 @@
 # Then I should backup the volume
   @runner.behavior(:create_backup)
 
-  @runner.behavior(:run_logger_audit)
+#  @runner.behavior(:run_logger_audit)

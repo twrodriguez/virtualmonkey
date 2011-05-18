@@ -97,10 +97,11 @@ module VirtualMonkey
     end
 
     # Runs a query on specified server.
+    # * database<~String> Database to connect to
     # * query<~String> a SQL query string to execute
     # * server<~Server> the server to run the query on 
-    def run_query(query, server)
-      query_command = "psql -U postgres -c \"#{query}\""
+    def run_query(query, server, database = "postgres")
+      query_command = "psql -d #{database} -U postgres -c \"#{query}\""
       probe(server, query_command)
     end
 
@@ -184,6 +185,11 @@ module VirtualMonkey
 # need to wait for ebs snapshot, otherwise this could easily fail
       behavior(:restore_server, s_two)
       obj_behavior(s_one, :wait_for_operational_with_dns)
+
+      options = { "DB_NAME" => "text:i_heart_monkey" }
+      @servers.each { |s| run_script('monitor_add', s, options) }
+
+      sleep 300 # Waiting for new snapshot to show
       behavior(:slave_init_server, s_one)
       behavior(:promote_server, s_one)
     end
@@ -214,35 +220,26 @@ module VirtualMonkey
       behavior(:run_script, 'restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
     end
 
-# Check for specific MySQL data.
-    def check_mysql_monitoring
-      mysql_plugins = [
-                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-delete"},
-                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_db"},
-                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_table"},
-                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-insert"},
-                        {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-show_databases"}
+# Check for specific PostgreSQL data.
+    def check_db_monitoring
+      db_plugins = [
+                        {"plugin_name"=>"postgresql-i_heart_monkey", "plugin_type"=>"pg_n_tup_c-del"},
+                        {"plugin_name"=>"postgresql-i_heart_monkey", "plugin_type"=>"pg_n_tup_c-ins"},
+                        {"plugin_name"=>"postgresql-i_heart_monkey", "plugin_type"=>"pg_n_tup_c-upd"}
                       ]
       @servers.each do |server|
         unless server.multicloud
-#mysql commands to generate data for collectd to return
+# PostgreSQL commands to generate data for collectd to return
           for ii in 1...100
 #TODO: have to select db with every call.  figure a better way to do this and get rid of fast and ugly
 # cut and past hack.
-            behavior(:run_query, "show databases", server)
-            behavior(:run_query, "create database test#{ii}", server)
-            behavior(:run_query, "use test#{ii}; create table test#{ii}(test text)", server)
-            behavior(:run_query, "use test#{ii};show tables", server)
-            behavior(:run_query, "use test#{ii};insert into test#{ii} values ('1')", server)
-            behavior(:run_query, "use test#{ii};update test#{ii} set test='2'", server)
-            behavior(:run_query, "use test#{ii};select * from test#{ii}", server)
-            behavior(:run_query, "use test#{ii};delete from test#{ii}", server)
-            behavior(:run_query, "show variables", server)
-            behavior(:run_query, "show status", server)
-            behavior(:run_query, "use test#{ii};grant select on test.* to root", server)
-            behavior(:run_query, "use test#{ii};alter table test#{ii} rename to test2#{ii}", server)
+            behavior(:run_query, "create table test#{ii}(test text)", server, "i_heart_monkey")
+            behavior(:run_query, "insert into test#{ii} values ('1')", server, "i_heart_monkey")
+            behavior(:run_query, "update test#{ii} set test='2'", server, "i_heart_monkey")
+            behavior(:run_query, "select * from test#{ii}", server, "i_heart_monkey")
+            behavior(:run_query, "delete from test#{ii}", server, "i_heart_monkey")
           end
-          mysql_plugins.each do |plugin|
+          db_plugins.each do |plugin|
             monitor = server.get_sketchy_data({'start' => -60,
                                                'end' => -20,
                                                'plugin_name' => plugin['plugin_name'],
@@ -268,6 +265,51 @@ module VirtualMonkey
 
     def create_master_from_dumpfile
       behavior(:config_master_from_scratch_from_dumpfile, s_one)
+    end
+
+    def dump_export
+      options = {
+              "DB_NAME" => "text:test"
+      }
+      behavior(:run_script, 'dump_export', s_one, options)
+    end
+
+    def dump_import_dump
+      options = {
+              "DB_DUMP_FILENAME" => "text:dump-test-dump"
+      }
+      dump_import(options)
+    end
+
+    def dump_import_dumpall
+      options = {
+              "DB_DUMP_FILENAME" => "text:dumpall-dump"
+      }
+      dump_import(options)
+    end
+
+    def dump_import_dumpfc
+      options = {
+              "DB_DUMP_FILENAME" => "text:fc-test-dump"
+      }
+      dump_import(options)
+    end
+
+    def run_dump_import
+      dump_import_dump
+      dump_import_dumpfc
+      dump_import_dumpall
+    end
+
+    def dump_import(options)
+      # Need to stop collectd before dropping the database since it is connected.
+      s_one.spot_check_command?("service collectd stop")
+      behavior(:run_query, "DROP DATABASE test", s_one)
+
+      options['DB_NAME'] = "text:test"
+      behavior(:run_script, 'dump_import', s_one, options)
+
+      behavior(:run_query, "SELECT * FROM test", s_one, "test")
     end
   end
 end

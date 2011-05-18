@@ -9,7 +9,7 @@
 @runner.behavior(:run_checks)
 @runner.behavior(:check_monitoring)
 
-@runner.behavior(:run_logger_audit)
+#@runner.behavior(:run_logger_audit)
 
 # 
 # PHASE 4) Terminate

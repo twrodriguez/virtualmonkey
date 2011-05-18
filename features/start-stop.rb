@@ -22,4 +22,4 @@
 
 # Then I should perform start stop operations.
   @runner.behavior(:perform_start_stop_operations)
-  @runner.behavior(:run_logger_audit)
+#  @runner.behavior(:run_logger_audit)
