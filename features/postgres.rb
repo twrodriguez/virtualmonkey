@@ -36,6 +36,7 @@
 
 # Then I should check that monitoring is enabled
   @runner.behavior(:check_monitoring)
+  @runner.behavior(:check_db_monitoring)
 
 #
 # PHASE 2) Reboot
@@ -51,7 +52,16 @@
 # Then I should run a restore using OPT_DB_RESTORE_TIMESTAMP_OVERRIDE
   @runner.behavior(:run_restore_with_timestamp_override)
 
+<<<<<<< HEAD
+# Then I should import a test database
+  @runner.behavior(:run_dump_import)
+
+# Then I should export the test database
+  @runner.behavior(:dump_export)
+
+=======
 #  @runner.behavior(:run_logger_audit)
+>>>>>>> 97c60f78e361f1e16d1bf9871a16f0a9997ca57f
 # 
 # PHASE 4) Terminate
 #

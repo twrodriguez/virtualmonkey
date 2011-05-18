@@ -20,6 +20,7 @@ module VirtualMonkey
                  [ 'dump_import', 'PostgreSQL dump import'],
                  [ 'dump_export', 'PostgreSQL dump export'],
                  [ 'freeze_backups', 'DB PostgreSQL Freeze' ],
+                 [ 'monitor_add', 'PostgreSQL Add DB monitoring' ],
                  [ 'promote', 'DB EBS PostgreSQL promote to master' ],
                  [ 'restore', 'PostgreSQL restore and become' ],
                  [ 'slave_init', 'DB EBS PostgreSQL slave init' ],
