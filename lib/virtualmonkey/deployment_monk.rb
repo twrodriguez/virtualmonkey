@@ -81,12 +81,19 @@ class DeploymentMonk
       end
       @image_count = multi_cloud_images.size if multi_cloud_images.size > @image_count
       multi_cloud_images.each { |mci|
-        @clouds.concat( mci["multi_cloud_image_cloud_settings"].map { |s| [ "#{s["cloud_id"]}" ] } )
+        @clouds.concat( mci["multi_cloud_image_cloud_settings"].map { |s| 
+          unless s["fingerprint"]
+            ret = "#{s["cloud_id"]}"
+          else
+            ret = nil
+          end
+          [ret]
+        })
       }
     end
-    if @clouds.flatten!
-      @clouds.uniq!
-    end
+    @clouds.flatten!
+    @clouds.compact!
+    @clouds.uniq!
     if options[:mci_override] && !options[:mci_override].empty?
       @image_count = options[:mci_override].size
     end
