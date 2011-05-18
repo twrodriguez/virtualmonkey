@@ -26,4 +26,4 @@
 # Then I should check that monitoring is enabled
   @runner.behavior(:check_monitoring)
   @runner.behavior(:check_passenger_monitoring)
-  @runner.behavior(:run_logger_audit)
+#  @runner.behavior(:run_logger_audit)

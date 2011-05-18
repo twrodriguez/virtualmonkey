@@ -28,6 +28,12 @@ module VirtualMonkey
       ]
     end
 
+    def deployment_base_whitelist
+      [
+        ["/var/log/messages", ".*", "destination\(d_httperror\)=0"]
+      ]
+    end
+
     def deployment_base_exception_handle(e)
       if e.message =~ /Insufficient capacity/ and @retry_loop.last < 10
         puts "Got \"Insufficient capacity\". Retrying...."

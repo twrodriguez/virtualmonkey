@@ -58,6 +58,6 @@
 # Then I should test reboot operations on the deployment
   @runner.behavior(:run_reboot_operations)
 
-  @runner.behavior(:run_logger_audit)
+#  @runner.behavior(:run_logger_audit)
 # Then I should stop the servers
   @runner.behavior(:stop_all)
