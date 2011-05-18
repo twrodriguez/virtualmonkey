@@ -41,3 +41,4 @@
 ##
 # Then I should test the restore grow operations
   @runner.behavior(:test_restore_grow)
+#  @runner.behavior(:run_logger_audit)

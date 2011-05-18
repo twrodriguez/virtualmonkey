@@ -51,3 +51,5 @@
 
 # Then I should test the new db_manager slave
   @runner.behavior(:run_checks)
+
+#  @runner.behavior(:run_logger_audit)

@@ -3,6 +3,8 @@ require 'rubygems'
 require 'trollop'
 require 'highline/import'
 require 'uri'
+require 'pp'
+
 some_not_included = true
 files = Dir.glob(File.join("lib", "virtualmonkey", "command", "**"))
 retry_loop = 0
@@ -65,7 +67,7 @@ module VirtualMonkey
       end 
 
       raise "No deployments matched!" unless @@do_these.length > 0 
-      @@do_these.each { |d| say "#{d.nickname} : #{d.servers.map { |s| s.state }.inspect}" }
+      pp @@do_these.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
       unless @@options[:yes] or @@command == "troop"
         confirm = ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) }) 
         raise "Aborting." unless confirm
@@ -207,10 +209,10 @@ module VirtualMonkey
           line = f.readline
           ret = line.match(/VirtualMonkey::.*Runner/)[0].split("::").last if line =~ /= VirtualMonkey.*Runner/
         rescue EOFError => e
-          ret = nil
+          ret = ""
         end while !ret
       }
-      return ret
+      return (ret == "" ? nil : ret)
     end
   end
 end

@@ -52,3 +52,4 @@
 # Then I should check that ulimit was set correctly
   @runner.behavior(:ulimit_check)
 
+#  @runner.behavior(:run_logger_audit)

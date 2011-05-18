@@ -23,4 +23,3 @@
 # Then I should wait for the state of "all" servers to be "operational"
   @runner.behavior(:wait_for_all, "operational")
 
-

@@ -29,3 +29,4 @@
 
 # Then I should check that monitoring is enabled
   @runner.behavior(:check_monitoring)
+#  @runner.behavior(:run_logger_audit)
