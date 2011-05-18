@@ -240,10 +240,10 @@ module VirtualMonkey
             behavior(:run_query, "delete from test#{ii}", server, "i_heart_monkey")
           end
           db_plugins.each do |plugin|
-            monitor = obj_behavior(server, :get_sketchy_data({'start' => -60,
-                                                              'end' => -20,
-                                                              'plugin_name' => plugin['plugin_name'],
-                                                              'plugin_type' => plugin['plugin_type']})
+            monitor = obj_behavior(server, :get_sketchy_data, {'start' => -60,
+                                                               'end' => -20,
+                                                               'plugin_name' => plugin['plugin_name'],
+                                                               'plugin_type' => plugin['plugin_type']})
             value = monitor['data']['value']
             raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} data" unless value.length > 0
             # Need to check for that there is at least one non 0 value returned.
