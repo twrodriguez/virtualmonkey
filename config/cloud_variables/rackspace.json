@@ -1,8 +1,11 @@
 {
   "232":{
     "parameters":{
-      "STORAGE_ACCOUNT_ID":"cred:RACKSPACE_USERNAME",
-      "STORAGE_ACCOUNT_SECRET":"cred:RACKSPACE_AUTH_KEY"
+      "db_mysql/dump/storage_account_provider":"text:rackspace",
+      "db_mysql/dump/storage_account_id":"cred:RACKSPACE_USERNAME",
+      "db_mysql/dump/storage_account_secret":"cred:RACKSPACE_AUTH_KEY",
+      "STORAGE_ACCOUNT_SECRET":"cred:RACKSPACE_AUTH_KEY",
+      "STORAGE_ACCOUNT_ID":"cred:RACKSPACE_USERNAME"
     }
   }
 }

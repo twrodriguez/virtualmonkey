@@ -1,9 +1,9 @@
 {
-  "db_mysql/dump/container" : "text:lamp-feature-bucket-us-east",
+  "db_mysql/dump/container" : "text:lamp-feature-bucket-ap",
   "db_mysql/dump/prefix" : "text:app_test",
   "db_mysql/dump/schema_name" : "text:app_test",
   "db_mysql/dump/storage_account_id" : "cred:AWS_ACCESS_KEY_ID",
-  "db_mysql/dump/storage_account_provider" : "text:s3",
+  "db_mysql/dump/storage_account_provider" : "text:ec2",
   "db_mysql/dump/storage_account_secret" : "cred:AWS_SECRET_ACCESS_KEY",
   "php/application_name" : "text:phpapp",
   "php/code/url"  : "text:git://github.com/rightscale/examples",
