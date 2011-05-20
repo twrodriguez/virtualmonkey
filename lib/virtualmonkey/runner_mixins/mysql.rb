@@ -131,7 +131,7 @@ module VirtualMonkey
     def stop_all(wait=true)
       if script_to_run?('terminate')
         options = { "DB_TERMINATE_SAFETY" => "text:off" }
-        behavior(:run_script_on_set, 'terminate', @servers.select { |s| s.state != 'stopped' }, true, options)
+        behavior(:run_script_on_set, 'terminate', @servers.select { |s| s.state != 'stopped' }, wait, options)
 #        @servers.each { |s| behavior(:run_script, 'terminate', s, options) unless s.state == 'stopped' }
       else
         @servers.each { |s| obj_behavior(s, :stop) }
