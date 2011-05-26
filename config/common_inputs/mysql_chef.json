@@ -1,8 +1,11 @@
 {
-  "db_mysql/dump/container" : "text:lamp-feature-bucket-us-east",
-  "db_mysql/dump/prefix" : "text:app_test",
-  "db_mysql/dump/schema_name" : "text:app_test",
-  "db_mysql/dump/storage_account_id" : "cred:AWS_ACCESS_KEY_ID",
-  "db_mysql/dump/storage_account_provider" : "text:s3",
-  "db_mysql/dump/storage_account_secret" : "cred:AWS_SECRET_ACCESS_KEY"
+  "db_mysql/fqdn" : "text:localhost",
+  "db_mysql/backup/storage_type":"text:ros",
+  "block_device/storage_type":"text:ros",
+  "db_mysql/backup/container" : "text:lamp-feature-bucket-us-east",
+  "db_mysql/backup/prefix" : "text:app_test",
+  "db_mysql/backup/schema_name" : "text:app_test",
+  "db_mysql/backup/storage_account_id" : "cred:AWS_ACCESS_KEY_ID",
+  "db_mysql/backup/storage_account_provider" : "text:ec2",
+  "db_mysql/backup/storage_account_secret" : "cred:AWS_SECRET_ACCESS_KEY"
 }

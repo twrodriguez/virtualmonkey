@@ -152,6 +152,12 @@ module VirtualMonkey
       obj_behavior(@deployment, :set_input, "DB_HOST_NAME", the_name) 
     end
 
+    # sets the db_mysql/fqdn to this machine's ip address
+    def set_chef_master_db_dnsname
+      the_name = behavior(:get_tester_ip_addr)
+      obj_behavior(@deployment, :set_input, "db_mysql/fqdn", the_name) 
+    end
+
     # Launch server(s) that match nickname_substr
     # * nickname_substr<~String> - regex compatible string to match
     def launch_set(nickname_substr)
