@@ -1,0 +1,9 @@
+{
+  "cloud_variables":"all_clouds.json",
+  "server_template_ids":[
+    "104346"
+  ],
+  "common_inputs":"dr_toolbox.json",
+  "tag":"DR_TOOLBOX",
+  "feature":"dr_toolbox.rb"
+}
