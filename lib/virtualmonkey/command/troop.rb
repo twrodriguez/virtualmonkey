@@ -86,7 +86,7 @@ module VirtualMonkey
         @@options[:clouds] = @@options[:cloud_override] if @@options[:cloud_override]
         @@options[:common_inputs] = config['common_inputs'].map { |cipath| File.join(@@ci_dir, cipath) }
         @@options[:feature] = File.join(@@features_dir, config['feature'])
-        @@options[:runner] = get_runner_class
+        @@options[:runner] = (config['runner'] ? config['runner'] : get_runner_class)
         @@options[:terminate] = true if @@options[:steps] =~ /(all)|(destroy)/
         unless @@options[:steps] =~ /(all)|(create)|(run)|(destroy)/
           raise "Invalid --steps argument. Valid steps are: 'all', 'create', 'run', or 'destroy'"
