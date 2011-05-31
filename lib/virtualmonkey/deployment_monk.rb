@@ -280,15 +280,15 @@ class DeploymentMonk
   def load_vars_for_cloud(cloud)
     cloud = cloud.to_s
     return nil unless @variables_for_cloud[cloud]
-    unless @ssh_keys[cloud]
+    unless @ssh_keys[cloud] and @ssh_keys[cloud] != {}
       VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
       @ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ssh_keys.json")))
     end
-    unless @security_groups[cloud]
+    unless @security_groups[cloud] and @security_groups[cloud] != {}
       VirtualMonkey::Toolbox::populate_security_groups(cloud)
       @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","security_groups.json")))
     end
-    unless @datacenters[cloud]
+    unless @datacenters[cloud] and @datacenters[cloud] != {}
       VirtualMonkey::Toolbox::populate_datacenters(cloud)
       @datacenters = JSON::parse(IO.read(File.join("config","cloud_variables","datacenters.json")))
     end

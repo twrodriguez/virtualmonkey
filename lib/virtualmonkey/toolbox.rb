@@ -141,7 +141,7 @@ module VirtualMonkey
       end
 
       cloud_ids.each { |cloud|
-        if keys["#{cloud}"] # We already have data for this cloud, skip
+        if keys["#{cloud}"] and keys["#{cloud}"] != {} # We already have data for this cloud, skip
           puts "Data found for cloud #{cloud}. Skipping..."
           next
         end
@@ -262,7 +262,7 @@ module VirtualMonkey
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {}) 
 
       cloud_ids.each { |cloud|
-        if sgs["#{cloud}"] # We already have data for this cloud, skip
+        if sgs["#{cloud}"] and sgs["#{cloud}"] != {} # We already have data for this cloud, skip
           puts "Data found for cloud #{cloud}. Skipping..."
           next
         end
@@ -319,7 +319,7 @@ module VirtualMonkey
       dcs = (File.exists?(@@dcs_file) ? JSON::parse(IO.read(@@dcs_file)) : {}) 
 
       cloud_ids.each { |cloud|
-        if dcs["#{cloud}"] # We already have data for this cloud, skip
+        if dcs["#{cloud}"] and dcs["#{cloud}"] != {} # We already have data for this cloud, skip
           puts "Data found for cloud #{cloud}. Skipping..."
           next
         end
