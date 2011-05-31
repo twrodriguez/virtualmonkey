@@ -16,7 +16,7 @@
   @runner.set_var(:set_variation_lineage)
 
 # Then I should set a variation stripe count of "1"
-  @runner.set_var(:set_variation_stripe_count, 1)
+#  @runner.set_var(:set_variation_stripe_count, 1)
 
 # Then I should set a variation MySQL DNS
   @runner.set_var(:setup_dns, "virtualmonkey_shared_resources") # DNSMadeEasy
@@ -34,7 +34,7 @@
 #  @runner.behavior(:run_chef_promotion_operations)
 
 # Then I should run mysql checks
-  @runner.behavior(:run_chef_checks)
+  @runner.behavior(:run_checks)
 
 # Then I should run mysqlslap stress test
 #  @runner.behavior(:run_mysqlslap_check)

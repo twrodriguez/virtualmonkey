@@ -115,7 +115,8 @@ module VirtualMonkey
     def stop_all(wait=true)
       if script_to_run?('terminate')
         options = { "DB_TERMINATE_SAFETY" => "text:off" }
-        @servers.each { |s| behavior(:run_script, 'terminate', s, options) unless s.state == 'stopped' }
+        behavior(:run_script_on_set, 'terminate', @servers.select { |s| s.state != 'stopped' }, true, options)
+#        @servers.each { |s| behavior(:run_script, 'terminate', s, options) unless s.state == 'stopped' }
       else
         @servers.each { |s| obj_behavior(s, :stop) }
       end
@@ -187,7 +188,7 @@ module VirtualMonkey
       obj_behavior(s_one, :wait_for_operational_with_dns)
 
       options = { "DB_NAME" => "text:i_heart_monkey" }
-      @servers.each { |s| run_script('monitor_add', s, options) }
+      @servers.each { |s| behavior(:run_script, 'monitor_add', s, options) }
 
       sleep 300 # Waiting for new snapshot to show
       behavior(:slave_init_server, s_one)
@@ -240,10 +241,10 @@ module VirtualMonkey
             behavior(:run_query, "delete from test#{ii}", server, "i_heart_monkey")
           end
           db_plugins.each do |plugin|
-            monitor = server.get_sketchy_data({'start' => -60,
-                                               'end' => -20,
-                                               'plugin_name' => plugin['plugin_name'],
-                                               'plugin_type' => plugin['plugin_type']})
+            monitor = obj_behavior(server, :get_sketchy_data, {'start' => -60,
+                                                               'end' => -20,
+                                                               'plugin_name' => plugin['plugin_name'],
+                                                               'plugin_type' => plugin['plugin_type']})
             value = monitor['data']['value']
             raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} data" unless value.length > 0
             # Need to check for that there is at least one non 0 value returned.
@@ -278,32 +279,32 @@ module VirtualMonkey
       options = {
               "DB_DUMP_FILENAME" => "text:dump-test-dump"
       }
-      dump_import(options)
+      behavior(:dump_import, options)
     end
 
     def dump_import_dumpall
       options = {
               "DB_DUMP_FILENAME" => "text:dumpall-dump"
       }
-      dump_import(options)
+      behavior(:dump_import, options)
     end
 
     def dump_import_dumpfc
       options = {
               "DB_DUMP_FILENAME" => "text:fc-test-dump"
       }
-      dump_import(options)
+      behavior(:dump_import, options)
     end
 
     def run_dump_import
-      dump_import_dump
-      dump_import_dumpfc
-      dump_import_dumpall
+      behavior(:dump_import_dump)
+      behavior(:dump_import_dumpfc)
+      behavior(:dump_import_dumpall)
     end
 
     def dump_import(options)
       # Need to stop collectd before dropping the database since it is connected.
-      s_one.spot_check_command?("service collectd stop")
+      probe(s_one, "service collectd stop")
       behavior(:run_query, "DROP DATABASE test", s_one)
 
       options['DB_NAME'] = "text:test"

@@ -24,6 +24,8 @@ module VirtualMonkey
         ["/var/log/messages", ".*", "exception"],
         ["/var/log/messages", ".*", "error"],
         ["/var/log/messages", ".*", "fatal"],
+        ["/var/log/messages", ".*", "fail"],
+        ["/var/log/messages", ".*", "missing"],
         ["/var/log/messages", ".*", "BEGIN RSA PRIVATE KEY"]
       ]
     end
@@ -148,6 +150,12 @@ module VirtualMonkey
       the_name = behavior(:get_tester_ip_addr)
       obj_behavior(@deployment, :set_input, "MASTER_DB_DNSNAME", the_name) 
       obj_behavior(@deployment, :set_input, "DB_HOST_NAME", the_name) 
+    end
+
+    # sets the db_mysql/fqdn to this machine's ip address
+    def set_chef_master_db_dnsname
+      the_name = behavior(:get_tester_ip_addr)
+      obj_behavior(@deployment, :set_input, "db_mysql/fqdn", the_name) 
     end
 
     # Launch server(s) that match nickname_substr
