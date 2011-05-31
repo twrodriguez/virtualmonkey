@@ -9,6 +9,8 @@ class Hash
   # http://gemjack.com/gems/tartan-0.1.1/classes/Hash.html
   #
   # Thanks to whoever made it.
+  #
+  # Modified to provide same functionality with Arrays
 
   def deep_merge(second)
     target = dup
@@ -28,6 +30,7 @@ class Hash
   
   # From: http://www.gemtacular.com/gemdocs/cerberus-0.2.2/doc/classes/Hash.html
   # File lib/cerberus/utils.rb, line 42
+  # Modified to provide same functionality with Arrays
 
   def deep_merge!(second)
     return nil unless second
@@ -42,6 +45,7 @@ class Hash
     end
   end
 
+  # test_case_interface hook for nice printing
   def trace_inspect
     inspect
   end
@@ -79,10 +83,12 @@ class Array
     end
   end
 
+  # test_case_interface hook for nice printing
   def trace_inspect
     inspect
   end
 
+  # Experimental code for applying a method to each element in an Array
   def method_missing(method_name, *args, &block)
     if self.all? { |item| item.respond_to?(method_name) }
       return self.collect { |item| item.__send__(method_name, *args, &block) }
@@ -95,6 +101,7 @@ end
 # Object Patches
 
 class Object
+  # Experimental code for deeper debugging
   def raise(*args, &block)
     if ENV["MONKEY_DEEP_DEBUG"] == "true"
       begin
@@ -117,6 +124,7 @@ class Object
 end
 
 module Math
+  # Added Absolute Value function
   def self.abs(n)
     (n > 0 ? n : 0 - n)
   end
@@ -125,10 +133,12 @@ end
 module RightScale
   module Api
     module Base
+      # test_case_interface hook for nice printing
       def trace_inspect
         inspect
       end
 
+      # test_case_interface hook for nice printing
       def inspect
         begin
           return "#{self.class.to_s}[#{self.nickname.inspect}]"
@@ -141,30 +151,35 @@ module RightScale
 end
 
 class String
+  # test_case_interface hook for nice printing
   def trace_inspect
     inspect
   end
 end
 
 class Symbol
+  # test_case_interface hook for nice printing
   def trace_inspect
     inspect
   end
 end
 
 class Fixnum
+  # test_case_interface hook for nice printing
   def trace_inspect
     inspect
   end
 end
 
 class NilClass
+  # test_case_interface hook for nice printing
   def trace_inspect
     inspect
   end
 end
 
 class ServerInterface
+  # test_case_interface hook for nice printing
   def trace_inspect
     @impl.trace_inspect
   end

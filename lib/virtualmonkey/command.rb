@@ -5,6 +5,7 @@ require 'highline/import'
 require 'uri'
 require 'pp'
 
+# Auto-require Section
 some_not_included = true
 files = Dir.glob(File.join("lib", "virtualmonkey", "command", "**"))
 retry_loop = 0
@@ -50,10 +51,12 @@ module VirtualMonkey
       end
     end
 
+    # Help command
     def self.help
       puts @@usage_msg
     end
 
+    # Encapsulates the logic for selecting a subset of deployments
     def self.select_only_logic(message)
       @@do_these ||= @@dm.deployments
       if @@options[:only]
@@ -67,13 +70,18 @@ module VirtualMonkey
       end 
 
       raise "No deployments matched!" unless @@do_these.length > 0 
-      pp @@do_these.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
+      if @@options[:verbose]
+        pp @@do_these.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
+      else
+        pp @@do_these.map { |d| d.nickname }
+      end
       unless @@options[:yes] or @@command == "troop"
         confirm = ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) }) 
         raise "Aborting." unless confirm
       end   
     end
 
+    # Encapsulates the logic for loading the necessary variables to create a set of deployments
     def self.create_logic
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       if @@options[:clouds]
@@ -87,6 +95,9 @@ module VirtualMonkey
       @@dm.generate_variations(@@options)
     end
 
+    # Encapsulates the logic for launching and monitoring a set of asynchronous processes that run grinder
+    # with a test case. Included is the logic for optionally destroying "successful" servers or
+    # running "successful" servers through the log auditor/trainer.
     def self.run_logic
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] = get_runner_class
@@ -138,6 +149,7 @@ module VirtualMonkey
       }
     end
 
+    # Encapsulates the logic for running through the log auditor/trainer on a single deployment
     def self.audit_log_deployment_logic(deployment, interactive = false)
       @@options[:runner] = get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
@@ -145,6 +157,7 @@ module VirtualMonkey
       puts runner.behavior(:run_logger_audit, interactive, @@options[:qa])
     end
 
+    # Encapsulates the logic for destroying the deployment from a single job
     def self.destroy_job_logic(job)
       @@options[:runner] = get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
@@ -159,6 +172,7 @@ module VirtualMonkey
       end
     end
 
+    # Encapsulates the logic for destroying all matched deployments
     def self.destroy_all_logic
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] = get_runner_class
@@ -186,6 +200,7 @@ module VirtualMonkey
       @@dm.destroy_all unless @@options[:no_delete]
     end
 
+    # Encapsulates the logic for releasing the DNS entries for a single deployment, no matter what DNS it used
     def self.release_all_dns_domains(deploy_href)
       ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
         begin
@@ -198,6 +213,7 @@ module VirtualMonkey
       }
     end
 
+    # Encapsulates the logic for detecting what runner is used in a test case file
     def self.get_runner_class #returns class string
       return @@options[:runner] if @@options[:runner]
       return @@options[:terminate] if @@options[:terminate].is_a?(String)

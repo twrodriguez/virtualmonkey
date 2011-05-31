@@ -13,6 +13,7 @@ class GrinderJob
     "https://#{d}.rightscale.com/deployments/#{i}#auditentries"
   end
 
+  # stdout hook for popen3
   def on_read_stdout(data)
     data_ary = data.split("\n")
     data_ary.each_index do |i|
@@ -22,6 +23,7 @@ class GrinderJob
     File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
   end
 
+  # stderr hook for popen3
   def on_read_stderr(data)
     data_ary = data.split("\n")
     data_ary.each_index do |i|
@@ -40,23 +42,28 @@ class GrinderJob
     @id = deployment.nickname.match(/-[0-9]+-/)[0].match(/[0-9]+/)[0] unless @id
     @id
   end
-    
-  def receive_data data
-#    @output += data
-    data = timestamp + data
-    File.open(@logfile, "a") { |f| f.write(data) }
-    $stdout.syswrite("<#{deploy_id}>#{data}") if @verbose
+
+  # Could be deprecated...
+  def receive_data(data)
+    data_ary = data.split("\n")
+    data_ary.each_index do |i|
+      data_ary[i] = timestamp + data_ary[i]
+      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n") if @verbose
+    end
+    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
   end
 
+  # unbind hook for popen3
   def unbind
     @status = get_status.exitstatus
   end
 
+  # on_exit hook for popen3
   def on_exit(status)
     @status = status.exitstatus
-#    File.open(@logfile, "a") { |f| f.write(@output) }
   end
 
+  # Launch an asynchronous process
   def run(deployment, cmd)
     RightScale.popen3(:command        => cmd,
                         :target         => self,
@@ -99,7 +106,7 @@ class GrinderMonk
     @passed = []
     @failed = []
     @running = []
-    dirname = Time.now.strftime("%Y/%m/%d/%H-%M-%S")
+    dirname = Time.now.strftime(File.join("%Y", "%m", "%d", "%H-%M-%S"))
     @log_dir = File.join("log", dirname)
     @log_started = dirname
     FileUtils.mkdir_p(@log_dir)
@@ -113,6 +120,7 @@ class GrinderMonk
     deployments.each { |d| run_test(d,cmd) }
   end
 
+  # Print status of jobs. Also watches for jobs that had exit statuses other than 0 or 1
   def watch_and_report
     old_passed = @passed
     old_failed = @failed
@@ -147,6 +155,7 @@ class GrinderMonk
     running.size == 0 && @jobs.size > 0
   end
 
+  # Generates monkey reports and uploads to S3
   def generate_reports
     passed = @jobs.select { |s| s.status == 0 }
     failed = @jobs.select { |s| s.status == 1 }
@@ -187,6 +196,7 @@ END_OF_MESSAGE
     puts msg
   end
   
+  # Prints information on jobs that didn't have an exit code of 0 or 1
   def report_lost_deployments(jobs = {})
     running_change = jobs[:old_running] - jobs[:running]
     passed_change = jobs[:passed] - jobs[:old_passed]

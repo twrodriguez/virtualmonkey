@@ -3,6 +3,7 @@ module VirtualMonkey
     def self.generate_ssh_keys
       @@options = Trollop::options do
         opt :add_cloud, "Add a non-ec2 cloud to ssh_keys (takes the integer cloud id)", :type => :integer
+        # TODO: Add ssh_key_id_ary...
       end
 
       VirtualMonkey::Toolbox::generate_ssh_keys(@@options[:add_cloud])
@@ -21,6 +22,7 @@ module VirtualMonkey
     def self.populate_security_groups
       @@options = Trollop::options do
         opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
+        opt :name, "Populate the file with this security group", :type => :string
       end
 
       VirtualMonkey::Toolbox::populate_security_groups(@@options[:add_cloud])

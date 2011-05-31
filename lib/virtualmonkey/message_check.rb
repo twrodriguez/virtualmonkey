@@ -20,9 +20,11 @@ class MessageCheck
     @db = {}
     @strict = strict
     @logfile = "/var/log/messages"
+    @context = 5
     load_lists(lists)
   end
 
+  # Given a list of ServerTemplates, returns a full-coverage list of logs that need to be audited
   def logs_to_check(server_templates)
     ret = {}
     server_templates.each do |st|
@@ -39,6 +41,7 @@ class MessageCheck
     return ret
   end
 
+  # Encapsulates the logic for inserting a new list entry
   def add_to_list(list, logfile_to_be, st_rgx_to_be, msg_rgx_to_be)
     # Do a union with existing lists to abstract which server templates should match
     entry_to_be = {'st' => st_rgx_to_be, 'msg' => msg_rgx_to_be}
@@ -51,6 +54,7 @@ class MessageCheck
     @db[list] << [logfile_to_be, entry_to_be['st'], entry_to_be['msg']]
   end
 
+  # Loads lists from json files and from runner list initializers
   def load_lists(lists = {})
     LISTS.each { |l|
       @db[l] = JSON::parse(IO.read(File.join("config", "lists", "#{l}.json")))
@@ -63,6 +67,7 @@ class MessageCheck
     }
   end
 
+  # Writes current db out to json files
   def save_db
     LISTS.each { |list|
       list_out = @db[list].to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
@@ -70,6 +75,7 @@ class MessageCheck
     }
   end
 
+  # Returns nil or the the first matched list entry for a given message 
   def match?(msg, st_name, list)
     res = @db[list].select { |logfile,st_rgx,msg_rgx|
       logfile == @logfile and msg =~ /#{msg_rgx}/i and st_name =~ /#{st_rgx}/i
@@ -77,6 +83,7 @@ class MessageCheck
     return res.first
   end
 
+  # Returns nil or the needlist entries that DID NOT match any message
   def needlist_check(match_list, st_name)
     return [] unless @db[NEEDLIST].length > 0
     ret_list = @db[NEEDLIST].dup
@@ -88,19 +95,36 @@ class MessageCheck
     return ret_list
   end
   
+  # Encapsulates the formatting for printing matches and their context
+  def print_entry(entry, msg = nil)
+    ret = ""
+    if msg
+      ret += "=" * msg.length + "\n"
+      ret += "#{msg}\n"
+      ret += "=" * msg.length + "\n"
+    end
+    entry.each { |line| ret += "#{line}\n" }
+    ret
+  end
+
+  # The meat.
   def check_messages(object, interactive = false, log_file = @logfile)
     @logfile = log_file
     print_msg = ""
     print_msg = STDOUT if interactive
     if object.is_a?(Array)
+      # Check each element
       object.each { |i| print_msg << check_messages(i, interactive) + "\n" }
     elsif object.is_a?(Deployment)
+      # Check each Server
       print_msg << "Checking \"#{@logfile}\" in Deployment \"#{object.nickname}\"...\n"
       object.servers_no_reload.each { |s| print_msg << check_messages(s, interactive) + "\n" }
     elsif object.is_a?(Server) or object.is_a?(ServerInterface)
+      # Check the logs
       print_msg << "Checking \"#{@logfile}\" for Server \"#{object.nickname}\"...\n"
       messages = object.spot_check_command("cat #{@logfile}", nil, object.dns_name, true)[:output].split("\n")
       st = ServerTemplate.find(object.server_template_href)
+
       # needlist
       n_msg_start = "ERROR: NEEDLIST entry didn't match any messages:"
       need_unmatches = needlist_check(messages, st.nickname)
@@ -110,31 +134,37 @@ class MessageCheck
       unless interactive
         need_unmatches.each { |logfile,st_rgx,msg_rgx| print_msg << "#{n_msg_start} [#{st_rgx}, #{msg_rgx}]\n" }
       end
+
       # blacklist
       b_msg_start = "ERROR: BLACKLIST entry matched:"
-      black_matches = messages.select { |line| match?(line, st.nickname, BLACKLIST) }
+      black_matches = []
+      messages.each_index do |i|
+          black_matches << messages[(i-@context)..(i+@context)] if match?(messages[i], st.nickname, BLACKLIST)
+      end
       num_b_entries = @db[BLACKLIST].select { |logfile,st_rgx,msg_rgx|
         logfile == @logfile and st.nickname =~ /#{st_rgx}/i
       }
+
       # whitelist
       w_msg_start = "WARNING: WHITELIST entry matched:"
       if black_matches.length > 0 and not @strict
-        white_matches = black_matches.select { |line| match?(line, st.nickname, WHITELIST) }
+        white_matches = black_matches.select { |entry| match?(entry[@context], st.nickname, WHITELIST) }
         num_w_entries = @db[WHITELIST].select { |logfile,st_rgx,msg_rgx|
           logfile == @logfile and st.nickname =~ /#{st_rgx}/i
         }
         unless interactive
-          white_matches.each { |msg| print_msg << "#{w_msg_start} #{msg}\n" }
-          (black_matches - white_matches).each { |msg| print_msg << "#{b_msg_start} #{msg}\n" }
+          white_matches.each { |entry| print_msg << print_entry(entry, w_msg_start) }
+          (black_matches - white_matches).each { |entry| print_msg << print_entry(entry, b_msg_start) }
         end
       else
         unless interactive
-          black_matches.each { |msg|
-            print_msg << "#{b_msg_start} #{msg}\n"
-            print_msg << "NOTE: WHITELIST has entry for previous message\n" if match?(msg, st.nickname, WHITELIST)
+          black_matches.each { |entry|
+            print_msg << print_entry(entry, b_msg_start)
+            print_msg << "NOTE: WHITELIST has entry for previous message\n" if match?(entry[@context], st.nickname, WHITELIST)
           }
         end
       end
+      # print a summary
       summary_msg = "Log Audit Summary for \"#{@logfile}\":"
       print_msg << "#{"="*summary_msg.size}\n#{summary_msg}\n#{"="*summary_msg.size}\n"
       print_msg << "Total Log Messages:   #{messages.size}\n\n"
@@ -145,12 +175,16 @@ class MessageCheck
       print_msg << "Whitelist Entries:    #{num_w_entries.size}\n" if white_matches
       print_msg << "Whitelist Matches:    #{white_matches.size}\n\n" if white_matches
 
+      # Interactive training for the matches
       if interactive
         case ask("Review (U)nmatched, (B)lacklisted, (W)hitelisted, or (A)ll entries?")
         when /^[uU]/
-          messages_reference = messages - black_matches
+          messages_reference = []
+          messages.each_index do |i|
+            messages_reference << messages[(i-@context)..(i+@context)] unless match?(messages[i], st.nickname, BLACKLIST)
+          end
           messages_reference -= white_matches if white_matches
-          messages_reference.reject! { |line| line =~ match?(msg, st.nickname, NEEDLIST) }
+          messages_reference.reject! { |entry| match?(entry[@context], st.nickname, NEEDLIST) }
           puts "Reviewing unmatches entries..."
         when /^[bB]/
           messages_reference = black_matches.dup
@@ -161,18 +195,24 @@ class MessageCheck
             messages_reference = white_matches.dup
             puts "Reviewing whitelisted entries..."
           else
-            messages_reference = messages.dup
+            messages_reference = []
+            messages.each_index do |i|
+              messages_reference << messages[(i-@context)..(i+@context)]
+            end
             puts "No whitelisted entries, reviewing all entries..."
           end
         else
-          messages_reference = messages.dup
+          messages_reference = []
+          messages.each_index do |i|
+            messages_reference << messages[(i-@context)..(i+@context)]
+          end
           puts "Reviewing all entries..."
         end
         list_to_classify = messages_reference
         while list_to_classify.first
-          msg = list_to_classify.shift
+          entry = list_to_classify.shift
           terminal_width = `stty size`.split(" ").last.to_i
-          puts "#{"*" * terminal_width}\n#{msg}\n#{"*" * terminal_width}"
+          puts "#{"*" * terminal_width}\n#{print_entry(entry)}#{"*" * terminal_width}"
           case ask("(B)lacklist, (W)hitelist, (N)eedlist, or (I)gnore?")
           when /^[bB]/
             puts "Adding to blacklist..."
@@ -181,13 +221,13 @@ class MessageCheck
               message_regex = ask("Enter a regular expression for matching the above line:")
               # Verify that this regex only covers what should be covered
               verify = messages.select { |line| line =~ /#{message_regex}/i }
-              if verify.size > 1
+              if verify.size != 1
                 confirmed = ask("Adding \"#{message_regex}\" would blacklist #{verify.size} current entries. Are you sure you want to add it? (y/n)", lambda { |ans| true if ans =~ /^[yY]{1}/ })
               end
             end
             add_to_list(BLACKLIST, @logfile, st.nickname, message_regex)
-            list_to_classify |= messages_reference.select { |line| match?(line, st.nickname, BLACKLIST) }
-            list_to_classify -= list_to_classify.select { |line| match?(line, st.nickname, WHITELIST) }
+            list_to_classify |= messages_reference.select { |entry| match?(entry[@context], st.nickname, BLACKLIST) }
+            list_to_classify -= list_to_classify.select { |entry| match?(entry[@context], st.nickname, WHITELIST) }
             puts "Added to blacklist."
           when /^[wW]/
             puts "Adding to whitelist..."
@@ -196,12 +236,12 @@ class MessageCheck
               message_regex = ask("Enter a regular expression for matching the above line:")
               # Verify that this regex only covers what should be covered
               verify = list_to_classify.select { |line| line =~ /#{message_regex}/i }
-              if verify.size > 1
+              if verify.size != 1
                 confirmed = ask("Adding \"#{message_regex}\" would whitelist #{verify.size} flagged entries. Are you sure you want to add it? (y/n)", lambda { |ans| true if ans =~ /^[yY]{1}/ })
               end
             end
             add_to_list(WHITELIST, @logfile, st.nickname, message_regex)
-            list_to_classify.reject! { |line| line =~ /#{message_regex}/i }
+            list_to_classify.reject! { |entry| entry[@context] =~ /#{message_regex}/i }
             puts "Added to whitelist."
           when /^[nN]/
             puts "Adding to needlist..."
@@ -221,8 +261,14 @@ class MessageCheck
     ""
   end
 
-  # Longest Common Subsequence
-  def lcs(first, second) #Not a perfect solution...watch out for '\' and (".*a.+b.*", "a\000bgoo") -> ".*a\000b.*"
+  def lcs(first, second)
+    MessageCheck.lcs(first, second)
+  end
+
+  # Longest Common Subsequence from http://rosettacode.org/
+  # Modified to create regular expressions instead of raw subsequences
+  # NOTE: Not a perfect solution...watch out for '\' and (".*a.+b.*", "a\000bgoo") -> ".*a\000b.*"
+  def self.lcs(first, second) 
     a, b = first, second
     a = first.split(/\.(\*|\+)/).join("\000") if first =~ /\.(\*|\+)/
     b = second.split(/\.(\*|\+)/).join("\000") if second =~ /\.(\*|\+)/

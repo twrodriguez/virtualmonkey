@@ -8,7 +8,10 @@ end
 
 module VirtualMonkey
   module Toolbox
-    def self.api0_1?
+    extend self
+
+    # Check for API 0.1 Access
+    def api0_1?
       unless class_variable_defined?("@@api0_1")
         begin
           Ec2SshKeyInternal.find_all
@@ -20,7 +23,8 @@ module VirtualMonkey
       return @@api0_1
     end
 
-    def self.api1_0?
+    # Check for API 1.0 Access
+    def api1_0?
       unless class_variable_defined?("@@api1_0")
         begin
           Ec2SecurityGroup.find_all
@@ -32,7 +36,8 @@ module VirtualMonkey
       return @@api1_0
     end
 
-    def self.api1_5?
+    # Check for API 1.5 Beta Access
+    def api1_5?
       unless class_variable_defined?("@@api1_5")
         begin
           McServer.find_all
@@ -44,7 +49,8 @@ module VirtualMonkey
       return @@api1_5
     end
 
-    def self.setup_paths
+    # Initializes most of the important class variables
+    def setup_paths
       @@cloud_vars_dir = File.join("config", "cloud_variables")
       @@ssh_dir = File.join(File.expand_path("~"), ".ssh")
       @@sgs_file = File.join(@@cloud_vars_dir, "security_groups.json")
@@ -53,9 +59,10 @@ module VirtualMonkey
       @@rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
     end
 
-    def self.get_available_clouds(up_to = 1000000)
+    # Query for available clouds
+    def get_available_clouds(up_to = 1000000)
       setup_paths()
-      unless self.class_variable_defined?("@@clouds")
+      unless class_variable_defined?("@@clouds")
         @@clouds = [{"cloud_id" => 1, "name" => "AWS US-East"},
                     {"cloud_id" => 2, "name" => "AWS EU"},
                     {"cloud_id" => 3, "name" => "AWS US-West"},
@@ -66,7 +73,8 @@ module VirtualMonkey
       @@clouds.select { |h| h["cloud_id"] <= up_to }
     end
 
-    def self.determine_cloud_id(server)
+    # Determine cloud_id for a server regardless of if it's operational or not
+    def determine_cloud_id(server)
       server.settings
       ret = nil
       return server.cloud_id if server.cloud_id
@@ -99,7 +107,8 @@ module VirtualMonkey
       raise "Could not determine cloud_id...try setting an ssh key or security group"
     end
 
-    def self.find_myself_in_api
+    # If virtualmonkey is running in EC2, sets some environment variables and returns a Server object for itself
+    def find_myself_in_api
       if ENV['I_AM_IN_EC2']
         myself = Server.find_with_filter('aws_id' => ENV['EC2_INSTANCE_ID']).first
         if myself
@@ -113,10 +122,14 @@ module VirtualMonkey
       return false
     end
 
-    def self.generate_ssh_keys(single_cloud = nil)
+    # Generates temporary ssh keys to use for ssh'ing into generated servers. ssh_key_id_ary is a Hash of
+    # the form: {"1" => "0000", "2" => "0001", ... } or nil
+    # NOTE: for some reason, you looked up `git ls-files`
+    def generate_ssh_keys(single_cloud = nil, ssh_key_id_ary = nil)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids.reject! { |i| i != single_cloud } if single_cloud
 
+      ssh_key_id_ary ||= {}
       multicloud_key_file = File.join(@@ssh_dir, "api_user_key")
       rest_settings = YAML::load(IO.read(@@rest_yaml))
       rest_settings[:ssh_keys] = [] unless rest_settings[:ssh_keys]
@@ -132,9 +145,9 @@ module VirtualMonkey
           puts "Data found for cloud #{cloud}. Skipping..."
           next
         end
-        if cloud <= 10
+        if cloud <= 10 # EC2 clouds
           key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
-        else
+        else # GW clouds use a hard-coded key
           key_name = "api_user_key"
         end
         found = nil
@@ -142,7 +155,11 @@ module VirtualMonkey
           if api0_1?
             found = Ec2SshKeyInternal.find_by_cloud_id("#{cloud}").select { |o| o.aws_key_name =~ /#{key_name}/ }.first
           end
-          k = (found ? found : Ec2SshKey.create('aws_key_name' => key_name, 'cloud_id' => "#{cloud}"))
+          if ssh_key_id_ary[cloud.to_s]
+            k = Ec2SshKey[ssh_key_id_ary[cloud.to_s].to_i]
+          else
+            k = (found ? found : Ec2SshKey.create('aws_key_name' => key_name, 'cloud_id' => "#{cloud}"))
+          end
           keys["#{cloud}"] = {"ec2_ssh_key_href" => k.href,
                               "parameters" =>
                                 {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
@@ -158,7 +175,11 @@ module VirtualMonkey
                               }
           begin
             found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first
-            k = (found ? found : McSshKey.create('name' => key_name, 'cloud_id' => "#{cloud}"))
+            if ssh_key_id_ary[cloud.to_s]
+              k = McSshKey[ssh_key_id_ary[cloud.to_s].to_i]
+            else
+              k = (found ? found : McSshKey.create('name' => key_name, 'cloud_id' => "#{cloud}"))
+            end
             keys["#{cloud}"]["ssh_key_href"] = k.href
           rescue
             puts "Cloud #{cloud} doesn't support the resource 'ssh_key'"
@@ -166,6 +187,7 @@ module VirtualMonkey
           priv_key_file = multicloud_key_file
         end
 
+        `touch #{priv_key_file}`
         File.chmod(0700, priv_key_file)
         # Configure rest_connection config
         rest_settings[:ssh_keys] << priv_key_file unless rest_settings[:ssh_keys].include?(priv_key_file)
@@ -179,7 +201,9 @@ module VirtualMonkey
       File.open(@@rest_yaml, "w") { |f| f.write(rest_out) }
     end
 
-    def self.destroy_all_unused_monkey_keys
+    # Destroys all monkey-generated ssh keys that are not in use by monkey-generated servers
+    # NOTE: This is a dangerous, and slow function. Be absolutely sure this is what you want to do.
+    def destroy_all_unused_monkey_keys
       raise "You cannot run this without API 0.1 Access" unless api0_1?
       cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
 
@@ -199,12 +223,14 @@ module VirtualMonkey
       remaining_keys.each { |href| Ec2SshKey.new('href' => href).destroy }
     end
 
-    def self.destroy_ssh_keys
+    # Destroys this monkey's temporary generated ssh keys
+    def destroy_ssh_keys
       cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
 
       rest_settings = YAML::load(IO.read(@@rest_yaml))
 
       key_name = "#{ENV['RS_API_URL'].split("/").last}"
+      # TODO cloud < 10?
       if api0_1?
         found = []
         cloud_ids.each { |c|
@@ -216,12 +242,20 @@ module VirtualMonkey
         keys.reject! { |cloud,hash| hash["ec2_ssh_key_href"].nil? }
         key_hrefs = keys.map { |cloud,hash| hash["ec2_ssh_key_href"] }
       end
-      key_hrefs.each { |href| Ec2SshKey.new('href' => href).destroy }
+      key_hrefs.each { |href|
+        temp_key = Ec2SshKey.new('href' => href)
+        temp_key.reload
+        temp_key.destroy if temp_key.aws_key_name =~ /monkey/
+      }
       File.delete(@@keys_file) if File.exists?(@@keys_file)
       rest_settings[:ssh_keys].each { |f| File.delete(f) if File.exists?(f) and f =~ /monkey/ }
     end
 
-    def self.populate_security_groups(single_cloud = nil)
+    # If this virtualmonkey is in EC2, will grab the same security groups attached to it to use for
+    # generated servers (requires the same security group name in each cloud). Will default to the 'default'
+    # security group for every cloud that doesn't have the named security group. use_this_sec_group should
+    # be a string, or nil.
+    def populate_security_groups(single_cloud = nil, use_this_sec_group = nil)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids.reject! { |i| i != single_cloud } if single_cloud
 
@@ -235,8 +269,10 @@ module VirtualMonkey
         if ENV['EC2_SECURITY_GROUPS']
           sg_name = "#{ENV['EC2_SECURITY_GROUPS']}"
         else
-          raise "This script requires the environment variable EC2_SECURITY_GROUP to be set"
-        end 
+          sg_name = "default"
+          puts "WARNING: You are not running in ec2, will use the 'default' security group."
+        end
+        sg_name = use_this_sec_group if use_this_sec_group
         if cloud <= 10
           found = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /#{sg_name}/ }.first
           if found
@@ -275,7 +311,8 @@ module VirtualMonkey
       File.open(@@sgs_file, "w") { |f| f.write(sgs_out) }
     end
 
-    def self.populate_datacenters(single_cloud = nil)
+    # Grabs the API hrefs of the datacenters for each cloud. API 1.5 only
+    def populate_datacenters(single_cloud = nil)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids.reject! { |i| i != single_cloud } if single_cloud
 
@@ -289,9 +326,10 @@ module VirtualMonkey
         if cloud <= 10
           puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
           dcs["#{cloud}"] = {}
-        else
+        elsif api1_5?
           begin
-            found = McDatacenter.find_all("#{cloud}").first
+            #TODO: Don't just take the first one, Datacenters are variations too (as are Hypervisors)
+            found = McDatacenter.find_all("#{cloud}").first 
             dcs["#{cloud}"] = {"datacenter_href" => found.href}
           rescue
             puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
@@ -307,7 +345,9 @@ module VirtualMonkey
       File.open(@@dcs_file, "w") { |f| f.write(dcs_out) }
     end
 
-    def self.populate_all_cloud_vars(force = false)
+    # Populates all cloud_vars (ssh_keys, security_groups, and datacenters) without overriding any manually
+    # defined resources
+    def populate_all_cloud_vars(force = false, options = {})
       get_available_clouds()
 
       aws_clouds = {}
@@ -317,37 +357,37 @@ module VirtualMonkey
         puts "Generating SSH Keys for cloud #{c['cloud_id']}..."
         if force
           begin
-            self.generate_ssh_keys(c['cloud_id'])
+            generate_ssh_keys(c['cloud_id'], options['ssh_key_ids'])
           rescue Exception => e
             puts "Got exception: #{e.message}"
             puts "Forcing continuation..."
           end
         else
-          self.generate_ssh_keys(c['cloud_id'])
+          generate_ssh_keys(c['cloud_id'], options['ssh_key_ids'])
         end
 
         puts "Populating Security Groups for cloud #{c['cloud_id']}..."
         if force
           begin
-            self.populate_security_groups(c['cloud_id'])
+            populate_security_groups(c['cloud_id'], options['security_group_name'])
           rescue Exception => e
             puts "Got exception: #{e.message}"
             puts "Forcing continuation..."
           end
         else
-          self.populate_security_groups(c['cloud_id'])
+          populate_security_groups(c['cloud_id'], options['security_group_name'])
         end
 
         puts "Populating Datacenters for cloud #{c['cloud_id']}..."
         if force
           begin
-            self.populate_datacenters(c['cloud_id'])
+            populate_datacenters(c['cloud_id'])
           rescue Exception => e
             puts "Got exception: #{e.message}"
             puts "Forcing continuation..."
           end
         else
-          self.populate_datacenters(c['cloud_id'])
+          populate_datacenters(c['cloud_id'])
         end
         c['name'].gsub!(/[- ]/, "_")
         c['name'].gsub!(/_+/, "_")

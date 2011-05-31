@@ -19,6 +19,7 @@ module VirtualMonkey
     # Trust me, I know what's good for you. -- Tim R.
     private
 
+    # Ensures the following blacklist entries are entered for all runners
     def deployment_base_blacklist
       [
         ["/var/log/messages", ".*", "exception"],
@@ -30,12 +31,14 @@ module VirtualMonkey
       ]
     end
 
+    # Ensures the following whitelist entries are entered for all runners
     def deployment_base_whitelist
       [
         ["/var/log/messages", ".*", "destination\(d_httperror\)=0"]
       ]
     end
 
+    # Makes this exception_handle available for all runners
     def deployment_base_exception_handle(e)
       if e.message =~ /Insufficient capacity/ and @retry_loop.last < 10
         puts "Got \"Insufficient capacity\". Retrying...."
@@ -52,7 +55,8 @@ module VirtualMonkey
       end
     end
 
-    def __lookup_scripts__ # Master method, do NOT override
+    # Master method that calls all methods with "lookup_scripts" in their name
+    def __lookup_scripts__
       all_methods = self.methods + self.private_methods
       lookup_script_methods = all_methods.select { |m| m =~ /lookup_scripts/ and m != "__lookup_scripts__" }
       lookup_script_methods.each { |method_name| self.__send__(method_name) }
@@ -87,6 +91,7 @@ module VirtualMonkey
       }
     end
 
+    # Determines which logs to run for the available server_templates, then does the message check
     def run_logger_audit(interactive = false, strict = false)
       ret_string = ""
       mc = MessageCheck.new(@log_checklists, strict)

@@ -1,3 +1,4 @@
+# Auto-require
 some_not_included = true
 files = Dir.glob(File.join("lib", "virtualmonkey", "deployment_runners", "**"))
 retry_loop = 0

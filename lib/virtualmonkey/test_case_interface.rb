@@ -1,6 +1,7 @@
 require 'ruby-debug'
 
 module VirtualMonkey
+  # Class Variables meant to be globally accessible, used for stack tracing
   def self.feature_file=(obj)
     @@feature_file = obj
   end
@@ -10,10 +11,13 @@ module VirtualMonkey
   end
 
   module TestCaseInterface
+    # set_var is called on every run-through whether a clean run or a resume, it is intended
+    # for functions that set up state in the ruby process that doesn't get saved across executions
     def set_var(sym, *args, &block)
       behavior(sym, *args, &block)
     end
 
+    # Overrides backtick to provide stack tracing
     def `(cmd)
       execution_stack_trace("system", [cmd])
       ret = super(cmd)
@@ -21,6 +25,7 @@ module VirtualMonkey
       ret
     end
   
+    # Gets called from runner_mixins/deployment_base.rb: initialize(...)
     def test_case_interface_init
       @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
       @rerun_last_command = []
@@ -29,6 +34,11 @@ module VirtualMonkey
       @retry_loop = []
     end
     
+    # behavior is meant to wrap every function call to provide the following functionality:
+    # * Execution Tracing
+    # * Exception Handling
+    # * Runner-Contextual Debugging
+    # * Built-in retrying
     def behavior(sym, *args, &block)
       @retry_loop << 0
       execution_stack_trace(sym, args)
@@ -55,6 +65,11 @@ module VirtualMonkey
       result
     end
 
+    # probe executes a shell command over ssh to a set of servers is provides the following functionality:
+    # * Execution Tracing
+    # * Exception Handling
+    # * Runner-Contextual Debugging
+    # * Built-in retrying
     def probe(set, command, &block)
       # run command on set over ssh
       result_output = ""
@@ -84,6 +99,7 @@ module VirtualMonkey
       result_status
     end
 
+    # Checks to see if we're in developer mode and if we are, drops into debugger
     def dev_mode?(e = nil)
       self.__send__(:__exception_handle__, e) if e
       if ENV['MONKEY_NO_DEBUG'] !~ /true/i
@@ -96,6 +112,7 @@ module VirtualMonkey
 
     private
 
+    # Master exception_handle method. Calls all other exception handlers
     def __exception_handle__(e)
       all_methods = self.methods + self.private_methods
       exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m != "__exception_handle__" }
@@ -111,9 +128,10 @@ module VirtualMonkey
       raise e
     end
 
+    # Master list_loader method. Calls all other list load methods
     def __list_loader__
       all_methods = self.methods + self.private_methods
-      ["whitelist", "blacklist", "needlist"].each do |list|
+      MessageCheck::LISTS.each do |list|
         list_methods = all_methods.select { |m| m =~ /#{list}/ }
         list_methods.each do |m|
           result = self.__send__(m)
@@ -122,6 +140,7 @@ module VirtualMonkey
       end
     end
 
+    # debugger irb help function
     def help
       puts "Here are some of the wrapper methods that may be of use to you in your debugging quest:\n"
       puts "behavior(sym, *args, &block): Pass the method name (as a symbol or string) and the optional arguments"
@@ -149,6 +168,7 @@ module VirtualMonkey
       puts "help: Prints this help message."
     end
 
+    # Sets up most of the state for the runners
     def populate_settings
       unless @populated
         @servers = @deployment.servers_no_reload
@@ -166,6 +186,14 @@ module VirtualMonkey
       end
     end
 
+    # select_set returns an Array of ServerInterfaces and accepts any of the following:
+    # * <~Array> will return the Array
+    # * <~String> will first attempt to find a function in the runner with that String to get
+    # *           an Array/ServerInterface (e.g. app_servers, s_one). If that fails, then it
+    # *           will use the String as a regex to select a subset of servers.
+    # * <~Symbol> will attempt to run a function in the runner to get an Array/ServerInterface
+    # *           (e.g. app_servers, s_one)
+    # * <~ServerInterface> will return a one-element Array with the ServerInterface
     def select_set(set = @servers)
       if set.is_a?(String)
         if self.respond_to?(set.to_sym)
@@ -179,6 +207,11 @@ module VirtualMonkey
       return set
     end
 
+    # obj_behavior is meant to wrap every object member method call to provide the following functionality:
+    # * Execution Tracing
+    # * Exception Handling
+    # * Runner-Contextual Debugging
+    # * Built-in retrying
     def obj_behavior(obj, sym, *args, &block)
       execution_stack_trace(sym, args, obj)
       @retry_loop << 0
@@ -205,19 +238,23 @@ module VirtualMonkey
       result
     end
 
+    # Encapsulates the logic necessary for retrying a function
     def push_rerun_test
       @rerun_last_command.push(true)
     end
 
+    # Encapsulates the logic necessary for continuing after function
     def continue_test
       @rerun_last_command.pop
       @rerun_last_command.push(false)
     end
 
+    # allows exceptions to only handle a limited number of times per behavior
     def incr_retry_loop
       @retry_loop.push(@retry_loop.pop() + 1)
     end
 
+    # Execution Stack Trace function
     def execution_stack_trace(sym, args, obj=nil)
       return nil unless VirtualMonkey::feature_file
 
@@ -242,6 +279,7 @@ module VirtualMonkey
       @stack_objects << referenced_ary
     end
 
+    # Cleanup stack trace output
     def clean_stack_trace
       # This is ugly code...I apologize, but it works
       return nil unless VirtualMonkey::feature_file
@@ -260,6 +298,7 @@ module VirtualMonkey
       }
     end
 
+    # Stringify stack_trace args
     def stringify_arg(arg, will_be_inspected = false)
       return arg.class.to_s if arg.is_a?(AuditEntry)
       return arg.inspect if arg.is_a?(Class)

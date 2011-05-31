@@ -1,3 +1,4 @@
+# Uses Amazon SimpleDB to managed shared resources
 class SharedDns
   attr_accessor :reservation
   attr_accessor :owner
