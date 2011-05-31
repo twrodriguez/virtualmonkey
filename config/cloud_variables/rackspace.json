@@ -1,8 +1,9 @@
 {
   "232":{
     "parameters":{
-      "STORAGE_ACCOUNT_ID":"cred:RACKSPACE_USERNAME",
-      "STORAGE_ACCOUNT_SECRET":"cred:RACKSPACE_AUTH_KEY"
+      "WEBSITE_DNS":"text:localhost",
+      "STORAGE_ACCOUNT_SECRET":"cred:RACKSPACE_AUTH_KEY",
+      "STORAGE_ACCOUNT_ID":"cred:RACKSPACE_USERNAME"
     }
   }
 }
