@@ -160,8 +160,7 @@ class DeploymentMonk
           end
           inputs = []
           load_vars_for_cloud(cloud)
-          @common_inputs.deep_merge!(@variables_for_cloud[cloud]['parameters'])
-          @common_inputs.each do |key,val|
+          @common_inputs.deep_merge(@variables_for_cloud[cloud]['parameters']).each do |key,val|
             inputs << { "name" => key, "value" => val }
           end
           #Set Server Creation Parameters
@@ -213,7 +212,7 @@ class DeploymentMonk
           end
           new_deploy.nickname = dep_tempname + dep_image_list.uniq.join("_AND_")
           new_deploy.save
-          set_inputs(new_deploy, @common_inputs)
+          set_inputs(new_deploy, @common_inputs.deep_merge(@variables_for_cloud[cloud]['parameters']))
         end
       end
     end
@@ -235,14 +234,16 @@ class DeploymentMonk
 
   def update_inputs
     @deployments.each do |d|
-      if d.cloud_id
-        @common_inputs.deep_merge!(@variables_for_cloud[d.cloud_id.to_s]['parameters']) if load_vars_for_cloud(d.cloud_id)
+      c_inputs = @common_inputs.dup
+      if d.cloud_id and load_vars_for_cloud(d.cloud_id)
+        set_inputs(d, c_inputs.deep_merge(@variables_for_cloud[d.cloud_id.to_s]['parameters']))
+      else
+        set_inputs(d, c_inputs)
       end
-      set_inputs(d, @common_inputs)
       d.servers.each { |s|
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s).to_s
         cv_inputs = (load_vars_for_cloud(cid) ? @variables_for_cloud[cid]['parameters'] : {})
-        set_inputs(s, @common_inputs.deep_merge(cv_inputs))
+        set_inputs(s, c_inputs.deep_merge(cv_inputs))
       }
     end
   end
