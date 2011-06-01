@@ -8,9 +8,10 @@ class GrinderJob
   attr_accessor :status, :output, :logfile, :deployment, :rest_log, :trace_log, :no_resume, :verbose
 
   def link_to_rightscale
-    i = deployment.href.split(/\//).last
-    d = deployment.href.split(/\./).first.split(/\//).last
-    "https://#{d}.rightscale.com/deployments/#{i}#auditentries"
+#    i = deployment.href.split(/\//).last
+#    d = deployment.href.split(/\./).first.split(/\//).last
+#    "https://#{d}.rightscale.com/deployments/#{i}#auditentries"
+    deployment.href.gsub(/api\//,"") + "#auditentries"
   end
 
   def on_read_stdout(data)
