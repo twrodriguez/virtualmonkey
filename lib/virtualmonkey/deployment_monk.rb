@@ -183,8 +183,7 @@ class DeploymentMonk
 
           # Merge cloud_var parameters OVER common_inputs
           inputs = []
-          @common_inputs.deep_merge!(@variables_for_cloud[cloud]['parameters'])
-          @common_inputs.each do |key,val|
+          @common_inputs.deep_merge(@variables_for_cloud[cloud]['parameters']).each do |key,val|
             inputs << { "name" => key, "value" => val }
           end
 
@@ -237,9 +236,13 @@ class DeploymentMonk
               server.save
             end
           end
+
+          # Add image names to the deployment nickname
           new_deploy.nickname = dep_tempname + dep_image_list.uniq.join("_AND_")
           new_deploy.save
-          new_deploy.set_inputs(@common_inputs)
+
+          # Set the inputs at the deployment level
+          new_deploy.set_inputs(@common_inputs.deep_merge(@variables_for_cloud[cloud]['parameters']))
         end
       end
     end
@@ -261,18 +264,21 @@ class DeploymentMonk
 
   def update_inputs
     @deployments.each do |d|
-      # If deployment has the string "-cloud_#-", then collect inputs from cloud_vars
-      if d.cloud_id
-        @common_inputs.deep_merge!(@variables_for_cloud[d.cloud_id.to_s]['parameters']) if load_vars_for_cloud(d.cloud_id)
-      end
+      c_inputs = @common_inputs.dup
+
       # Set inputs at the Deployment level
-      d.set_inputs(@common_inputs)
+      # If deployment has the string "-cloud_#-", then collect inputs from cloud_vars
+      if d.cloud_id and load_vars_for_cloud(d.cloud_id)
+        set_inputs(d, c_inputs.deep_merge(@variables_for_cloud[d.cloud_id.to_s]['parameters']))
+      else
+        set_inputs(d, c_inputs)
+      end
 
       # Set inputs at the Server level
       d.servers.each { |s|
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s).to_s
         cv_inputs = (load_vars_for_cloud(cid) ? @variables_for_cloud[cid]['parameters'] : {})
-        s.set_inputs(@common_inputs.deep_merge(cv_inputs))
+        set_inputs(s, c_inputs.deep_merge(cv_inputs))
       }
     end
   end
