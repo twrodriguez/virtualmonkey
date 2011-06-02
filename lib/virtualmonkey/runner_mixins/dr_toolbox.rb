@@ -51,6 +51,8 @@ module VirtualMonkey
         end
       end
       puts "STORAGE_TYPE: #{@storage_type}"
+      @deployment.nickname += "-STORAGE_TYPE_#{@storage_type}"
+      @deployment.save
  
       obj_behavior(@deployment, :set_input, "block_device/storage_type", "text:#{@storage_type}")
     end
