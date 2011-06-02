@@ -51,6 +51,8 @@ module VirtualMonkey
         end
       end
       puts "STORAGE_TYPE: #{@storage_type}"
+      @deployment.nickname += "-STORAGE_TYPE_#{@storage_type}"
+      @deployment.save
  
       obj_behavior(@deployment, :set_input, "block_device/storage_type", "text:#{@storage_type}")
     end
@@ -58,8 +60,8 @@ module VirtualMonkey
     def test_s3
     #  behavior(:run_script, "do_force_reset", s_one)
     #  sleep 10
-    #  behavior(:run_script, "setup_lvm_device_ec2_ephemeral", s_one)
-      probe(s_one, "touch /mnt/storage/monkey_was_here")
+      behavior(:run_script, "setup_block_device", s_one)
+      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=200")
       sleep 10
       behavior(:run_script, "do_backup_s3", s_one)
       sleep 10
@@ -76,8 +78,8 @@ module VirtualMonkey
       # EBS is already setup, to save time we'll skip the force_reset
       #behavior(:run_script, "do_force_reset", s_one)
       #sleep 10
-      #behavior(:run_script, "setup_lvm_device_ebs", s_one)
-      probe(s_one, "touch /mnt/storage/monkey_was_here")
+      behavior(:run_script, "setup_block_device", s_one)
+      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=1M count=500")
       sleep 10
       behavior(:run_script, "do_backup_ebs", s_one)
       wait_for_snapshots
@@ -94,8 +96,8 @@ module VirtualMonkey
     def test_cloud_files
     #  behavior(:run_script, "do_force_reset", s_one)
     #  sleep 10
-    #  behavior(:run_script, "setup_lvm_device_rackspace", s_one)
-      probe(s_one, "touch /mnt/storage/monkey_was_here")
+      behavior(:run_script, "setup_block_device", s_one)
+      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=1M count=500")
       sleep 10
       behavior(:run_script, "do_backup_cloud_files", s_one)
       sleep 10

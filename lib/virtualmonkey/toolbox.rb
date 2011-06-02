@@ -96,7 +96,7 @@ module VirtualMonkey
       if server.ec2_security_groups_href
         server.ec2_security_groups_href.each { |sg|
           cloud_ids.each { |cloud|
-            if Ec2SecurityGroup.find_by_cloud_id(cloud.to_s).select { |o| o.href == sg.href }.first
+            if Ec2SecurityGroup.find_by_cloud_id(cloud.to_s).select { |o| o.href == sg }.first
               ret = cloud
             end
           }
