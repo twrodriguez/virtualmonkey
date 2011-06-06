@@ -199,6 +199,24 @@ puts "RESET"
       @dns.release_dns
     end
 
+    def release_container
+      set_variation_container
+      raise "FATAL: could not cleanup because @container was '#{@container}'" unless @container
+      s3 = Fog::Storage.new(:provider => 'AWS')
+      rax = Fog::Storage.new(:provider => 'Rackspace')
+      delete_rax = rax.directories.all.select {|d| d.key =~ /^#{@container}/}
+      delete_s3 = s3.directories.all.select {|d| d.key =~ /^#{@container}/}
+      [delete_rax, delete_s3].each do |con|
+        con.each do |dir|
+          dir.files.each do |file|
+            file.destroy
+          end
+          dir.destroy
+        end
+      end
+    end
+
+
 #    def promote_server(server)
 #      behavior(:run_script, "promote", server)
 #    eu
