@@ -60,7 +60,7 @@ module VirtualMonkey
     def find_snapshots
       unless @lineage
         s = @servers.first
-        kind_params = s.transform_parameters(s.parameters)
+        kind_params = s.parameters
         @lineage = kind_params['DB_LINEAGE_NAME'].gsub(/text:/, "")
       end
       snapshots = Ec2EbsSnapshot.find_by_cloud_id(@servers.first.cloud_id).select { |n| n.nickname =~ /#{@lineage}.*$/ }

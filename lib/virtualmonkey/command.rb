@@ -170,6 +170,9 @@ module VirtualMonkey
       if runner.respond_to?(:release_dns) and not @@options[:no_delete]
         release_all_dns_domains(runner.deployment.href)
       end
+      if runner.respond_to?(:release_container) and not @@options[:no_delete]
+        runner.release_container
+      end
     end
 
     # Encapsulates the logic for destroying all matched deployments
@@ -194,6 +197,9 @@ module VirtualMonkey
         #Release DNS logic
         if runner.respond_to?(:release_dns) and not @@options[:no_delete]
           release_all_dns_domains(deploy.href)
+        end
+        if runner.respond_to?(:release_container) and not @@options[:no_delete]
+          runner.release_container
         end
       end 
 

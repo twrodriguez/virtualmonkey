@@ -7,26 +7,100 @@ module VirtualMonkey
 
     # sets the lineage for the deployment
     # * kind<~String> can be "chef" or nil
-    def set_variation_lineage(kind = nil)
+    def set_variation_lineage()
       @lineage = "testlineage#{resource_id(@deployment)}"
+puts "Set variation LINEAGE: #{@lineage}"
       obj_behavior(@deployment, :set_input, 'db_mysql/backup/lineage', "text:#{@lineage}")
-      # unset all server level inputs in the deployment to ensure use of 
-      # the setting from the deployment level
-      @servers.each do |s|
-        obj_behavior(s, :set_input, 'db_mysql/backup/lineage', "text:")
+    end
+
+    def set_variation_container
+      @container = "testlineage#{resource_id(@deployment)}"
+puts "Set variation CONTAINER: #{@container}"
+      obj_behavior(@deployment, :set_input, "db_mysql/backup/storage_container", "text:#{@container}")
+    end
+
+    # Pick a storage_type depending on what cloud we're on.
+    def set_variation_storage_type
+      cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
+      if cid == 232
+        @storage_type = "ros"
+      else
+        pick = rand(100000) % 2
+        if pick == 1
+          @storage_type = "ros"
+        else
+          @storage_type = "volume"
+        end
+      end
+
+      @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
+      puts "STORAGE_TYPE: #{@storage_type}"
+      @deployment.nickname += "-STORAGE_TYPE_#{@storage_type}"
+      @deployment.save
+ 
+      obj_behavior(@deployment, :set_input, "db_mysql/backup/storage_type", "text:#{@storage_type}")
+    end
+
+    def test_s3
+      behavior(:run_script, "setup_block_device", s_one)
+      probe(s_one, "touch /mnt/storage/monkey_was_here")
+      sleep 10
+      behavior(:run_script, "do_backup_s3", s_one)
+      sleep 10
+      behavior(:run_script, "do_force_reset", s_one)
+      sleep 10
+      behavior(:run_script, "do_restore_s3", s_one)
+      probe(s_one, "ls /mnt/storage") do |result, status|
+        raise "FATAL: no files found in the backup" if result == nil || result.empty?
+        true
       end
     end
 
-    def set_variation_bucket
-      bucket = "text:testingcandelete#{resource_id(@deployment)}"
-      obj_behavior(@deployment, :set_input, 'db_mysql/backup/storage_container', bucket)
-      # unset all server level inputs in the deployment to ensure use of 
-      # the setting from the deployment level
-      @servers.each do |s|
-        obj_behavior(s, :set_input, 'db_mysql/backup/storage_container', "text:")
+    def test_ebs
+      behavior(:run_script, "setup_block_device", s_one)
+      probe(s_one, "touch /mnt/storage/monkey_was_here")
+      sleep 10
+      behavior(:run_script, "do_backup_ebs", s_one)
+      sleep 10
+      wait_for_snapshots
+      behavior(:run_script, "do_force_reset", s_one)
+# need to wait here for the volume status to settle (detaching)
+      sleep 300
+      behavior(:run_script, "do_restore_ebs", s_one)
+      probe(s_one, "ls /mnt/storage") do |result, status|
+        raise "FATAL: no files found in the backup" if result == nil || result.empty?
+        true
       end
     end
 
+    def test_cloud_files
+      behavior(:run_script, "setup_block_device", s_one)
+      probe(s_one, "touch /mnt/storage/monkey_was_here")
+      sleep 10
+      behavior(:run_script, "do_backup_cloud_files", s_one)
+      sleep 10
+      behavior(:run_script, "do_force_reset", s_one)
+      sleep 10
+      behavior(:run_script, "do_restore_cloud_files", s_one)
+      probe(s_one, "ls /mnt/storage") do |result, status|
+        raise "FATAL: no files found in the backup" if result == nil || result.empty?
+        true
+      end
+    end
+
+    # pick the right set of tests depending on what cloud we're on
+    def test_multicloud
+      cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
+      if cid == 232
+        test_cloud_files
+      else
+        if @storage_type == "ros"
+          test_s3
+        elsif @storage_type == "volume"
+          test_ebs
+        end
+      end
+    end
     # creates a MySQL enabled EBS stripe on the server
     # * server<~Server> the server to create stripe on
 #XXX stripe is created during boot - this is not needed
@@ -96,11 +170,51 @@ module VirtualMonkey
       raise "Unable to reserve DNS" unless @dns.reserve_dns(owner)
       @dns.set_dns_inputs(@deployment)
     end
+   
+    def setup_block_device
+puts "SETUP_BLOCK_DEVICE"
+      behavior(:run_script, "setup_block_device", s_one)
+    end
+
+    def do_backup
+puts "BACKUP"
+      behavior(:run_script, "do_backup", s_one)
+puts "BAD BAD SLEEPING TIL SNAPSHOT IS COMPLETE"
+      sleep 30
+    end
+
+    def do_restore
+puts "RESTORE"
+      behavior(:run_script, "do_restore", s_one)
+    end
+
+    def do_force_reset
+puts "RESET"
+      behavior(:run_script, "do_force_reset", s_one)
+    end
 
     # releases records back into the shared DNS pool
     def release_dns
       @dns.release_dns
     end
+
+    def release_container
+      set_variation_container
+      raise "FATAL: could not cleanup because @container was '#{@container}'" unless @container
+      s3 = Fog::Storage.new(:provider => 'AWS')
+      rax = Fog::Storage.new(:provider => 'Rackspace')
+      delete_rax = rax.directories.all.select {|d| d.key =~ /^#{@container}/}
+      delete_s3 = s3.directories.all.select {|d| d.key =~ /^#{@container}/}
+      [delete_rax, delete_s3].each do |con|
+        con.each do |dir|
+          dir.files.each do |file|
+            file.destroy
+          end
+          dir.destroy
+        end
+      end
+    end
+
 
 #    def promote_server(server)
 #      behavior(:run_script, "promote", server)
@@ -109,10 +223,6 @@ module VirtualMonkey
 #    def slave_init_server(server)
 #      behavior(:run_script, "slave_init", server)
 #    end
-
-    def restore_server(server)
-      behavior(:run_script, "restore", server)
-    end
 
 #    def create_migration_script
 #      options = { "DB_EBS_PREFIX" => "text:regmysql",
@@ -123,6 +233,7 @@ module VirtualMonkey
 
     # These are mysql specific checks (used by mysql_runner and lamp_runner)
     def run_checks
+puts "RUN_CHECKS"
       # check that mysql tmpdir is custom setup on all servers
 #      query = "show variables like 'tmpdir'"
 #      query_command = "echo -e \"#{query}\"| mysql"
@@ -141,23 +252,25 @@ module VirtualMonkey
 #      end
 
       # check that logrotate has mysqlslow in it
-      probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql-server") { |out,st| out =~ /mysqlslow/ and st == 0 }
+#      probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql") { |out,st| out =~ /mysqlslow/ and st == 0 }
+#      probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql-server") { |out,st| out =~ /mysqlslow/ and st == 0 }
 #      @servers.each do |server|
 #        res = server.spot_check_command("logrotate --force -v /etc/logrotate.d/mysql-server")
 #        raise "LOGROTATE FAILURE, exited with non-zero status" if res[:status] != 0
 #        raise "DID NOT FIND mysqlslow.log in the log rotation!" if res[:output] !~ /mysqlslow/
 #      end
+puts "RUN_CHECK DONE"
     end
 
 
-    # check that mysql can handle 5000 concurrent connections (file limits, etc.)
-    def run_mysqlslap_check
-        probe(@servers, "mysqlslap  --concurrency=5000 --iterations=10 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --csv=/tmp/mysqlslap_q1000_innodb.csv --engine=innodb --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=mixed --number-of-queries=1000 --user=root") { |out,st| st == 0 }
+#    # check that mysql can handle 5000 concurrent connections (file limits, etc.)
+#    def run_mysqlslap_check
+#        probe(@servers, "mysqlslap  --concurrency=5000 --iterations=10 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --csv=/tmp/mysqlslap_q1000_innodb.csv --engine=innodb --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=mixed --number-of-queries=1000 --user=root") { |out,st| st == 0 }
 #      @servers.each do |server|
 #        result = server.spot_check_command("mysqlslap  --concurrency=5000 --iterations=10 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --csv=/tmp/mysqlslap_q1000_innodb.csv --engine=innodb --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=mixed --number-of-queries=1000 --user=root")
 #        raise "FATAL: mysqlslap check failed" unless result[:output].empty?
 #      end
-    end
+#    end
 
 #    def init_slave_from_slave_backup
 #      behavior(:config_master_from_scratch, s_one)
@@ -201,21 +314,9 @@ module VirtualMonkey
     def run_reboot_checks
       # one simple check we can do is the backup.  Backup can fail if anything is amiss
       @servers.each do |server|
-        behavior(:run_script, "backup", server)
+        behavior(:run_script, "do_backup", server)
       end
     end
-
-#    def migrate_slave
-#      s_one.settings
-#      probe(s_one, "/tmp/init_slave.sh")
-#      behavior(:run_script, "backup", s_one)
-#    end
-   
-#    def launch_v2_slave
-#      s_two.settings
-#      behavior(:wait_for_snapshots)
-#      behavior(:run_script, "slave_init", s_two)
-#    end
 
 #    def run_restore_with_timestamp_override
 #      obj_behavior(s_one, :relaunch)

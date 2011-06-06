@@ -103,6 +103,7 @@ class GrinderMonk
   end
 
   def initialize()
+    @started_at = Time.now
     @jobs = []
     @passed = []
     @failed = []
@@ -131,7 +132,7 @@ class GrinderMonk
     @failed = @jobs.select { |s| s.status == 1 }
     @running = @jobs.select { |s| s.status == nil }
     new_sum = @passed.size + @failed.size + @running.size
-    puts "#{@passed.size} features passed.  #{@failed.size} features failed.  #{@running.size} features running."
+    puts "#{@passed.size} features passed.  #{@failed.size} features failed.  #{@running.size} features running for #{Time.now - @started_at}"
     if new_sum < old_sum and new_sum < @jobs.size
       puts "WARNING: Jobs Lost! Finding..."
       report_lost_deployments({ :old_passed => old_passed, :passed => @passed,
