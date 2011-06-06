@@ -1,4 +1,3 @@
-require 'ruby-debug'
 module VirtualMonkey
   module Mysql
     include VirtualMonkey::DeploymentBase

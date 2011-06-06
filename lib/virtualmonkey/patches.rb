@@ -1,4 +1,6 @@
-require 'ruby-debug'
+if require 'ruby-debug'
+  Debugger.start(:post_mortem => true) unless ENV['MONKEY_NO_DEBUG'] == "true"
+end
 
 # Hash Patches
 
@@ -94,31 +96,6 @@ class Array
       return self.collect { |item| item.__send__(method_name, *args, &block) }
     else
       raise NoMethodError.new("undefined method '#{method_name}' for Array")
-    end
-  end
-end
-
-# Object Patches
-
-class Object
-  # Experimental code for deeper debugging
-  def raise(*args, &block)
-    if ENV["MONKEY_DEEP_DEBUG"] == "true"
-      begin
-        super(*args)
-      rescue Exception => e
-        puts "Got exception: #{e.message}" if e
-        puts "Backtrace: #{e.backtrace.join("\n")}" if e
-        puts "Pausing for inspection before continuing to raise Exception..."
-        if block
-          f, l = block.to_s.match(/@.*>/)[0].chop.reverse.chop.reverse.split(":")
-          puts "(Note: There is a block provided from \"#{f}\" at line #{l} that will attempt to handle the exception)"
-        end
-        debugger
-        super(*args) unless block and yield(e)
-      end
-    else
-      super(*args)
     end
   end
 end

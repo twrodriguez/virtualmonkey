@@ -1,4 +1,7 @@
-require 'ruby-debug'
+require 'irb'
+if require 'ruby-debug'
+  Debugger.start(:post_mortem => true) unless ENV['MONKEY_NO_DEBUG'] == "true"
+end
 
 module VirtualMonkey
   # Class Variables meant to be globally accessible, used for stack tracing
@@ -25,6 +28,27 @@ module VirtualMonkey
       ret
     end
   
+    # Overrides raise to provide deep debugging abilities
+    def raise(*args)
+      begin
+        super(*args)
+      rescue Exception => e
+        if not self.__send__(:__exception_handle__, e)
+          unless ENV['MONKEY_NO_DEBUG'] == "true"
+            puts "Got exception: #{e.message}" if e
+            puts "Backtrace: #{e.backtrace.join("\n")}" if e
+            puts "Pausing for inspection before continuing to raise Exception..."
+#           if block
+#              f, l = block.to_s.match(/@.*>/)[0].chop.reverse.chop.reverse.split(":")
+#              puts "(Note: There is a block provided from \"#{f}\" at line #{l} that will attempt to handle the exception)"
+#           end
+            debugger
+          end
+          super(e)
+        end
+      end
+    end
+
     # Gets called from runner_mixins/deployment_base.rb: initialize(...)
     def test_case_interface_init
       @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
@@ -55,9 +79,9 @@ module VirtualMonkey
         continue_test
       rescue Exception => e
         if block and e.message !~ /^FATAL: Failed behavior verification/
-          dev_mode?(e) if not yield(e)
+          raise e if not yield(e)
         else
-          dev_mode?(e)
+          raise e
         end
       end while @rerun_last_command.pop
       clean_stack_trace
@@ -88,8 +112,6 @@ module VirtualMonkey
             end
           end
           continue_test
-        rescue Exception => e
-          dev_mode?(e)
         end while @rerun_last_command.pop
         result_output += result_temp[:output]
         result_status &&= (result_temp[:status] == 0)
@@ -99,15 +121,10 @@ module VirtualMonkey
       result_status
     end
 
-    # Checks to see if we're in developer mode and if we are, drops into debugger
-    def dev_mode?(e = nil)
-      self.__send__(:__exception_handle__, e) if e
-      if ENV['MONKEY_NO_DEBUG'] !~ /true/i
-        puts "Got exception: #{e.message}" if e
-        puts "Backtrace: #{e.backtrace.join("\n")}" if e
-        puts "Pausing for debugging..."
-        debugger
-      end
+    # Launches an irb debugging session if 
+    def launch_irb_session(debug = false)
+      IRB.start unless debug
+      debugger if debug
     end
 
     private
@@ -125,7 +142,8 @@ module VirtualMonkey
         rescue
         end
       }
-      raise e
+      # Exception wasn't handled
+      return false
     end
 
     # Master list_loader method. Calls all other list load methods
@@ -228,9 +246,9 @@ module VirtualMonkey
         continue_test
       rescue Exception => e
         if block and e.message !~ /^FATAL: Failed behavior verification/
-          dev_mode?(e) if not yield(e)
+          raise e if not yield(e)
         else
-          dev_mode?(e)
+          raise e
         end
       end while @rerun_last_command.pop
       clean_stack_trace
@@ -253,6 +271,10 @@ module VirtualMonkey
     def incr_retry_loop
       @retry_loop.push(@retry_loop.pop() + 1)
     end
+
+    ##################################
+    # Execution Stack Trace Routines #
+    ##################################
 
     # Execution Stack Trace function
     def execution_stack_trace(sym, args, obj=nil)

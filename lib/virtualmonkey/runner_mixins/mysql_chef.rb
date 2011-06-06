@@ -1,4 +1,3 @@
-require 'ruby-debug'
 module VirtualMonkey
   module ChefMysql
     include VirtualMonkey::DeploymentBase

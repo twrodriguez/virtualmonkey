@@ -1,4 +1,3 @@
-require 'ruby-debug'
 module VirtualMonkey
   module Postgres
     include VirtualMonkey::DeploymentBase

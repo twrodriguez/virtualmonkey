@@ -7,7 +7,10 @@ $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 
 require 'rubygems'
 require 'virtualmonkey'
-require 'ruby-debug'
+if require 'ruby-debug'
+  Debugger.start(:post_mortem => true) unless ENV['MONKEY_NO_DEBUG'] == "true"
+end
+require 'irb'
 
 unless ENV['DEPLOYMENT']
   if VirtualMonkey::Toolbox::find_myself_in_api()
@@ -94,9 +97,13 @@ end
 # Grinding
 done = false
 timer = Time.now
+runner_var = ""
 begin
   line = @testcase.readline
   if line =~ /((=)|(set_var))/ or (@resume < linenum and linenum <= @breakpoint)
+    if line =~ /(@*runner).*=/
+      runner_var = $1
+    end
     unless line =~ /^[ \t]*#/ or line =~ /^[ \t]*$/
       $stdout.syswrite("#{"=" * line.length}\n")
       $stdout.syswrite(line)
@@ -126,7 +133,7 @@ end while !done
 elapsed = Time.now - timer
 $stdout.syswrite "Total time elapsed: #{elapsed} seconds\n"
 if linenum > @breakpoint and ENV['MONKEY_NO_DEBUG'] !~ /true/i
-  eval("@runner.dev_mode?")
+  eval("#{runner_var}.launch_irb_session(:debugger)")
 end
 
 puts "Execution Trace:" if trace_log == $stdout
