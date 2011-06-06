@@ -33,12 +33,17 @@ puts "Set variation CONTAINER: #{@container}"
           @storage_type = "volume"
         end
       end
+
+      @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
       puts "STORAGE_TYPE: #{@storage_type}"
+      @deployment.nickname += "-STORAGE_TYPE_#{@storage_type}"
+      @deployment.save
  
       obj_behavior(@deployment, :set_input, "db_mysql/backup/storage_type", "text:#{@storage_type}")
     end
 
     def test_s3
+      behavior(:run_script, "setup_block_device", s_one)
       probe(s_one, "touch /mnt/storage/monkey_was_here")
       sleep 10
       behavior(:run_script, "do_backup_s3", s_one)
@@ -53,13 +58,15 @@ puts "Set variation CONTAINER: #{@container}"
     end
 
     def test_ebs
+      behavior(:run_script, "setup_block_device", s_one)
       probe(s_one, "touch /mnt/storage/monkey_was_here")
       sleep 10
       behavior(:run_script, "do_backup_ebs", s_one)
+      sleep 10
       wait_for_snapshots
       behavior(:run_script, "do_force_reset", s_one)
 # need to wait here for the volume status to settle (detaching)
-      sleep 200
+      sleep 300
       behavior(:run_script, "do_restore_ebs", s_one)
       probe(s_one, "ls /mnt/storage") do |result, status|
         raise "FATAL: no files found in the backup" if result == nil || result.empty?
@@ -68,6 +75,7 @@ puts "Set variation CONTAINER: #{@container}"
     end
 
     def test_cloud_files
+      behavior(:run_script, "setup_block_device", s_one)
       probe(s_one, "touch /mnt/storage/monkey_was_here")
       sleep 10
       behavior(:run_script, "do_backup_cloud_files", s_one)

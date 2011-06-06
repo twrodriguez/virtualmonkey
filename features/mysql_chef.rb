@@ -4,12 +4,13 @@
   @runner.set_var(:set_variation_container)
   @runner.set_var(:set_variation_storage_type)
 
+  @runner.behavior(:stop_all, true)
 #  @runner.set_var(:setup_dns, "virtualmonkey_shared_resources") # DNSMadeEasy
   @runner.behavior(:launch_all)
 
 #  @runner.behavior(:wait_for_all, "booting")
   @runner.behavior(:wait_for_all, "operational")
-  @runner.behavior(:setup_block_device)
+#  @runner.behavior(:setup_block_device)
 #  @runner.behavior(:do_backup)
 #  @runner.behavior(:do_force_reset)
 #  @runner.behavior(:do_restore)
