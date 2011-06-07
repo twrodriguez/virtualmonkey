@@ -1,0 +1,10 @@
+{
+  "runner":"SimpleRunner",
+  "server_template_ids":[
+    "104181"
+  ],
+  "feature":"reboot_many.rb",
+  "cloud_variables":"all_clouds.json",
+  "tag":"TROOP-reboot",
+  "common_inputs":"none.json"
+}
