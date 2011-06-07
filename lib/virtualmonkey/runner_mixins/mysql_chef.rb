@@ -33,12 +33,17 @@ puts "Set variation CONTAINER: #{@container}"
           @storage_type = "volume"
         end
       end
+
+      @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
       puts "STORAGE_TYPE: #{@storage_type}"
+      @deployment.nickname += "-STORAGE_TYPE_#{@storage_type}"
+      @deployment.save
  
       obj_behavior(@deployment, :set_input, "db_mysql/backup/storage_type", "text:#{@storage_type}")
     end
 
     def test_s3
+      behavior(:run_script, "setup_block_device", s_one)
       probe(s_one, "touch /mnt/storage/monkey_was_here")
       sleep 10
       behavior(:run_script, "do_backup_s3", s_one)
@@ -53,13 +58,15 @@ puts "Set variation CONTAINER: #{@container}"
     end
 
     def test_ebs
+      behavior(:run_script, "setup_block_device", s_one)
       probe(s_one, "touch /mnt/storage/monkey_was_here")
-      sleep 10
+      sleep 100
       behavior(:run_script, "do_backup_ebs", s_one)
       wait_for_snapshots
+      sleep 100
       behavior(:run_script, "do_force_reset", s_one)
 # need to wait here for the volume status to settle (detaching)
-      sleep 200
+      sleep 400
       behavior(:run_script, "do_restore_ebs", s_one)
       probe(s_one, "ls /mnt/storage") do |result, status|
         raise "FATAL: no files found in the backup" if result == nil || result.empty?
@@ -68,6 +75,7 @@ puts "Set variation CONTAINER: #{@container}"
     end
 
     def test_cloud_files
+      behavior(:run_script, "setup_block_device", s_one)
       probe(s_one, "touch /mnt/storage/monkey_was_here")
       sleep 10
       behavior(:run_script, "do_backup_cloud_files", s_one)
@@ -190,6 +198,24 @@ puts "RESET"
     def release_dns
       @dns.release_dns
     end
+
+    def release_container
+      set_variation_container
+      raise "FATAL: could not cleanup because @container was '#{@container}'" unless @container
+      s3 = Fog::Storage.new(:provider => 'AWS')
+      rax = Fog::Storage.new(:provider => 'Rackspace')
+      delete_rax = rax.directories.all.select {|d| d.key =~ /^#{@container}/}
+      delete_s3 = s3.directories.all.select {|d| d.key =~ /^#{@container}/}
+      [delete_rax, delete_s3].each do |con|
+        con.each do |dir|
+          dir.files.each do |file|
+            file.destroy
+          end
+          dir.destroy
+        end
+      end
+    end
+
 
 #    def promote_server(server)
 #      behavior(:run_script, "promote", server)

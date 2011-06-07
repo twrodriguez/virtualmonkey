@@ -76,6 +76,7 @@ module VirtualMonkey
         end
       end
       puts "STORAGE_TYPE: #{@storage_type}"
+      @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
       @deployment.nickname += "-STORAGE_TYPE_#{@storage_type}"
       @deployment.save
  
@@ -112,19 +113,20 @@ module VirtualMonkey
       #sleep 10
       behavior(:run_script, "setup_block_device", s_one)
       probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=1M count=500")
-      sleep 10
+      sleep 100
       behavior(:run_script, "do_backup_ebs", s_one)
       wait_for_snapshots
+      sleep 100
       behavior(:run_script, "do_force_reset", s_one)
 # need to wait here for the volume status to settle (detaching)
-      sleep 200
+      sleep 400
       behavior(:run_script, "do_restore_ebs", s_one)
       probe(s_one, "ls /mnt/storage") do |result, status|
         raise "FATAL: no files found in the backup" if result == nil || result.empty?
         true
       end
       behavior(:run_script, "do_force_reset", s_one)
-      sleep 200
+      sleep 400
       behavior(:run_script, "do_restore_ebs", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
       probe(s_one, "ls /mnt/storage") do |result, status|
         raise "FATAL: no files found in the backup" if result == nil || result.empty?
@@ -200,12 +202,14 @@ module VirtualMonkey
       # get file count
       count = dir.files.length
       sleep 120
+      dir.files.reload
       raise "FATAL: Failed Continuous Backup Enable Test" unless dir.files.length > count
       # Disable cron job
       behavior(:run_script, "do_disable_continuous_backups_cloud_files", s_one)
       sleep 120
       count = dir.files.length
       sleep 120
+      dir.files.reload
       raise "FATAL: Failed Continuous Backup Disable Test" unless dir.files.length == count
     end
 
@@ -226,12 +230,14 @@ module VirtualMonkey
       # get file count
       count = dir.files.length
       sleep 120
+      dir.files.reload
       raise "FATAL: Failed Continuous Backup Enable Test" unless dir.files.length > count
       # Disable cron job
       behavior(:run_script, "do_disable_continuous_backups_s3", s_one)
       sleep 120
       count = dir.files.length
       sleep 120
+      dir.files.reload
       raise "FATAL: Failed Continuous Backup Disable Test" unless dir.files.length == count
     end
 
@@ -241,7 +247,7 @@ module VirtualMonkey
               "block_device/cron_backup_minute" => "text:*"}
       behavior(:run_script, "setup_continuous_backups_ebs", s_one, opts)
       # Wait for snapshots to be created
-      sleep 200
+      sleep 300
       retries = 0
       snapshots = behavior(:find_snapshots)
       until snapshots.length > 0
@@ -260,6 +266,23 @@ module VirtualMonkey
       count = behavior(:find_snapshots).length
       sleep 200
       raise "FATAL: Failed Continuous Backup Disable Test" unless behavior(:find_snapshots).length == count
+    end
+
+    def release_container
+      set_variation_container
+      raise "FATAL: could not cleanup because @container was '#{@container}'" unless @container
+      s3 = Fog::Storage.new(:provider => 'AWS')
+      rax = Fog::Storage.new(:provider => 'Rackspace')
+      delete_rax = rax.directories.all.select {|d| d.key =~ /^#{@container}/}
+      delete_s3 = s3.directories.all.select {|d| d.key =~ /^#{@container}/}
+      [delete_rax, delete_s3].each do |con|
+        con.each do |dir|
+          dir.files.each do |file|
+            file.destroy
+          end
+          dir.destroy
+        end
+      end
     end
 
   end
