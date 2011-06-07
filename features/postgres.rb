@@ -16,6 +16,10 @@
 # Then I should set a variation stripe count of "1"
   @runner.set_var(:set_variation_stripe_count, 1)
 
+# Then I should set a variation volume size "3"
+  @runner.set_var(:set_variation_volume_size, 3)
+  @runner.set_var(:set_variation_mount_point, "/mnt/pgsql")
+
 # Then I should set a variation DNS
   @runner.set_var(:setup_dns, "virtualmonkey_shared_resources") # DNSMadeEasy
 
@@ -60,8 +64,13 @@
 
 #  @runner.behavior(:run_logger_audit)
 
+## PHASE 4) Do the grow EBS tests
+##
+# Then I should test the restore grow operations
+  @runner.behavior(:test_restore_grow)
+
 # 
-# PHASE 4) Terminate
+# PHASE 5) Terminate
 #
 
 # Then I should terminate the servers
