@@ -24,7 +24,7 @@ module VirtualMonkey
         kind_params = s.parameters
         @lineage = kind_params['DB_LINEAGE_NAME'].gsub(/text:/, "")
       end
-      snapshots = Ec2EbsSnapshot.find_by_cloud_id(@servers.first.cloud_id).select { |n| n.nickname =~ /#{@lineage}.*$/ }
+      snapshots = Ec2EbsSnapshot.find_by_cloud_id(@servers.first.cloud_id).select { |n| n.tags.include?({"name"=>"rs_backup:lineage=#{@lineage}"}) }
     end
 
     # Returns the timestamp of the latest snapshot for testing OPT_DB_RESTORE_TIMESTAMP_OVERRIDE
