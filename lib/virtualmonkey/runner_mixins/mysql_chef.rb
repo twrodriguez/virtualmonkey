@@ -60,13 +60,13 @@ puts "Set variation CONTAINER: #{@container}"
     def test_ebs
       behavior(:run_script, "setup_block_device", s_one)
       probe(s_one, "touch /mnt/storage/monkey_was_here")
-      sleep 10
+      sleep 100
       behavior(:run_script, "do_backup_ebs", s_one)
-      sleep 10
       wait_for_snapshots
+      sleep 100
       behavior(:run_script, "do_force_reset", s_one)
 # need to wait here for the volume status to settle (detaching)
-      sleep 300
+      sleep 400
       behavior(:run_script, "do_restore_ebs", s_one)
       probe(s_one, "ls /mnt/storage") do |result, status|
         raise "FATAL: no files found in the backup" if result == nil || result.empty?

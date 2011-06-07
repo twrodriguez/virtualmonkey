@@ -113,19 +113,20 @@ module VirtualMonkey
       #sleep 10
       behavior(:run_script, "setup_block_device", s_one)
       probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=1M count=500")
-      sleep 10
+      sleep 100
       behavior(:run_script, "do_backup_ebs", s_one)
       wait_for_snapshots
+      sleep 100
       behavior(:run_script, "do_force_reset", s_one)
 # need to wait here for the volume status to settle (detaching)
-      sleep 300
+      sleep 400
       behavior(:run_script, "do_restore_ebs", s_one)
       probe(s_one, "ls /mnt/storage") do |result, status|
         raise "FATAL: no files found in the backup" if result == nil || result.empty?
         true
       end
       behavior(:run_script, "do_force_reset", s_one)
-      sleep 300
+      sleep 400
       behavior(:run_script, "do_restore_ebs", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
       probe(s_one, "ls /mnt/storage") do |result, status|
         raise "FATAL: no files found in the backup" if result == nil || result.empty?
