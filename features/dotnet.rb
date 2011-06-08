@@ -24,7 +24,7 @@
   @runner.behavior(:run_script_on_all, 'DB SQLS Download and attach DB')
   @runner.behavior(:run_script_on_all, 'DB SQLS Create login')
   
-  @runner.behavior(:run_unified_application_checks, @servers, 80)
+  @runner.behavior(:run_unified_application_checks, :s_one, 80)
 
   #@runner.behavior(:run_script_on_all, 'IIS Download application code')
   #@runner.behavior(:run_script_on_all, 'IIS Add connection string')

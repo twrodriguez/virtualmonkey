@@ -11,7 +11,7 @@ module VirtualMonkey
         status = Timeout::timeout(timeout) do
           while true
             response = `#{cmd}` 
-            break if response.include?(expected_string)
+            break if response =~ /#{expected_string}/
             puts "Retrying..."
             sleep 5
           end
@@ -32,7 +32,7 @@ module VirtualMonkey
     def run_unified_application_check(dns_name, port=8000)
       url_base = "#{dns_name}:#{port}"
       behavior(:test_http_response, "html serving succeeded", "#{url_base}/index.html", port) 
-      behavior(:test_http_response, "configuration=succeeded", "#{url_base}/appserver/", port) 
+      behavior(:test_http_response, "configuration=.*succeeded", "#{url_base}/appserver/", port) 
       behavior(:test_http_response, "I am in the db", "#{url_base}/dbread/", port) 
       behavior(:test_http_response, "hostname=", "#{url_base}/serverid/", port) 
     end
