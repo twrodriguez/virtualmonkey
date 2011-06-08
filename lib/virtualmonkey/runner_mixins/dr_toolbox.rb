@@ -87,6 +87,7 @@ module VirtualMonkey
     #  behavior(:run_script, "do_force_reset", s_one)
     #  sleep 10
       behavior(:run_script, "setup_block_device", s_one)
+      sleep 10
       probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=200")
       sleep 10
       behavior(:run_script, "do_backup_s3", s_one)
@@ -112,7 +113,7 @@ module VirtualMonkey
       #behavior(:run_script, "do_force_reset", s_one)
       #sleep 10
       behavior(:run_script, "setup_block_device", s_one)
-      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=1M count=500")
+      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=500")
       sleep 100
       behavior(:run_script, "do_backup_ebs", s_one)
       wait_for_snapshots
@@ -138,7 +139,8 @@ module VirtualMonkey
     #  behavior(:run_script, "do_force_reset", s_one)
     #  sleep 10
       behavior(:run_script, "setup_block_device", s_one)
-      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=1M count=500")
+      sleep 10
+      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=200")
       sleep 10
       behavior(:run_script, "do_backup_cloud_files", s_one)
       sleep 10
