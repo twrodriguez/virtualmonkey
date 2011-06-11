@@ -22,14 +22,16 @@ class DeploymentMonk
     pp @deployments.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
   end
 
-  def initialize(tag, server_templates = [], extra_images = [], suppress_monkey_warning = false)
+  def initialize(tag, server_templates = [], extra_images = [], suppress_monkey_warning = false, single_deployment = false)
     @clouds = []
+    @single_deployment = single_deployment
     @tag = tag
     @deployments = from_tag
     @server_templates = []
     @common_inputs = {}
     @variables_for_cloud = {}
     @ssh_keys, @security_groups, @datacenters = {}, {}, {}
+    print "\n single_deployment: " + @single_deployment.to_s + "\n"
     raise "Need either populated deployments or passed in server_template ids" if server_templates.empty? && @deployments.empty?
     if server_templates.empty?
       puts "loading server templates from all deployments"
@@ -54,8 +56,7 @@ class DeploymentMonk
       end
       @server_templates << st unless st.nickname =~ /virtual *monkey/i
     end
-
-    
+    raise "Error: To launch a single deployment a maximum of one server template is allowed " if ((@server_templates.length > 1) && @single_deployment)
   end
 
 #mci = MultiCloudImageInternal.find(mci_id)
@@ -65,6 +66,7 @@ class DeploymentMonk
 #mcis.each { |mci| mci["multi_cloud_image_cloud_settings"].each { |setting| puts setting["cloud_id"] } }
 
   def generate_variations(options = {})
+    dep_image_names = nil  # This variable holds the names of the images in the deployment
     @image_count = 0
     @server_templates.each do |st|
       new_st = ServerTemplateInternal.new(:href => st.href)
@@ -97,6 +99,11 @@ class DeploymentMonk
     if options[:mci_override] && !options[:mci_override].empty?
       @image_count = options[:mci_override].size
     end
+    
+    dep_tempname = nil
+    new_deploy = nil
+    nick_name_holder = [] # this variable is used when we want to create a single deployment and we use it to name the deployment properly 
+    deployment_created = false # this variable is used to control creating a single deployment 
     @image_count.times do |index|
       @clouds.each do |cloud|
         if @variables_for_cloud[cloud] == nil
@@ -131,12 +138,22 @@ class DeploymentMonk
           puts "MCI doesn't contain an image that supports cloud #{cloud}. Skipping..."
           next
         end
-        dep_tempname = "#{@tag}-cloud_#{cloud}-#{rand(1000000)}-"
-        dep_image_list = []
-        new_deploy = Deployment.create(:nickname => dep_tempname)
-        @deployments << new_deploy
-        @server_templates.each do |st|
-          #Select an MCI to use
+
+             = []
+         if(@single_deployment && !deployment_created)
+            deployment_created = true
+            dep_tempname = "#{@tag}-cloud_multicloud-#{rand(1000000)}-" 
+            new_deploy = Deployment.create(:nickname => dep_tempname)
+            @deployments << new_deploy
+         elsif !@single_deployment
+            dep_tempname = "#{@tag}-cloud_#{cloud}-#{rand(1000000)}-" 
+            new_deploy = Deployment.create(:nickname => dep_tempname)
+            @deployments << new_deploy
+          end
+      
+ @server_templates.each do |st|
+        nick_name_holder << st.nickname  ## place the nickname into the array
+        #Select an MCI to use
           if options[:mci_override] && !options[:mci_override].empty?
             mci = MultiCloudImageInternal.new(:href => options[:mci_override][index])
 	          mci.reload
@@ -144,16 +161,19 @@ class DeploymentMonk
             use_this_image = use_this_image_setting["image_href"]
             use_this_instance_type = use_this_image_setting["aws_instance_type"]
             dep_image_list << MultiCloudImage.find(options[:mci_override][index]).name.gsub(/ /,'_')
+              dep_image_names =  MultiCloudImage.find(options[:mci_override][index]).name.gsub(/ /,'_')
           elsif options[:only]
             subset = st.multi_cloud_images.select { |mci| mci['name'] =~ /#{options[:only]}/ }
             if subset[index]
               dep_image_list << subset[index]['name'].gsub(/ /,'_')
+               dep_image_names =  subset[index]['name'].gsub(/ /,'_')
               use_this_image = subset[index]['href']
             else
               use_this_image = subset[0]['href']
             end
           elsif st.multi_cloud_images[index]
             dep_image_list << st.multi_cloud_images[index]['name'].gsub(/ /,'_')
+            dep_image_names = st.multi_cloud_images[index]['name'].gsub(/ /,'_')
             use_this_image = st.multi_cloud_images[index]['href']
           else
             use_this_image = st.multi_cloud_images[0]['href']
@@ -164,7 +184,10 @@ class DeploymentMonk
             inputs << { "name" => key, "value" => val }
           end
           #Set Server Creation Parameters
-          server_params = { "nickname" => "#{@tag[0...2]}-#{rand(10000)}-#{st.nickname}",
+          serv_name = "#{@tag[0...2]}-#{rand(10000)}-#{st.nickname}-#{dep_image_names}" if @single_deployment
+          serv_name = "#{@tag[0...2]}-#{rand(10000)}-#{st.nickname}" unless @single_deployment
+          serv_name = "#{@tag[0...2]}-#{rand(100)}" if cloud.to_s == "232"
+          server_params = { "nickname" => serv_name
                             "deployment_href" => new_deploy.href.dup,
                             "server_template_href" => st.href.dup,
                             "cloud_id" => cloud,
@@ -216,6 +239,11 @@ class DeploymentMonk
         end
       end
     end
+        if(@single_deployment)
+          new_deploy.nickname = dep_tempname + nick_name_holder.uniq.join("_AND_") + "- Single_DEP"
+          new_deploy.save
+         # set_inputs(new_deploy, @common_inputs)
+        end
   end
 
   def load_common_inputs(file)
