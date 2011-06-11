@@ -157,17 +157,18 @@ class DeploymentMonk
         end
 
         # Create Deployment for this MCI and cloud
-         if(@single_deployment && !deployment_created)
-            deployment_created = true
-            dep_tempname = "#{@tag}-cloud_multicloud-#{rand(1000000)}-" 
-            new_deploy = Deployment.create(:nickname => dep_tempname)
-            @deployments << new_deploy
-         elsif !@single_deployment
-            dep_tempname = "#{@tag}-cloud_#{cloud}-#{rand(1000000)}-" 
-            new_deploy = Deployment.create(:nickname => dep_tempname)
-            @deployments << new_deploy
-          end
-      
+        if @single_deployment && !deployment_created
+          deployment_created = true
+          dep_tempname = "#{@tag}-cloud_multicloud-#{rand(1000000)}-" 
+          new_deploy = Deployment.create(:nickname => dep_tempname)
+          @deployments << new_deploy
+        elsif !@single_deployment
+          dep_tempname = "#{@tag}-cloud_#{cloud}-#{rand(1000000)}-" 
+          new_deploy = Deployment.create(:nickname => dep_tempname)
+          @deployments << new_deploy
+        end
+
+        dep_image_list = []      
         @server_templates.each do |st|
           nick_name_holder << st.nickname  ## place the nickname into the array
           #Select an MCI to use
@@ -209,7 +210,7 @@ class DeploymentMonk
           serv_name = "#{@tag[0...2]}-#{rand(10000)}-#{st.nickname}-#{dep_image_names}" if @single_deployment
           serv_name = "#{@tag[0...2]}-#{rand(10000)}-#{st.nickname}" unless @single_deployment
           serv_name = "#{@tag[0...2]}-#{rand(100)}" if cloud.to_s == "232"
-          server_params = { "nickname" => serv_name
+          server_params = { "nickname" => serv_name,
                             "deployment_href" => new_deploy.href.dup,
                             "server_template_href" => st.href.dup,
                             "cloud_id" => cloud,

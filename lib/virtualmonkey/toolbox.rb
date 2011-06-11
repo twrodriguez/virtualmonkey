@@ -1,8 +1,8 @@
-begin
+if File.exists?("/var/spool/cloud/user-data")
   require '/var/spool/cloud/user-data'
   require '/var/spool/cloud/meta-data-cache'
   ENV['I_AM_IN_EC2'] = "true"
-rescue
+else
   ENV['RS_API_URL'] = "#{ENV['USER']}-#{`hostname`}".strip
 end
 
