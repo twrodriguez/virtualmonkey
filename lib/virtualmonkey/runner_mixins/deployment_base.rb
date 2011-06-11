@@ -44,14 +44,14 @@ module VirtualMonkey
         puts "Got \"Insufficient capacity\". Retrying...."
         sleep 60
         incr_retry_loop
-        return "Exception Handled"
+        return true # Exception Handled
       elsif e.message =~ /Service Temporarily Unavailable/ and @retry_loop.last < 30
         puts "Got \"Service Temporarily Unavailable\". Retrying...."
         sleep 10
         incr_retry_loop
-        return "Exception Handled"
+        return true # Exception Handled
       else
-        raise e
+        return false
       end
     end
 

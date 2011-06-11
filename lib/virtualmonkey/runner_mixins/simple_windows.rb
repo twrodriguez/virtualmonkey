@@ -9,14 +9,14 @@ module VirtualMonkey
         puts "Got \"#{e.message}\". Retrying...."
         sleep 60
         incr_retry_loop
-        return "Exception Handled"
+        return true # Exception Handled
       elsif e.message =~ /this server is stranded and needs to be operational/ and @retry_loop.last < 60
         puts "Got \"#{e.message}\". Retrying...."
         sleep 60
         incr_retry_loop
-        return "Exception Handled"
+        return true # Exception Handled
       else
-        raise e
+        return false
       end
     end
   end

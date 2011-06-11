@@ -11,6 +11,8 @@
 # Then I should stop the servers
   @runner.behavior(:stop_all)
 
+  @runner.behavior(:raise_exception)
+
 # Then I should stop the servers
   @runner.behavior(:launch_all)
 

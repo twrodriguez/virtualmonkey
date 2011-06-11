@@ -135,11 +135,9 @@ module VirtualMonkey
       exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m != "__exception_handle__" }
       
       exception_handle_methods.each { |m|
-        begin
-          self.__send__(m,e)
-          # If an exception_handle method doesn't raise an exception, it handled correctly
-          return "Exception Handled"
-        rescue
+        if self.__send__(m,e)
+          # If an exception_handle method doesn't return false, it handled correctly
+          return true # Exception Handled
         end
       }
       # Exception wasn't handled

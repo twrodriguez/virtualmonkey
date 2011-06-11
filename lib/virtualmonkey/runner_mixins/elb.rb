@@ -43,13 +43,13 @@ module VirtualMonkey
     private
 
     def elb_exception_handle(e)
-      if e.message =~ /throttling/i
+      if e.message =~ /throttling/i and @retry_loop.last < 10
         puts "Rescuing ELB error: #{e.message}"
-        raise "FATAL: Exceeded ELB retry limit" unless @retry_loop.last < 10
         sleep (rand(60))
         incr_retry_loop
+        return true # Exception Handled
       else
-        raise e
+        return false
       end  
     end
 

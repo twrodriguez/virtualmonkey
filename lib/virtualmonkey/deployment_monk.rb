@@ -42,7 +42,7 @@ class DeploymentMonk
     @common_inputs = {}
     @variables_for_cloud = {}
     @ssh_keys, @security_groups, @datacenters = {}, {}, {}
-    print "\n single_deployment: " + @single_deployment.to_s + "\n"
+    puts "single_deployment: true" if @single_deployment
     raise "Need either populated deployments or passed in server_template ids" if server_templates.empty? && @deployments.empty?
 
     # Get list of unique server_template ids
@@ -158,19 +158,20 @@ class DeploymentMonk
 
         # Create Deployment for this MCI and cloud
         if @single_deployment && !deployment_created
-          deployment_created = true
-          dep_tempname = "#{@tag}-cloud_multicloud-#{rand(1000000)}-" 
+          dep_tempname = "#{@tag}-cloud_#{cloud}-#{rand(1000000)}-"
+          dep_tempname = "#{@tag}-cloud_multicloud-#{rand(1000000)}-" if @clouds.length > 1
           new_deploy = Deployment.create(:nickname => dep_tempname)
           @deployments << new_deploy
+          deployment_created = true
         elsif !@single_deployment
-          dep_tempname = "#{@tag}-cloud_#{cloud}-#{rand(1000000)}-" 
+          dep_tempname = "#{@tag}-cloud_#{cloud}-#{rand(1000000)}-"
           new_deploy = Deployment.create(:nickname => dep_tempname)
           @deployments << new_deploy
         end
 
-        dep_image_list = []      
+        dep_image_list = []
         @server_templates.each do |st|
-          nick_name_holder << st.nickname  ## place the nickname into the array
+          nick_name_holder << st.nickname.gsub(/ /,'_')  ## place the nickname into the array
           #Select an MCI to use
           if options[:mci_override] && !options[:mci_override].empty?
             mci = MultiCloudImageInternal.new(:href => options[:mci_override][index])
@@ -268,11 +269,10 @@ class DeploymentMonk
         end
       end
     end
-        if(@single_deployment)
-          new_deploy.nickname = dep_tempname + nick_name_holder.uniq.join("_AND_") + "- Single_DEP"
-          new_deploy.save
-         # set_inputs(new_deploy, @common_inputs)
-        end
+    if @single_deployment
+      new_deploy.nickname = dep_tempname + nick_name_holder.uniq.join("_AND_") + "-ALL_IN_ONE"
+      new_deploy.save
+    end
   end
 
   def load_common_inputs(file)
