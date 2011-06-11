@@ -34,7 +34,7 @@ module VirtualMonkey
         super(*args)
       rescue Exception => e
         if not self.__send__(:__exception_handle__, e)
-          unless ENV['MONKEY_NO_DEBUG'] == "true"
+          if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['MONKEY_POST_MORTEM'] != "true"
             puts "Got exception: #{e.message}" if e
             puts "Backtrace: #{e.backtrace.join("\n")}" if e
             puts "Pausing for inspection before continuing to raise Exception..."
