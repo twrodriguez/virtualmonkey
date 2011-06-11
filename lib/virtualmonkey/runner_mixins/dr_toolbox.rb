@@ -24,7 +24,7 @@ module VirtualMonkey
         kind_params = s.parameters
         @lineage = kind_params['DB_LINEAGE_NAME'].gsub(/text:/, "")
       end
-      snapshots = Ec2EbsSnapshot.find_by_cloud_id(@servers.first.cloud_id).select { |n| n.nickname =~ /#{@lineage}.*$/ }
+      snapshots = Ec2EbsSnapshot.find_by_cloud_id(@servers.first.cloud_id).select { |n| n.tags.include?({"name"=>"rs_backup:lineage=#{@lineage}"}) }
     end
 
     # Returns the timestamp of the latest snapshot for testing OPT_DB_RESTORE_TIMESTAMP_OVERRIDE
@@ -87,6 +87,7 @@ module VirtualMonkey
     #  behavior(:run_script, "do_force_reset", s_one)
     #  sleep 10
       behavior(:run_script, "setup_block_device", s_one)
+      sleep 10
       probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=200")
       sleep 10
       behavior(:run_script, "do_backup_s3", s_one)
@@ -112,20 +113,21 @@ module VirtualMonkey
       #behavior(:run_script, "do_force_reset", s_one)
       #sleep 10
       behavior(:run_script, "setup_block_device", s_one)
-      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=1M count=500")
-      sleep 10
+      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=500")
+      sleep 100
       behavior(:run_script, "do_backup_ebs", s_one)
       wait_for_snapshots
+      sleep 100
       behavior(:run_script, "do_force_reset", s_one)
 # need to wait here for the volume status to settle (detaching)
-      sleep 300
+      sleep 400
       behavior(:run_script, "do_restore_ebs", s_one)
       probe(s_one, "ls /mnt/storage") do |result, status|
         raise "FATAL: no files found in the backup" if result == nil || result.empty?
         true
       end
       behavior(:run_script, "do_force_reset", s_one)
-      sleep 300
+      sleep 400
       behavior(:run_script, "do_restore_ebs", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
       probe(s_one, "ls /mnt/storage") do |result, status|
         raise "FATAL: no files found in the backup" if result == nil || result.empty?
@@ -137,7 +139,8 @@ module VirtualMonkey
     #  behavior(:run_script, "do_force_reset", s_one)
     #  sleep 10
       behavior(:run_script, "setup_block_device", s_one)
-      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=1M count=500")
+      sleep 10
+      probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=200")
       sleep 10
       behavior(:run_script, "do_backup_cloud_files", s_one)
       sleep 10

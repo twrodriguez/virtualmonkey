@@ -12,9 +12,11 @@ module VirtualMonkey
         opt :clouds, "Space-separated list of cloud_ids to use", :type => :integers, :short => '-i'
         opt :only, "Regex string to use for subselection matching on MCIs to enumerate Eg. --only Ubuntu", :type => :string
         opt :no_spot, "Do not use spot instances"
+        opt :single_deployment, "specify whether you want a single deployment for a single server_template", :short =>'-z'
       end
       raise "Either --cloud_variables or --clouds is required" unless @@options[:cloud_variables] or @@options[:clouds]
-      @@dm = DeploymentMonk.new(@@options[:tag], @@options[:server_template_ids])
+      #raise "You must select a single cloud id to create a singe deployment" if( @@options[:single_deployment] && (@@options[:cloud_override] == nil || @@options[:cloud_override].length != 1))  # you must select at most and at minimum 1 cloud to work on when the -z is selected
+      @@dm = DeploymentMonk.new(@@options[:tag], @@options[:server_template_ids],[],false, @@options[:single_deployment])
       create_logic
     end
   end

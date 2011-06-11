@@ -1,0 +1,10 @@
+{
+  "tag":"JENKINS_TROOP",
+  "runner":"JenkinsRunner",
+  "common_inputs":["jenkins.json","dr_toolbox.json"],
+  "server_template_ids":[
+    "108414"
+  ],
+  "feature":"jenkins.rb",
+  "cloud_variables":"all_clouds.json"
+}

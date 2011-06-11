@@ -17,8 +17,9 @@ module VirtualMonkey
         opt :qa, "Before destroying deployments, does a strict blacklist check (ignores whitelist)"
         opt :cloud_override, "Space-separated list of cloud_ids to use", :type => :integers, :short => '-i'
         opt :only, "Regex string to use for subselection matching on MCIs to enumerate Eg. --only Ubuntu", :type => :string
+        opt :single_deployment, "specify whether you want a single deployment for a single server_template", :short =>'-z'
       end
-
+      #raise "You must select a single cloud id to create a singe deployment" if( @@options[:single_deployment] && (@@options[:cloud_override] == nil || @@options[:cloud_override].length != 1))  # you must select at most and at minimum 1 cloud to work on when the -z is selected
       # PATHs SETUP
       features_glob = Dir.glob(File.join(@@features_dir, "**")).collect { |c| File.basename(c) }
       cloud_variables_glob = Dir.glob(File.join(@@cv_dir, "**")).collect { |c| File.basename(c) }
@@ -94,7 +95,7 @@ module VirtualMonkey
 
         # CREATE PHASE
         if @@options[:steps] =~ /((all)|(create))/
-          @@dm = DeploymentMonk.new(@@options[:tag], config['server_template_ids'])
+          @@dm = DeploymentMonk.new(@@options[:tag], config['server_template_ids'], [],false, @@options[:single_deployment])
           unless @@dm.deployments.size > 0
             create_logic # NEW INTERNAL COMMAND
           else

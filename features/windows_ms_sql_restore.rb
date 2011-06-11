@@ -18,9 +18,12 @@
   @runner.behavior(:wait_for_all, "operational")
 
 # Then I should check that monitoring is enabled
-#  @runner.behavior(:check_monitoring)
+  @runner.behavior(:check_monitoring)
 
-# Then I should check all the scripts in the template
-  @runner.behavior(:run_script_on_all, "DB SQLS restore data volume")
+
+# Then I should check that monitoring is enabled
+  @runner.behavior(:run_script_on_all, "EBS Restore data and log volumes")
   @runner.behavior(:run_script_on_all, "sql_db_check")
+  @runner.behavior(:run_script_on_all, "DB SQLS Rename instance")
+  @runner.behavior(:run_script_on_all, "new_name_check")
 

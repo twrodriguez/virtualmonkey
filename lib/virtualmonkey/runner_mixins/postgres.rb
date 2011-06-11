@@ -154,7 +154,7 @@ module VirtualMonkey
     # These are PostgreSQL specific checks
     def run_checks
       # check that backup cron script exits success
-      @servers.each do |server|
+      [s_one, s_two].each do |server|
         chk1 = probe(server, "/usr/local/bin/pgsql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
 
         chk2 = probe(server, "/usr/local/bin/pgsql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
@@ -208,7 +208,7 @@ module VirtualMonkey
     # This is where we perform multiple checks on the deployment after a reboot.
     def run_reboot_checks
       # one simple check we can do is the backup.  Backup can fail if anything is amiss
-      @servers.each do |server|
+      [s_one, s_two].each do |server|
         behavior(:run_script, "backup", server)
       end
     end
@@ -227,17 +227,17 @@ module VirtualMonkey
                         {"plugin_name"=>"postgresql-i_heart_monkey", "plugin_type"=>"pg_n_tup_c-ins"},
                         {"plugin_name"=>"postgresql-i_heart_monkey", "plugin_type"=>"pg_n_tup_c-upd"}
                       ]
-      @servers.each do |server|
+      [s_one, s_two].each do |server|
         unless server.multicloud
 # PostgreSQL commands to generate data for collectd to return
           for ii in 1...100
 #TODO: have to select db with every call.  figure a better way to do this and get rid of fast and ugly
 # cut and past hack.
-            behavior(:run_query, "create table test#{ii}(test text)", server, "i_heart_monkey")
-            behavior(:run_query, "insert into test#{ii} values ('1')", server, "i_heart_monkey")
-            behavior(:run_query, "update test#{ii} set test='2'", server, "i_heart_monkey")
-            behavior(:run_query, "select * from test#{ii}", server, "i_heart_monkey")
-            behavior(:run_query, "delete from test#{ii}", server, "i_heart_monkey")
+            behavior(:run_query, "create table test#{ii}(test text); insert into test#{ii} values ('1'); update test#{ii} set test='2'; select * from test#{ii}; delete from test#{ii};", server, "i_heart_monkey")
+#            behavior(:run_query, "insert into test#{ii} values ('1')", server, "i_heart_monkey")
+#            behavior(:run_query, "update test#{ii} set test='2'", server, "i_heart_monkey")
+#            behavior(:run_query, "select * from test#{ii}", server, "i_heart_monkey")
+#            behavior(:run_query, "delete from test#{ii}", server, "i_heart_monkey")
           end
           db_plugins.each do |plugin|
             monitor = obj_behavior(server, :get_sketchy_data, {'start' => -60,

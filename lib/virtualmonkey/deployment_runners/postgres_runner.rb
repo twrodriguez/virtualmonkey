@@ -23,11 +23,11 @@ module VirtualMonkey
                  [ 'monitor_add', 'PostgreSQL Add DB monitoring' ],
                  [ 'promote', 'DB EBS PostgreSQL promote to master' ],
                  [ 'restore', 'PostgreSQL restore and become' ],
-                 [ 'slave_init', 'DB EBS PostgreSQL slave init' ],
+                 [ 'slave_init', 'DB EBS PostgreSQL slave init -' ],
+                 [ 'grow_volume', 'DB EBS PostgreSQL slave init and grow stripe volume' ],
                  [ 'terminate', 'PostgreSQL TERMINATE SERVER' ],
                  [ 'unfreeze_backups', 'DB PostgreSQL Unfreeze' ]
                ]
-      raise "FATAL: Need 2 PostgreSQL servers in the deployment" unless @servers.size == 2
 
       st = ServerTemplate.find(resource_id(s_one.server_template_href))
       load_script_table(st,scripts)
