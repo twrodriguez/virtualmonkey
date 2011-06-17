@@ -65,19 +65,15 @@ class GrinderJob
   end
 
   # Launch an asynchronous process
-  def run(deployment, cmd)
+  def run(cmd)
     RightScale.popen3(:command        => cmd,
-                        :target         => self,
-                        :environment    => {"DEPLOYMENT" => deployment.nickname,
-                                            "AWS_ACCESS_KEY_ID" => Fog.credentials[:aws_access_key_id],
-                                            "AWS_SECRET_ACCESS_KEY" => Fog.credentials[:aws_secret_access_key],
-                                            "REST_CONNECTION_LOG" => @rest_log,
-                                            "EXECUTION_TRACE_LOG" => @trace_log,
-                                            "MONKEY_NO_RESUME" => "#{@no_resume}",
-                                            "MONKEY_NO_DEBUG" => "true"},
-                        :stdout_handler => :on_read_stdout,
-                        :stderr_handler => :on_read_stderr,
-                        :exit_handler   => :on_exit)
+                      :target         => self,
+                      :environment    => {"AWS_ACCESS_KEY_ID" => Fog.credentials[:aws_access_key_id],
+                                          "AWS_SECRET_ACCESS_KEY" => Fog.credentials[:aws_secret_access_key],
+                                          "REST_CONNECTION_LOG" => @rest_log},
+                      :stdout_handler => :on_read_stdout,
+                      :stderr_handler => :on_read_stderr,
+                      :exit_handler   => :on_exit)
   end
 end
 
@@ -87,19 +83,21 @@ class GrinderMonk
   # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
   # * feature<~String> the feature filename 
-  def run_test(deployment, feature)
+  def run_test(deployment, feature, test_ary)
     new_job = GrinderJob.new
     new_job.logfile = File.join(@log_dir, "#{deployment.nickname}.log")
     new_job.rest_log = File.join(@log_dir, "#{deployment.nickname}.rest_connection.log")
-    new_job.trace_log = File.join(@log_dir, "#{File.basename(feature, ".rb")}.yaml")
     new_job.deployment = deployment
-    new_job.no_resume = "true" if @options[:no_resume]
+#    new_job.trace_log = File.join(@log_dir, "#{File.basename(feature, ".rb")}.yaml")
     new_job.verbose = true if @options[:verbose]
-    break_point = @options[:breakpoint] if @options[:breakpoint]
-    cmd = "bin/grinder #{feature} #{break_point}"
+#    break_point = @options[:breakpoint] if @options[:breakpoint] XXX DEPRECATED XXX
+#    cmd = "bin/grinder #{feature} #{break_point}"
+    cmd = "bin/grinder -f #{feature} -d \"#{deployment.nickname}\" -g -l #{new_job.logfile} -t "
+    test_ary.each { |test| cmd += " \"#{test}\" " }
+    cmd += " -n " if @options[:no_resume]
     @jobs << new_job
     puts "running #{cmd}"
-    new_job.run(deployment, cmd)
+    new_job.run(cmd)
   end
 
   def initialize()
@@ -118,8 +116,22 @@ class GrinderMonk
   # runs a feature on an array of deployments
   # * deployments<~Array> array of strings containing the nicknames of the deployments
   # * feature_name<~String> the feature filename 
-  def run_tests(deployments,cmd)
-    deployments.each { |d| run_test(d,cmd) }
+  def run_tests(deployments,cmd,set=[])
+    test_case = VirtualMonkey::TestCase.new(@options[:feature], @options)
+    total_keys = test_case.get_keys
+    total_keys = total_keys - (total_keys - set) unless set.empty?
+    keys_per_dep = (total_keys.length.to_f / deployments.length.to_f).ceil
+   
+    deployment_tests = []
+    (keys_per_dep * deployments.length).times { |i|
+      di = i % deployments.length
+      deployment_tests[di] ||= []
+      deployment_tests[di] << total_keys[i % total_keys.length]
+    }
+
+    deployments.each_with_index { |d,i| 
+      run_test(d,cmd,deployment_tests[i]) 
+    }
   end
 
   # Print status of jobs. Also watches for jobs that had exit statuses other than 0 or 1
@@ -129,7 +141,7 @@ class GrinderMonk
     old_running = @running
     old_sum = old_passed.size + old_failed.size + old_running.size
     @passed = @jobs.select { |s| s.status == 0 }
-    @failed = @jobs.select { |s| s.status == 1 }
+    @failed = @jobs.select { |s| s.status != 0 && s.status != nil }
     @running = @jobs.select { |s| s.status == nil }
     new_sum = @passed.size + @failed.size + @running.size
     puts "#{@passed.size} features passed.  #{@failed.size} features failed.  #{@running.size} features running for #{Time.now - @started_at}"
@@ -182,7 +194,6 @@ class GrinderMonk
         done = 0
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.logfile)}", IO.read(j.logfile), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.rest_log)}", IO.read(j.rest_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
-        s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.trace_log)}", IO.read(j.trace_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read') if j.status == 0
         done = 1
       rescue Exception => e
         unless e.message =~ /Bad file descriptor|no such file or directory/i

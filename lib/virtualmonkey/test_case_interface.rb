@@ -5,29 +5,20 @@ end
 
 module VirtualMonkey
   # Class Variables meant to be globally accessible, used for stack tracing
-  def self.feature_file=(obj)
-    @@feature_file = obj
+  def self.trace_log=(obj)
+    @@trace_log = obj
   end
 
-  def self.feature_file
-    @@feature_file ||= nil
+  def self.trace_log
+    @@trace_log ||= []
   end
 
   module TestCaseInterface
-    # set_var is called on every run-through whether a clean run or a resume, it is intended
-    # for functions that set up state in the ruby process that doesn't get saved across executions
-    def set_var(sym, *args, &block)
-      behavior(sym, *args, &block)
+    # Overrides puts to provide slightly better logging
+    def puts(*args)
+      write_readable_log("#{args}")
     end
 
-    # Overrides backtick to provide stack tracing
-    def `(cmd)
-      execution_stack_trace("system", [cmd])
-      ret = super(cmd)
-      clean_stack_trace
-      ret
-    end
-  
     # Overrides raise to provide deep debugging abilities
     def raise(*args)
       begin
@@ -50,20 +41,65 @@ module VirtualMonkey
     end
 
     # Gets called from runner_mixins/deployment_base.rb: initialize(...)
-    def test_case_interface_init
+    def test_case_interface_init(options = {})
       @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
       @rerun_last_command = []
-      @stack_objects = []         # array holding the top most objects in the stack
-      @iterating_stack = []       # stack that iterates
+      # @stack_objects is an array of referenced arrays in the current call stack
+      @stack_objects = []
+      # @iterating_stack is the current scope of same-depth calls to which strings are appended
+      @iterating_stack = []
       @retry_loop = []
+      @done_resuming = true
+      @in_transaction = false
+      @already_in_transaction = false
+      @options = options
+      @deprecation_error = `curl -s "www.kdegraaf.net/cgi-bin/bofh" | grep -o "<b>.*</b>"`
+      @deprecation_error.gsub!(/<\/*b>/,"")
+      @deprecation_error.chomp!
+      if @options[:resume_file] && File.exists?(@options[:resume_file])
+        @done_resuming = false     
+      end
+      VirtualMonkey::trace_log << { "feature_file" => @options[:file] }
+      write_readable_log("feature_file: #{@options[:file]}")
+      # Do renaming stuff
+      all_methods = self.methods + self.private_methods -
+                    Object.new().methods - Object.new().private_methods -
+                    VirtualMonkey::TestCaseInterface.instance_methods -
+                    VirtualMonkey::TestCaseInterface.private_instance_methods
+      behavior_methods = all_methods.select { |m| m !~ /(^set)|(exception_handle)|(^__.*__$)|(resource_id)|(^__behavior)/i }
+      # SKIP this if we've already done the alias_method dance
+      return if self.respond_to?("__behavior_#{behavior_methods.first}".to_sym)
+
+      behavior_methods.each do |m|
+        new_m = "__behavior_#{m}"
+        self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{m}, *args, &block); end")
+      end
     end
     
-    # behavior is meant to wrap every function call to provide the following functionality:
+    def function_wrapper(sym, *args, &block)
+      @retry_loop << 0
+      execution_stack_trace(sym, args) unless block
+      execution_stack_trace(sym, args, nil, block.to_ruby) if block
+      begin
+        push_rerun_test
+        #pre-command
+        populate_settings if @deployment
+        #command
+        result = __send__("__behavior_#{sym}".to_sym, *args, &block)
+        #post-command
+        continue_test
+      end while @rerun_last_command.pop
+      write_trace_log
+      @retry_loop.pop
+      result
+    end
+
+    # verify is meant to wrap every function call to provide the following functionality:
     # * Execution Tracing
     # * Exception Handling
     # * Runner-Contextual Debugging
     # * Built-in retrying
-    def behavior(sym, *args, &block)
+    def verify(sym, *args, &block)
       @retry_loop << 0
       execution_stack_trace(sym, args)
       begin
@@ -89,50 +125,83 @@ module VirtualMonkey
       result
     end
 
-    # probe executes a shell command over ssh to a set of servers is provides the following functionality:
-    # * Execution Tracing
-    # * Exception Handling
-    # * Runner-Contextual Debugging
-    # * Built-in retrying
-    def probe(set, command, &block)
-      # run command on set over ssh
-      result_output = ""
-      result_status = true
-      @retry_loop << 0
-      set_ary = select_set(set)
-      execution_stack_trace("probe", [set_ary, command])
-
-      set_ary.each { |s|
-        begin
-          push_rerun_test
-          result_temp = s.spot_check_command(command)
-          if block
-            if not yield(result_temp[:output],result_temp[:status])
-              raise "FATAL: Server #{s.nickname} failed probe. Got #{result_temp[:output]}"
-            end
-          end
-          continue_test
-        end while @rerun_last_command.pop
-        result_output += result_temp[:output]
-        result_status &&= (result_temp[:status] == 0)
-      }
-      clean_stack_trace
-      @retry_loop.pop
-      result_status
-    end
-
     # Launches an irb debugging session if 
     def launch_irb_session(debug = false)
       IRB.start unless debug
       debugger if debug
     end
 
+    # transaction doesn't quite live up to its namesake. It only implies all-or-nothing resume capabilities,
+    # rather than all-or-nothing execution.
+    def transaction(ordered_ary = nil, &block)
+      # TODO: Manage threaded execution across the elements of the ordered_ary. Remember to shift from a
+      # duplicated ary rather than passing in args.
+      #
+      # threads = []
+      # audits.each { |audit| threads << Thread.new(audit) { |a| a.wait_for_completed } }
+      # threads.each { |t| t.join }
+      #
+      execution_stack_trace("transaction", [], nil, block.to_ruby)
+      if @in_transaction
+        @already_in_transaction = true
+      else
+        @in_transaction = true
+        real_stack_objects = @stack_objects
+        real_iterating_stack = @iterating_stack
+        real_trace_log = VirtualMonkey::trace_log
+        VirtualMonkey::trace_log = []
+        @stack_objects = []
+        @iterating_stack = []
+      end
+
+      result = nil
+      begin
+        #NOTE: Do not include retrying capabilities for transactions, it messes up trace_log
+        populate_settings if @deployment
+        if not @done_resuming
+          if real_trace_log == YAML::load(IO.read(@options[:resume_file]))
+            @done_resuming = true
+          end
+        end
+        result = yield() if @done_resuming
+      ensure
+        if @already_in_transaction
+          @already_in_transaction = false
+        else
+          # Merge transaction's trace 
+          # NOTE: Needs to write out to readable log ONLY
+          # Return class and instance variables to normal
+          @iterating_stack = real_iterating_stack
+          @stack_objects = real_stack_objects
+          VirtualMonkey::trace_log = real_trace_log
+        end
+      end
+      write_trace_log
+      @in_transaction = false
+      result
+    end
+
+    def write_readable_log(data)
+      if @options[:log]
+        data_ary = data.split("\n")
+        data_ary.each_index do |i|
+          data_ary[i] = timestamp + ("  " * @rerun_last_command.length) + data_ary[i]
+        end
+        File.open(@options[:log], "a") { |f| f.puts(data_ary.join("\n")) }
+      end
+    end
+
     private
+
+    def obj_behavior(obj, sym, *args)
+      puts "#{@deprecation_error.upcase} occured!  You are using a depricated method called 'obj_behavior'"
+      transaction { obj.__send__(sym, *args) }
+    end
 
     # Master exception_handle method. Calls all other exception handlers
     def __exception_handle__(e)
       all_methods = self.methods + self.private_methods
-      exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m != "__exception_handle__" }
+      exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m !~ /^__/ }
       
       exception_handle_methods.each { |m|
         if self.__send__(m,e)
@@ -148,7 +217,7 @@ module VirtualMonkey
     def __list_loader__
       all_methods = self.methods + self.private_methods
       MessageCheck::LISTS.each do |list|
-        list_methods = all_methods.select { |m| m =~ /#{list}/ }
+        list_methods = all_methods.select { |m| m =~ /#{list}/ and m !~ /^__/ }
         list_methods.each do |m|
           result = self.__send__(m)
           @log_checklists[list] += result if result.is_a?(Array)
@@ -159,16 +228,6 @@ module VirtualMonkey
     # debugger irb help function
     def help
       puts "Here are some of the wrapper methods that may be of use to you in your debugging quest:\n"
-      puts "behavior(sym, *args, &block): Pass the method name (as a symbol or string) and the optional arguments"
-      puts "                              that you wish to pass to that method; behavior() will call that method"
-      puts "                              with those arguments while handling nested exceptions, retries, and"
-      puts "                              debugger calls. If a block is passed, it should take one argument, the"
-      puts "                              return value of the function 'sym'. The block should always check"
-      puts "                              if the return value is an Exception or not, and validate accordingly.\n"
-      puts "                              Examples:"
-      puts "                                behavior(:launch_all)"
-      puts "                                behavior(:launch_set, 'Load Balancer')"
-      puts "                                behavior(:run_script_on_all, 'fail') { |r| r.is_a?(Exception) }\n"
       puts "probe(server_set, shell_command, &block): Provides a one-line interface for running a command on"
       puts "                                          a set of servers and verifying their output. The block"
       puts "                                          should take one argument, the output string from one of"
@@ -186,19 +245,35 @@ module VirtualMonkey
 
     # Sets up most of the state for the runners
     def populate_settings
+      @populated ||= false
       unless @populated
+        @populated = true
         @servers = @deployment.servers_no_reload
         @servers.reject! { |s|
           s.settings
           st = ServerTemplate.find(resource_id(s.server_template_href))
           ret = (st.nickname =~ /virtual *monkey/i)
           @server_templates << st unless ret
+          @st_table << [s, st] unless ret
           ret
         }
         @server_templates.uniq!
         self.__send__(:__lookup_scripts__)
         self.__send__(:__list_loader__)
-        @populated = true
+      end
+    end
+
+    def match_servers_by_st(ref)
+      @st_table.select { |s,st| st.href == ref.href }.map { |s,st| s }
+    end
+
+    def match_st_by_server(ref)
+      @st_table.select { |s,st| s.href == ref.href }.last.last
+    end
+
+    def write_trace_log
+      if @done_resuming and @options[:resume_file]
+        File.open(@options[:resume_file], "w") { |f| f.write( VirtualMonkey::trace_log.to_yaml ) }
       end
     end
 
@@ -218,40 +293,9 @@ module VirtualMonkey
           set = @servers.select { |s| s.nickname =~ /#{set}/ }
         end
       end
-      set = behavior(set) if set.is_a?(Symbol)
+      set = __send__(set) if set.is_a?(Symbol)
       set = [ set ] unless set.is_a?(Array)
       return set
-    end
-
-    # obj_behavior is meant to wrap every object member method call to provide the following functionality:
-    # * Execution Tracing
-    # * Exception Handling
-    # * Runner-Contextual Debugging
-    # * Built-in retrying
-    def obj_behavior(obj, sym, *args, &block)
-      execution_stack_trace(sym, args, obj)
-      @retry_loop << 0
-      begin
-        push_rerun_test
-        #pre-command
-        populate_settings if @deployment
-        #command
-        result = obj.__send__(sym, *args)
-        if block
-          raise "FATAL: Failed behavior verification. Result was:\n#{result.inspect}" if not yield(result)
-        end
-        #post-command
-        continue_test
-      rescue Exception => e
-        if block and e.message !~ /^FATAL: Failed behavior verification/
-          raise e if not yield(e)
-        else
-          raise e
-        end
-      end while @rerun_last_command.pop
-      clean_stack_trace
-      @retry_loop.pop
-      result
     end
 
     # Encapsulates the logic necessary for retrying a function
@@ -270,52 +314,40 @@ module VirtualMonkey
       @retry_loop.push(@retry_loop.pop() + 1)
     end
 
+    def timestamp
+      t = Time.now
+      "#{t.strftime("[%m/%d/%Y %H:%M:%S.")}%-6d] " % t.usec
+    end
+
     ##################################
     # Execution Stack Trace Routines #
     ##################################
 
     # Execution Stack Trace function
-    def execution_stack_trace(sym, args, obj=nil)
-      return nil unless VirtualMonkey::feature_file
+    def execution_stack_trace(sym, args, obj=nil, block_text="")
+      return nil unless VirtualMonkey::trace_log
 
       referenced_ary = []
-
       # Stringify Call
       arg_ary = args.map { |item| stringify_arg(item) }
-      call = sym.to_s + "(#{arg_ary.join(", ")})"
+      call = sym.to_s
+      call += "(#{arg_ary.join(", ")})" unless args.empty?
       call = stringify_arg(obj) + "." + call if obj
+      call += block_text.gsub(/proc /, " ") if block_text != ""
       add_hash = { call => referenced_ary }
+      write_readable_log(call)
 
       # Add string to proper place
       if @rerun_last_command.length < @stack_objects.length # shallower or same level call
         @stack_objects.pop(Math.abs(@stack_objects.length - @rerun_last_command.length))
       end
       if @stack_objects.empty?
-        VirtualMonkey::feature_file << add_hash
+        VirtualMonkey::trace_log << add_hash
       else
         @iterating_stack = @stack_objects.last # get the last object from the object stack
         @iterating_stack << add_hash # here were are adding to iterating stack
       end
       @stack_objects << referenced_ary
-    end
-
-    # Cleanup stack trace output
-    def clean_stack_trace
-      # This is ugly code...I apologize, but it works
-      return nil unless VirtualMonkey::feature_file
-      ary = @stack_objects
-      ary = VirtualMonkey::feature_file if ary.first.empty?
-      ary.each { |temp|
-        temp = VirtualMonkey::feature_file unless temp.is_a?(Array)
-        temp.each_index { |i|
-          if temp[i].is_a?(Hash)
-            key = temp[i].keys.first
-            if temp[i][key].is_a?(Array) and temp[i][key].empty?
-              temp[i] = key
-            end
-          end
-        }
-      }
     end
 
     # Stringify stack_trace args

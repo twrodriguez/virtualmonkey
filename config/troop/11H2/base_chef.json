@@ -1,10 +1,10 @@
 {
-  "runner":"SimpleRunner",
+
   "server_template_ids":[
     "104181"
   ],
   "feature":"base.rb",
   "cloud_variables":"all_clouds.json",
-  "tag":"TROOP-chef-base",
+  "prefix":"TROOP-chef-base",
   "common_inputs":"none.json"
 }

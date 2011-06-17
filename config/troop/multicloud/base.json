@@ -1,8 +1,8 @@
 {
-  "tag":"MC_BASE_TROOP",
+  "prefix":"MC_BASE_TROOP",
   "feature":"base.rb",
   "cloud_variables":"all_clouds.json",
-  "runner":"SimpleRunner",
+
   "common_inputs":"base.json",
   "server_template_ids":[
     "91124"

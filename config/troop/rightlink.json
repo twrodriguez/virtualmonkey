@@ -1,10 +1,10 @@
 {
-  "runner":"SimpleRunner",
+
   "server_template_ids":[
     "69025"
   ],
   "feature":"rightlink.feature",
   "cloud_variables":"aws_us_east.json",
-  "tag":"TROOP-rightlink",
+  "prefix":"TROOP-rightlink",
   "common_inputs":"none.json"
 }

@@ -1,8 +1,8 @@
 {
-  "tag":"LAMP_MYSQL51_TROOP",
+  "prefix":"LAMP_MYSQL51_TROOP",
   "feature":"lamp.rb",
   "cloud_variables":"aws_us_east.json",
-  "runner":"SimpleRunner",
+
   "common_inputs":"lamp.json",
   "server_template_ids":[
     "84655"

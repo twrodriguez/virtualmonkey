@@ -1,8 +1,9 @@
 module VirtualMonkey
-  class FeAppRunner
-    include VirtualMonkey::DeploymentBase
-    include VirtualMonkey::ApplicationFrontend
-    include VirtualMonkey::ApplicationFrontendLookupScripts
-
-   end
+  module Runner
+    class FeApp
+      include VirtualMonkey::Mixin::DeploymentBase
+      include VirtualMonkey::Mixin::ApplicationFrontend
+      include VirtualMonkey::Mixin::ApplicationFrontendLookupScripts
+    end
+  end
 end

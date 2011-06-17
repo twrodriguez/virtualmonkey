@@ -1,6 +1,6 @@
 {
-  "tag":"JENKINS_TROOP",
-  "runner":"JenkinsRunner",
+  "prefix":"JENKINS_TROOP",
+
   "common_inputs":["jenkins.json","dr_toolbox.json"],
   "server_template_ids":[
     "108414"

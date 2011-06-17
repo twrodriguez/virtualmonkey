@@ -1,8 +1,8 @@
 {
-  "tag":"SHUTDOWN_TROOP",
+  "prefix":"SHUTDOWN_TROOP",
   "feature":"shutdown.rb",
   "cloud_variables":"all_clouds.json",
-  "runner":"ShutdownRunner",
+
   "common_inputs":"none.json",
   "server_template_ids":[
     "97822", "97822"
