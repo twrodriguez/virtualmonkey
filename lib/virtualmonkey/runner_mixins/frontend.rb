@@ -5,7 +5,13 @@ module VirtualMonkey
   
     # returns an Array of the Front End servers in the deployment
     def fe_servers
-      res = @servers.select { |s| s.nickname =~ /Front End/ || s.nickname =~ /FrontEnd/ || s.nickname =~ /Apache with HAproxy/ || s.nickname =~ /Load Balancer/ }
+      res = []
+      @servers.each do |server| 
+				st = ServerTemplate.find(resource_id(server.server_template_href))
+				if st.nickname =~ /Front End/ || st.nickname =~ /FrontEnd/ || st.nickname =~ /Apache with HAproxy/ || st.nickname =~ /Load Balancer/
+					res << server
+				end
+			end
       raise "FATAL: No frontend servers found" unless res.length > 0
       res
     end
@@ -71,18 +77,18 @@ module VirtualMonkey
       end
 
       # restart apache and check that it succeeds
-      behavior(:run_script_on_set, 'apache_restart', fe_servers, true)
-      fe_servers.each_with_index do |server,i|
-        response = nil
-        count = 0
-        until response || count > 3 do
-          response = probe(server, server.apache_check)
-          break if response	
-          count += 1
-          sleep 10
-        end
-        raise "Apache status failed" unless response
-      end
+#      behavior(:run_script_on_set, 'apache_restart', fe_servers, true)
+#      fe_servers.each_with_index do |server,i|
+#        response = nil
+#        count = 0
+#        until response || count > 3 do
+#          response = probe(server, server.apache_check)
+#          break if response	
+#          count += 1
+#          sleep 10
+#        end
+#        raise "Apache status failed" unless response
+#      end
       
     end
 
@@ -97,20 +103,6 @@ module VirtualMonkey
         behavior(:test_http_response, "html serving succeeded", "https://" + server.dns_name + "/index.html", "443")
       end
     end
-
-    def frontend_lookup_scripts
-      fe_scripts = [
-                    [ 'apache_restart', 'WEB apache \(re\)start' ],
-		    [ 'https_vhost', 'WEB apache FrontEnd https vhost' ]
-                   ]
-      app_scripts = [
-                     [ 'connect', 'LB [app|application|mongrels]+ to HA[ pP]+roxy connect' ]
-                    ]
-      st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
-      load_script_table(st,fe_scripts)
-      st = ServerTemplate.find(resource_id(app_servers.first.server_template_href))
-      load_script_table(st,app_scripts)
-    end 
 
 
     # Run spot checks for FE servers in the deployment

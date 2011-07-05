@@ -5,7 +5,14 @@ module VirtualMonkey
 
     # returns an Array of the App Servers in the deployment
     def app_servers
-      ret = @servers.select { |s| s.nickname =~ /App Server/ }
+      ret = []
+      @servers.each do |server|
+        st = ServerTemplate.find(resource_id(server.server_template_href))
+        if st.nickname =~ /AppServer/
+          ret << server
+        end
+      end
+#      ret = @servers.select { |s| s.nickname =~ /App Server/ }
       raise "No app servers in deployment" unless ret.length > 0
       ret
     end
@@ -28,7 +35,7 @@ module VirtualMonkey
             response = `#{cmd}`
             puts response 
             break if response.include?(expected_string)
-            puts "Retrying..."
+            puts "Retrying...looking for #{expected_string}"
             sleep 5
           end
         end
