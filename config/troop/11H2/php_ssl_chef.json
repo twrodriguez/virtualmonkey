@@ -1,0 +1,13 @@
+{
+  "feature":"php_chef.rb",
+  "cloud_variables":"all_clouds.json",
+  "runner":"PhpSSLChefRunner",
+  "common_inputs":"php_app_ssl_fe_chef.json",
+  "tag":"PHPSSLCHEF",
+  "server_template_ids":[
+    "28179",
+    "28179",
+    "27958",
+    "27958"
+  ]
+}
