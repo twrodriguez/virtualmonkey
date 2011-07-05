@@ -5,25 +5,37 @@
   "1024":{
     "datacenter_href":"/api/clouds/1024/datacenters/84L7N1M6GFUAN"
   },
-  "716":{
-    "datacenter_href":"/api/clouds/716/datacenters/4PI8TKUI2VH9D"
+  "232":{
   },
   "1":{
   },
-  "232":{
+  "716":{
+    "datacenter_href":"/api/clouds/716/datacenters/4PI8TKUI2VH9D"
   },
   "2":{
+  },
+  "1338":{
+    "datacenter_href":"/api/clouds/1338/datacenters/28TOFDJ9JIRLP"
+  },
+  "1296":{
+    "datacenter_href":"/api/clouds/1296/datacenters/7TBI78LE57MH2"
+  },
+  "773":{
+    "datacenter_href":"/api/clouds/773/datacenters/EPOQNJ7ITOCVB"
+  },
+  "3":{
   },
   "1153":{
     "datacenter_href":"/api/clouds/1153/datacenters/DUCE7D35LE4J0"
   },
-  "3":{
+  "1242":{
+    "datacenter_href":"/api/clouds/1242/datacenters/6L8DR8OJ56NEN"
   },
   "4":{
   },
+  "5":{
+  },
   "973":{
     "datacenter_href":"/api/clouds/973/datacenters/AA5ELMLG5GGLJ"
-  },
-  "5":{
   }
 }

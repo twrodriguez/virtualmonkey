@@ -6,7 +6,9 @@
   "php/db_dns_name" : "text:notsure",
   "php/db_schema_name" : "text:app_test",
   "php/server_name" : "text:reg-php.test.rightscale.com",
-  "rs_utils/hostname" : "env:EC2_HOSTNAME",
-  "php/db_app_user" : "cred:DBAPPLICATION_USER",
-  "php/db_app_passwd" : "cred:DBAPPLICATION_PASSWORD"
+  "db_mysql/application/user" : "cred:DBAPPLICATION_USER",
+  "db_mysql/application/password" : "cred:DBAPPLICATION_PASSWORD"
 }
+
+
+
