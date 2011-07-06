@@ -8,22 +8,10 @@ module VirtualMonkey
       include VirtualMonkey::Mixin::Chef
 
       def detach_checks
-        fe_servers.each do |fe|
-          fe.settings
-          # lopaka - replaced command with sed to ignore leading whitespaces with lines starting with 'server'
-#          haproxy_config = obj_behavior(fe, :spot_check_command, "cat /home/haproxy/rightscale_lb.cfg | grep server |grep -v '^#'")
-          haproxy_config = obj_behavior(fe, :spot_check_command, "sed -n '/^[ \t]*server/p' /home/haproxy/rightscale_lb.cfg")
-          #raise "Detach failed, servers are left in /home/haproxy/rightscale_lb.cfg - #{haproxy_config}" unless haproxy_config.empty?
-          raise "Detach failed, servers are left in /home/haproxy/rightscale_lb.cfg - #{haproxy_config}" unless haproxy_config[:status]
-        end
-      end
-  
-      def php_chef_lookup_scripts
-        recipes = [
-                    [ 'attach', 'lb_haproxy::do_attach_request' ]
-                  ]
-        fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
-        load_script_table(fe_st,recipes)
+        probe(fe_servers, "sed -n '/^[ \t]*server/p' /home/haproxy/rightscale_lb.cfg") { |status, result|
+          raise "Detach failed, servers are left in /home/haproxy/rightscale_lb.cfg - #{result}" unless result.empty?
+          raise "Detach failed, status returned #{status}" unless status == 0
+        }
       end
   
       def cross_connect_frontends

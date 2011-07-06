@@ -10,9 +10,10 @@ module VirtualMonkey
       @@options = Trollop::options do
         text @@available_commands[:run]
         eval(VirtualMonkey::Command::use_options( :config_file, :prefix, :only, :yes, :verbose, :qa,
-                                                  :list_trainer, :keep, :terminate))
+                                                  :list_trainer, :keep, :terminate, :clouds))
       end
 
+      load_config_file
       run_logic
     end
   end

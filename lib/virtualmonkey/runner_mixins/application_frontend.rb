@@ -7,13 +7,13 @@ module VirtualMonkey
       
       # a custom startup sequence is required for fe/app deployments (inputs workaround)
       def startup_sequence
-        fe_servers.each { |s| obj_behavior(s, :start) }
-        fe_servers.each { |s| obj_behavior(s, :wait_for_operational_with_dns) }
+        launch_set(fe_servers)
+        wait_for_set(fe_servers, "operational")
         
-        set_var(:set_lb_hostname)
+        set_lb_hostname
   
-        app_servers.each { |s| obj_behavior(s, :start) }
-        app_servers.each { |s| obj_behavior(s, :wait_for_operational_with_dns) }
+        launch_set(app_servers)
+        wait_for_set(app_servers, "operational")
       end
   
       def run_reboot_operations

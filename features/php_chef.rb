@@ -1,19 +1,43 @@
-  @runner = VirtualMonkey::PhpChefRunner.new(ENV['DEPLOYMENT'])
-  @runner.behavior(:stop_all)
-  @runner.set_var(:set_master_db_dnsname)
-  @runner.behavior(:launch_all)
-  @runner.behavior(:wait_for_all, "operational")
-  @runner.behavior(:test_attach_all)
-  @runner.behavior(:run_unified_application_checks, :app_servers)
-  @runner.behavior(:frontend_checks)
-#  @runner.behavior(:log_rotation_checks)
-#  @runner.behavior(:setup_https_vhost)
-  @runner.behavior(:run_reboot_operations)
-  @runner.behavior(:check_monitoring)
-#  @runner.behavior(:run_logger_audit)
+set :runner, VirtualMonkey::Runner::PhpChef
 
-  @runner.behavior(:test_detach)
-# detach needs to remove the tags
-# attach_all needs to refresh the list (not just add all)
+clean_start do
+  @runner.stop_all
+end
 
+before do
+  @runner.set_master_db_dnsname
+  @runner.launch_all
+  @runner.wait_for_all("operational")
+end
 
+test "default" do
+  @runner.test_attach_all
+  @runner.run_unified_application_checks(:app_servers)
+  @runner.frontend_checks
+  @runner.run_reboot_operations
+  @runner.check_monitoring
+
+  @runner.test_detach
+end
+
+test "chef2" do
+  @runner.test_attach_request
+  @runner.run_unified_application_checks(:app_servers)
+  @runner.frontend_checks
+  @runner.run_reboot_operations
+  @runner.check_monitoring
+end
+
+before "ssl" do
+  @runner.set_variation_ssl
+end
+
+test "ssl" do
+  @runner.test_attach_all
+  @runner.run_unified_application_checks(:app_servers)
+  @runner.frontend_checks
+  @runner.run_reboot_operations
+  @runner.check_monitoring
+
+  @runner.test_detach
+end

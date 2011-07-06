@@ -10,7 +10,7 @@ module VirtualMonkey
       @@options[:feature] = File.join(@@features_dir, config['feature'])
       @@options[:runner] ||= get_runner_class
       @@options[:terminate] = true if @@command =~ /troop|destroy/
-      @@options[:clouds] = load_clouds(config)
+      @@options[:clouds] = load_clouds(config) unless @@options[:clouds] and @@options[:clouds].length > 0
       @@options[:server_template_ids] = config['server_template_ids']
     end
 
@@ -23,9 +23,11 @@ module VirtualMonkey
     # Encapsulates the logic for selecting a subset of deployments
     def self.select_only_logic(message)
       @@do_these ||= @@dm.deployments
-      if @@options[:only]
-        @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ }
-      end   
+      @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ } if @@options[:only]
+      all_clouds = VirtualMonkey::Toolbox::get_available_clouds.map { |hsh| hsh["cloud_id"].to_i }
+      (all_clouds - @@options[:clouds]).each { |cid|
+        @@do_these.reject! { |d| d.nickname =~ /cloud_#{cid}/ }
+      }
       unless @@options[:no_resume] or @@command =~ /destroy|audit/
         temp = @@do_these.select do |d| 
           File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(@@options[:feature])))
@@ -175,8 +177,8 @@ module VirtualMonkey
 
     # Encapsulates the logic for detecting what runner is used in a test case file
     def self.get_runner_class #returns class string
-      return @@options[:runner] if @@options[:runner]
-      return nil unless @@options[:feature]
+#      return @@options[:runner] if @@options[:runner]
+#      return nil unless @@options[:feature]
       return VirtualMonkey::TestCase.new(@@options[:feature]).options[:runner]
     end
   end

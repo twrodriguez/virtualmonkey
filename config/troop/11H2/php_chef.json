@@ -1,9 +1,8 @@
 {
   "feature":"php_chef.rb",
   "cloud_variables":"all_clouds.json",
-  "runner":"PhpChefRunner",
   "common_inputs":"php_app_fe_chef.json",
-  "tag":"PHPCHEF",
+  "prefix":"PHPCHEF",
   "server_template_ids":[
     "28179",
     "28179",
