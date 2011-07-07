@@ -77,7 +77,7 @@ module VirtualMonkey
 
         @@gm.options = @@options
 
-        @@gm.run_tests(@@do_these, @@options[:feature])
+        @@gm.run_tests(@@do_these, @@options[:feature], @@options[:tests])
         @@remaining_jobs = @@gm.jobs.dup
 
         watch = EM.add_periodic_timer(10) {
