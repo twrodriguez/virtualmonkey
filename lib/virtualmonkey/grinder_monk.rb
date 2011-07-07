@@ -119,7 +119,7 @@ class GrinderMonk
   def run_tests(deployments,cmd,set=[])
     test_case = VirtualMonkey::TestCase.new(@options[:feature], @options)
     total_keys = test_case.get_keys
-    total_keys = total_keys - (total_keys - set) unless set.empty?
+    total_keys = total_keys - (total_keys - set) unless set.nil? || set.empty?
     keys_per_dep = (total_keys.length.to_f / deployments.length.to_f).ceil
    
     deployment_tests = []
