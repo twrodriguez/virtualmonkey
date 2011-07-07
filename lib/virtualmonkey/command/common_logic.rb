@@ -26,7 +26,7 @@ module VirtualMonkey
       @@do_these = @@do_these.select { |d| d.nickname =~ /#{@@options[:only]}/ } if @@options[:only]
       all_clouds = VirtualMonkey::Toolbox::get_available_clouds.map { |hsh| hsh["cloud_id"].to_i }
       (all_clouds - @@options[:clouds]).each { |cid|
-        @@do_these.reject! { |d| d.nickname =~ /cloud_#{cid}/ }
+        @@do_these.reject! { |d| d.nickname =~ /-cloud_#{cid}-/ }
       }
       unless @@options[:no_resume] or @@command =~ /destroy|audit/
         temp = @@do_these.select do |d| 
