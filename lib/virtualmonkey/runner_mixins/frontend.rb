@@ -35,17 +35,17 @@ module VirtualMonkey
         lb_hostname_input
       end
   
-      def frontend_checks
-       detect_os
+      def frontend_checks(fe_port=80)
+        detect_os
   
-       run_unified_application_checks(fe_servers, 80)
+        run_unified_application_checks(fe_servers, fe_port)
   
         # check that all application servers exist in the haproxy config file on all fe_servers
         server_ips = Array.new
         app_servers.each { |app| server_ips << app['private-ip-address'] }
         fe_servers.each do |fe|
           fe.settings
-          haproxy_config = obj_behavior(fe, :spot_check_command, 'flock -n /home/haproxy/rightscale_lb.cfg -c "cat /home/haproxy/rightscale_lb.cfg | grep server"')
+          haproxy_config = fe.spot_check_command('flock -n /home/haproxy/rightscale_lb.cfg -c "cat /home/haproxy/rightscale_lb.cfg | grep server"')
           puts "INFO: flock status was #{haproxy_config[:status]}"
           server_ips.each do |ip|
             if haproxy_config.to_s.include?(ip) == false

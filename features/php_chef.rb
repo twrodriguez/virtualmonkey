@@ -6,38 +6,41 @@ end
 
 before do
   @runner.set_master_db_dnsname
+  @runner.set_variation_http_only
   @runner.launch_all
   @runner.wait_for_all("operational")
 end
 
-test "default" do
-  @runner.test_attach_all
-  @runner.run_unified_application_checks(:app_servers)
-  @runner.frontend_checks
-  @runner.run_reboot_operations
-  @runner.check_monitoring
+#
+## Unified Application on 8000
+#
 
-  @runner.test_detach
+test "run_unified_application_checks" do
+  @runner.run_unified_application_checks(:app_servers, 8000)
 end
 
-test "chef2" do
+test "reboot_operations" do
+  @runner.run_reboot_operations
+end
+
+test "monitoring" do
+  @runner.check_monitoring
+end
+
+#
+## ATTACHMENT GROUP
+#
+
+test "attach_all" do
+  @runner.test_attach_all
+  @runner.frontend_checks(80)
+end
+
+test "attach_request" do
   @runner.test_attach_request
-  @runner.run_unified_application_checks(:app_servers)
-  @runner.frontend_checks
-  @runner.run_reboot_operations
-  @runner.check_monitoring
+  @runner.frontend_checks(80)
 end
 
-before "ssl" do
-  @runner.set_variation_ssl
-end
-
-test "ssl" do
-  @runner.test_attach_all
-  @runner.run_unified_application_checks(:app_servers)
-  @runner.frontend_checks
-  @runner.run_reboot_operations
-  @runner.check_monitoring
-
+after "attach_all", "attach_request" do
   @runner.test_detach
 end

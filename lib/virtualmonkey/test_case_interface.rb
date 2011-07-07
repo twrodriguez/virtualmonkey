@@ -182,13 +182,11 @@ module VirtualMonkey
     end
 
     def write_readable_log(data)
-      if @options[:log]
-        data_ary = data.split("\n")
-        data_ary.each_index do |i|
-          data_ary[i] = timestamp + ("  " * @rerun_last_command.length) + data_ary[i]
-        end
-        File.open(@options[:log], "a") { |f| f.puts(data_ary.join("\n")) }
+      data_ary = data.split("\n")
+      data_ary.each_index do |i|
+        data_ary[i] = ("  " * @rerun_last_command.length) + data_ary[i]
       end
+      print "#{data_ary.join("\n")}\n"
     end
 
     private

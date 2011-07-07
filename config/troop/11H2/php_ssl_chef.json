@@ -1,9 +1,9 @@
 {
-  "feature":"php_chef.rb",
+  "feature":"php_chef_ssl.rb",
   "cloud_variables":"all_clouds.json",
-  "runner":"PhpSSLChefRunner",
-  "common_inputs":"php_app_ssl_fe_chef.json",
-  "tag":"PHPSSLCHEF",
+  "runner":"PhpChef",
+  "common_inputs":"php_app_fe_chef.json",
+  "prefix":"PHPCHEF",
   "server_template_ids":[
     "28179",
     "28179",

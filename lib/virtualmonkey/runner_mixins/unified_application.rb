@@ -32,6 +32,7 @@ module VirtualMonkey
       # this is where ALL the generic application server checks live, this could get rather long but for now it's a single method with a sequence of checks
       def run_unified_application_check(dns_name, port=8000)
         url_base = "#{dns_name}:#{port}"
+       url_base = "https://#{url_base}" if port == 443
        test_http_response("html serving succeeded", "#{url_base}/index.html", port) 
        test_http_response("configuration=.*succeeded", "#{url_base}/appserver/", port) 
        test_http_response("I am in the db", "#{url_base}/dbread/", port) 

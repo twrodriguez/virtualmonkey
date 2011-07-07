@@ -9,8 +9,8 @@ module VirtualMonkey
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options = Trollop::options do
         text @@available_commands[:run]
-        eval(VirtualMonkey::Command::use_options( :config_file, :prefix, :only, :yes, :verbose, :qa,
-                                                  :list_trainer, :keep, :terminate, :clouds))
+        eval(VirtualMonkey::Command::use_options( :config_file, :prefix, :only, :yes, :verbose, :qa, :tests,
+                                                  :list_trainer, :keep, :terminate, :clouds, :no_resume))
       end
 
       load_config_file

@@ -139,7 +139,7 @@ module VirtualMonkey
       def launch_all
         @servers.each { |s|
           begin
-            transaction { s.start }
+            s.start
           rescue Exception => e
             raise e unless e.message =~ /AlreadyLaunchedError/
           end
@@ -148,19 +148,10 @@ module VirtualMonkey
   
       # sets the MASTER_DB_DNSNAME to this machine's ip address
       def set_master_db_dnsname
-        transaction {
-          the_name = get_tester_ip_addr
-          @deployment.set_input("MASTER_DB_DNSNAME", the_name) 
-          @deployment.set_input("DB_HOST_NAME", the_name) 
-        }
-      end
-  
-      # sets the db_mysql/fqdn to this machine's ip address
-      def set_chef_master_db_dnsname
-        transaction {
-          the_name = get_tester_ip_addr
-          @deployment.set_input("db_mysql/fqdn", the_name)
-        }
+        the_name = get_tester_ip_addr
+        @deployment.set_input("MASTER_DB_DNSNAME", the_name) 
+        @deployment.set_input("DB_HOST_NAME", the_name) 
+        @deployment.set_input("db_mysql/fqdn", the_name)
       end
   
       # Launch server(s) that match nickname_substr
@@ -241,7 +232,7 @@ module VirtualMonkey
       end
   
       def stop_all(wait=true)
-        @servers.each { |s| transaction { s.stop } }
+        @servers.each { |s| s.stop }
         wait_for_all("stopped") if wait
         @servers.each { |s| 
           s.dns_name = nil 

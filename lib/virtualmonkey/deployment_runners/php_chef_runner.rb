@@ -8,9 +8,10 @@ module VirtualMonkey
       include VirtualMonkey::Mixin::Chef
 
       def detach_checks
-        probe(fe_servers, "sed -n '/^[ \t]*server/p' /home/haproxy/rightscale_lb.cfg") { |status, result|
+        probe(fe_servers, "sed -n '/^[ \t]*server/p' /home/haproxy/rightscale_lb.cfg") { |result, status|
           raise "Detach failed, servers are left in /home/haproxy/rightscale_lb.cfg - #{result}" unless result.empty?
           raise "Detach failed, status returned #{status}" unless status == 0
+          true
         }
       end
   
@@ -43,8 +44,14 @@ module VirtualMonkey
       end
   
       def set_variation_ssl
-        # TODO: set the inputs for SSL
+        @deployment.set_input("web_apache/ssl_enable", "text:true")
+        @deployment.set_input("web_apache/ssl_key", "cred:virtual_monkey_key")
+        @deployment.set_input("web_apache/ssl_certificate", "cred:virtual_monkey_certificate")
       end	
+
+      def set_variation_http_only
+        @deployment.set_input("web_apache/ssl_enable", "text:false")
+      end
   
       def ssl_checks
         # TODO: run the unified application checks against port 443 of the frontend servers
