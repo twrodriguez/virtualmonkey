@@ -42,7 +42,19 @@ module VirtualMonkey
   
         # check that all application servers exist in the haproxy config file on all fe_servers
         server_ips = Array.new
-        app_servers.each { |app| server_ips << app['private-ip-address'] }
+
+         app_servers.each do |app|
+           if app.private_ip
+             puts "TEST: private - using #{app.private_ip}"
+             server_ips << app.private_ip
+           elsif app.dns_name
+             puts "TEST: dns - using #{app.dns_name}"
+             server_ips << app.dns_name
+           else
+             raise "FATAL: no private_ip or dns_name for app servers"
+           end
+         end
+
         fe_servers.each do |fe|
           fe.settings
           haproxy_config = fe.spot_check_command('flock -n /home/haproxy/rightscale_lb.cfg -c "cat /home/haproxy/rightscale_lb.cfg | grep server"')
@@ -63,7 +75,7 @@ module VirtualMonkey
           stopped = false
           count = 0
           until response || count > 3 do
-            response = obj_behavior(server, :spot_check_command, server.haproxy_check)
+            response = server.spot_check_command(server.haproxy_check)
             stopped = response.include?("not running")
             break if stopped
             count += 1
