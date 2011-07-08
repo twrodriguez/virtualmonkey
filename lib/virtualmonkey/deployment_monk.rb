@@ -8,14 +8,14 @@ class DeploymentMonk
 
   # Returns an Array of Deployment objects whose nicknames start with @prefix
   def from_prefix
-    variations = Deployment.find_by(:nickname) {|n| n =~ /^#{@prefix}/ }
+    variations = Deployment.find_by_tags("info:prefix=#{@prefix}")
     puts "loading #{variations.size} deployments matching your prefix"
     return variations
   end
 
   # Lists the nicknames of Array of Deployment objects whose nicknames start with prefix
   def self.list(prefix, verbose = false)
-    deployments = Deployment.find_by(:nickname) {|n| n =~ /^#{prefix}/ }
+    deployments = Deployment.find_by_tags("info:prefix=#{@prefix}")
     if verbose
       pp deployments.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
     else
@@ -139,11 +139,13 @@ class DeploymentMonk
           dep_tempname = "#{@prefix}-cloud_#{cloud}-#{rand(1000000)}-"
           dep_tempname = "#{@prefix}-cloud_multicloud-#{rand(1000000)}-" if @clouds.length > 1
           new_deploy = Deployment.create(:nickname => dep_tempname)
+          new_deploy.set_info_tags("prefix" => @prefix)
           @deployments << new_deploy
           deployment_created = true
         elsif !@single_deployment
           dep_tempname = "#{@prefix}-cloud_#{cloud}-#{rand(1000000)}-"
           new_deploy = Deployment.create(:nickname => dep_tempname)
+          new_deploy.set_info_tags("prefix" => @prefix)
           @deployments << new_deploy
         end
 
