@@ -74,43 +74,36 @@ class DeploymentMonk
     raise "Error: To launch a single deployment a maximum of one server template is allowed " if ((@server_templates.length > 1) && @single_deployment)
   end
 
+  def mci_list(options, st)
+    if options[:mci_override] && !options[:mci_override].empty?
+        mci = MultiCloudImage.new(:href => options[:mci_override].first)
+        mci.find_and_flatten_settings
+        multi_cloud_images = [mci]
+    elsif options[:only]
+      multi_cloud_images = st.multi_cloud_images.select { |mci| mci['name'] =~ /#{options[:only]}/ }
+      raise "No MCI on ServerTemplate '#{st.nickname}' matches regex /#{options[:only]}/" if multi_cloud_images.empty?
+    else
+      multi_cloud_images = st.multi_cloud_images
+    end
+    multi_cloud_images
+  end
+
   def generate_variations(options = {})
-    # Count the max number of images that we can select from
+    # Count the max number of images that we can select from (@image_count)
+    # Get list of supported clouds (@clouds)
     dep_image_names = nil  # This variable holds the names of the images in the deployment
     @image_count = 0
     @server_templates.each do |st|
-      new_st = ServerTemplateInternal.new(:href => st.href)
-      st.multi_cloud_images = new_st.multi_cloud_images
-      if options[:mci_override] && !options[:mci_override].empty?
-        mci = MultiCloudImageInternal.new(:href => options[:mci_override].first)
-        mci.reload
-        multi_cloud_images = [mci]
-      elsif options[:only]
-        multi_cloud_images = new_st.multi_cloud_images.select { |mci| mci['name'] =~ /#{options[:only]}/ }
-        raise "No MCI on ServerTemplate '#{new_st.nickname}' matches regex /#{options[:only]}/" if multi_cloud_images.empty?
-      else
-        multi_cloud_images = new_st.multi_cloud_images
-      end
+      multi_cloud_images = mci_list(options, st)
       @image_count = multi_cloud_images.size if multi_cloud_images.size > @image_count
-
-      # Collect Supported Cloud ids
-      multi_cloud_images.each { |mci|
-        @clouds.concat( mci["multi_cloud_image_cloud_settings"].map { |s| 
-          unless s["fingerprint"]
-            ret = "#{s["cloud_id"]}"
-          else
-            ret = nil
-          end
-          [ret]
-        })
-      }
+      multi_cloud_images.each do |x|
+        @clouds += x.supported_cloud_ids
+      end
     end
     @clouds.flatten!
     @clouds.compact!
     @clouds.uniq!
-    if options[:mci_override] && !options[:mci_override].empty?
-      @image_count = options[:mci_override].size
-    end
+    @clouds.map! { |m| m.to_s }
     
     dep_tempname = nil
     new_deploy = nil
@@ -125,30 +118,16 @@ class DeploymentMonk
           next
         end
 
-        # Skip if the selected MCI doesn't support the cloud
+        # Check the candidate MCI or Skip if the selected MCI doesn't support the cloud
         mci_supports_cloud = true
         @server_templates.each do |st|
-          new_st = ServerTemplateInternal.new(:href => st.href)
-          if options[:mci_override] && !options[:mci_override].empty?
-            mci = MultiCloudImageInternal.new(:href => options[:mci_override][index])
-	          mci.reload
-          elsif options[:only]
-            subset = new_st.multi_cloud_images.select { |mci| mci['name'] =~ /#{options[:only]}/ }
-            if subset[index]
-              mci = subset[index]
-            else
-              mci = subset[0]
-            end
-          elsif new_st.multi_cloud_images[index]
-            mci = new_st.multi_cloud_images[index]
+          multi_cloud_images = mci_list(options, st)
+          if multi_cloud_images[index]
+            mci = multi_cloud_images[index]
           else
-            mci = new_st.multi_cloud_images[0]
+            mci = multi_cloud_images[0]
           end
-          mci_check = false
-          mci["multi_cloud_image_cloud_settings"].each { |setting|
-            mci_check ||= (setting["cloud_id"].to_i == cloud.to_i)
-          }
-          mci_supports_cloud &&= mci_check
+          mci_supports_cloud &&= mci.supported_cloud_ids.include?(cloud.to_i)
         end
         unless mci_supports_cloud
           puts "MCI doesn't contain an image that supports cloud #{cloud}. Skipping..."
@@ -172,29 +151,13 @@ class DeploymentMonk
         @server_templates.each do |st|
           nick_name_holder << st.nickname.gsub(/ /,'_')  ## place the nickname into the array
           #Select an MCI to use
-          if options[:mci_override] && !options[:mci_override].empty?
-            mci = MultiCloudImageInternal.new(:href => options[:mci_override][index])
-	          mci.reload
-            use_this_image_setting = mci['multi_cloud_image_cloud_settings'].detect { |setting| setting["image_href"].include?("cloud_id=#{cloud}") }
-            use_this_image = use_this_image_setting["image_href"]
-            use_this_instance_type = use_this_image_setting["aws_instance_type"]
-            dep_image_list << MultiCloudImage.find(options[:mci_override][index]).name.gsub(/ /,'_')
-              dep_image_names =  MultiCloudImage.find(options[:mci_override][index]).name.gsub(/ /,'_')
-          elsif options[:only]
-            subset = st.multi_cloud_images.select { |mci| mci['name'] =~ /#{options[:only]}/ }
-            if subset[index]
-              dep_image_list << subset[index]['name'].gsub(/ /,'_')
-               dep_image_names =  subset[index]['name'].gsub(/ /,'_')
-              use_this_image = subset[index]['href']
-            else
-              use_this_image = subset[0]['href']
-            end
-          elsif st.multi_cloud_images[index]
-            dep_image_list << st.multi_cloud_images[index]['name'].gsub(/ /,'_')
-            dep_image_names = st.multi_cloud_images[index]['name'].gsub(/ /,'_')
-            use_this_image = st.multi_cloud_images[index]['href']
+          multi_cloud_images = mci_list(options, st)
+          if multi_cloud_images[index]
+            dep_image_list << multi_cloud_images[index]['name'].gsub(/ /,'_')
+            dep_image_names = multi_cloud_images[index]['name'].gsub(/ /,'_')
+            use_this_image = multi_cloud_images[index].href
           else
-            use_this_image = st.multi_cloud_images[0]['href']
+            use_this_image = multi_cloud_images[0].href
           end
 
           # Load Cloud Variables from all_clouds.json
@@ -205,6 +168,7 @@ class DeploymentMonk
           @common_inputs.deep_merge(@variables_for_cloud[cloud]['parameters']).each do |key,val|
             inputs << { "name" => key, "value" => val }
           end
+
 
           #Set Server Creation Parameters
           serv_name = "#{@prefix[0...2]}-#{rand(10000)}-#{st.nickname}-#{dep_image_names}" if @single_deployment
@@ -220,26 +184,29 @@ class DeploymentMonk
                             #"instance_type" => image['aws_instance_type']
                           }
 
-          # If overriding the multicloudimage need to specify the ec2 image href because you can't set an MCI that's not in the ServerTemplate
-          if options[:mci_override] && !options[:mci_override].empty?
-            server_params.reject! {|k,v| k == "mci_href"}
-            server_params["ec2_image_href"] = use_this_image
-            server_params["instance_type"] = use_this_instance_type
+          # For non-ec2 clouds we should pick an instance_type
+          if cloud.to_i > 10
+            i_types = McInstanceType.find_all(cloud)
+            server_params["instance_type_href"] = i_types.first.href
           end
 
-          # This rescue block can be removed after the VM ServerTemplate defaults to multicloud rest_connection
-          begin
-            server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
-          rescue Exception => e
-            puts "Got exception: #{e.message}"
-            puts "Backtrace: #{e.backtrace.join("\n")}"
+          # If overriding the multicloudimage need to specify the ec2 image href because you can't set an MCI that's not in the ServerTemplate
+          if options[:mci_override] && !options[:mci_override].empty?
+            use_this_image_setting = mci['multi_cloud_image_cloud_settings'].detect { |setting| setting["image_href"].include?("cloud_id=#{cloud}") }
+            server_params.reject! {|k,v| k == "mci_href"}
+            server_params["ec2_image_href"] = use_this_image_setting["image_href"]
+            server_params["instance_type"] = use_this_image_setting["aws_instance_type"]
+            # TODO mci_override is not implemented for 1.5 MCI images
           end
+
+          server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
 
           # AWS Cloud-specific Code XXX LEGACY XXX
           if cloud.to_i < 10
-            server = Server.create(server_params.deep_merge(@variables_for_cloud[cloud])) unless server
             # since the create call does not set the parameters, we need to set them separate
             server.set_inputs(@variables_for_cloud[cloud]['parameters'])
+
+            # WHY WE NEED THIS? create maybe already does this 
             # uses a special internal call for setting the MCI on the server
             sint = ServerInternal.new(:href => server.href)
             sint.set_multi_cloud_image(use_this_image) unless options[:mci_override] && !options[:mci_override].empty?
