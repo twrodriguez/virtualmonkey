@@ -7,8 +7,12 @@ end
 before do
   @runner.set_master_db_dnsname
   @runner.set_variation_http_only
-  @runner.launch_all
+  @runner.set_variation_cron_time
+  @runner.launch_set(:fe_servers)
+  @runner.wait_for_set(:fe_servers, "operational")
+  @runner.launch_set(:app_servers)
   @runner.wait_for_all("operational")
+  @runner.disable_reconverge
 end
 
 #
@@ -43,4 +47,22 @@ end
 
 after "attach_all", "attach_request" do
   @runner.test_detach
+end
+
+#
+## Reconverge Test
+#
+
+before "reconverge" do
+  @runner.enable_reconverge
+end
+
+test "reconverge" do
+  @runner.detach_all
+  puts sleep(130)
+  @runner.frontend_checks(80)
+end
+
+after "reconverge" do
+  @runner.disable_reconverge
 end

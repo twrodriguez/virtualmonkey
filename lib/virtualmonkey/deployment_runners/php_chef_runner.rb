@@ -7,6 +7,14 @@ module VirtualMonkey
       include VirtualMonkey::Mixin::Frontend
       include VirtualMonkey::Mixin::Chef
 
+      def disable_reconverge
+        run_script_on_set('disable_reconverge', fe_servers)
+      end
+
+      def detach_all
+        run_script_on_all('detach')
+      end
+
       def detach_checks
         probe(fe_servers, "sed -n '/^[ \t]*server/p' /home/haproxy/rightscale_lb.cfg") { |result, status|
           raise "Detach failed, servers are left in /home/haproxy/rightscale_lb.cfg - #{result}" unless result.empty?
@@ -14,9 +22,9 @@ module VirtualMonkey
           true
         }
       end
-  
-      def cross_connect_frontends
-        run_script_on_all('attach')
+
+      def enable_reconverge
+        run_script_on_set('enable_reconverge', fe_servers)
       end
 
       def php_chef_lookup_scripts
@@ -24,6 +32,8 @@ module VirtualMonkey
                     [ 'attach', 'lb_haproxy::do_attach_request' ],
                     [ 'attach_all', 'lb_haproxy::do_attach_all' ],
                     [ 'detach', 'lb_haproxy::do_detach_request' ],
+                    [ 'disable_reconverge', 'lb_haproxy::do_disable_reconverge' ],
+                    [ 'enable_reconverge', 'lb_haproxy::setup_reconverge' ],
                     [ 'update_code', 'app_php::do_update_code' ]
                   ]
         fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
@@ -51,6 +61,11 @@ module VirtualMonkey
 
       def set_variation_http_only
         @deployment.set_input("web_apache/ssl_enable", "text:false")
+      end
+
+      def set_variation_cron_time
+        @deployment.set_input("lb_haproxy/cron_reconverge_hour", "text:*")
+        @deployment.set_input("lb_haproxy/cron_reconverge_minute", "text:*")
       end
   
       def ssl_checks
