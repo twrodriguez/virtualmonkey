@@ -27,7 +27,7 @@ module VirtualMonkey
         opt :name, "Populate the file with this security group", :type => :string
       end
 
-      VirtualMonkey::Toolbox::populate_security_groups(@@options[:add_cloud])
+      VirtualMonkey::Toolbox::populate_security_groups(@@options[:add_cloud], @@options[:name])
       puts "Security Group file populated."
     end
 

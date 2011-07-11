@@ -1,4 +1,4 @@
-if File.exists?("/var/spool/cloud/user-data")
+if File.exists?("/var/spool/cloud/meta-data.rb")
   require '/var/spool/cloud/user-data'
   require '/var/spool/cloud/meta-data-cache'
   ENV['I_AM_IN_EC2'] = "true"
