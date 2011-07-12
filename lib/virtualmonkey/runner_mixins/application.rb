@@ -9,11 +9,11 @@ module VirtualMonkey
         ret = []
         @servers.each do |server|
           st = ServerTemplate.find(resource_id(server.server_template_href))
-          if st.nickname =~ /AppServer/
+          if st.nickname =~ /AppServer/ || st.nickname =~ /App Server/
             ret << server
           end
         end
-  #      ret = @servers.select { |s| s.nickname =~ /App Server/ }
+
         raise "No app servers in deployment" unless ret.length > 0
         ret
       end
