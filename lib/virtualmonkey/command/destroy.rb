@@ -5,7 +5,7 @@ module VirtualMonkey
     def self.destroy
       @@options = Trollop::options do
         text @@available_commands[:destroy]
-        eval(VirtualMonkey::Command::use_options(:config_file, :only, :keep, :prefix, :yes))
+        eval(VirtualMonkey::Command::use_options(:config_file, :only, :keep, :prefix, :yes, :clouds))
       end
 
       raise "--config_file is required" unless @@options[:config_file]

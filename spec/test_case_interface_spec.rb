@@ -9,7 +9,7 @@ describe VirtualMonkey::TestCaseInterface do
   before(:each) do
  
     @options = {
-      :deployment => "TIMR-MONKEY_SELF_TEST-cloud_1-745620-RightImage_CentOS_5.4_i386_v5.5", 
+      :deployment => "TIMR-MONKEY_SELF_TEST-cloud_1-751642-RightImage_CentOS_5.4_i386_v5.5", 
       :file => "/tmp/vmonk-testfile.rb",
       :log => "/tmp/trace_file",
       #:no_resume => true,
@@ -19,9 +19,25 @@ describe VirtualMonkey::TestCaseInterface do
 set :runner, VirtualMonkey::Runner::MonkeySelfTest
 
 before do
-  puts "ran before"
-  @runner.launch_all
-  @runner.wait_for_all("operational")
+  @runner.transaction { puts "what the hell man" }
+  @runner.transaction {
+    puts "1"
+    @runner.transaction {
+      puts "2"
+      @runner.transaction {
+        puts "3"
+        @runner.transaction {
+          puts "4"
+        }
+        puts "5"
+      }
+      puts "6"
+    }
+    puts "7"
+  }
+  puts "after all transactions"
+  # @runner.launch_all
+  # @runner.wait_for_all("operational")
 end
 
 test "no-op" do

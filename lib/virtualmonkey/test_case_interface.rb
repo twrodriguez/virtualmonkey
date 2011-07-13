@@ -50,8 +50,7 @@ module VirtualMonkey
       @iterating_stack = []
       @retry_loop = []
       @done_resuming = true
-      @in_transaction = false
-      @already_in_transaction = false
+      @in_transaction = []
       @options = options
       @deprecation_error = `curl -s "www.kdegraaf.net/cgi-bin/bofh" | grep -o "<b>.*</b>"`
       @deprecation_error.gsub!(/<\/*b>/,"")
@@ -141,11 +140,9 @@ module VirtualMonkey
       # audits.each { |audit| threads << Thread.new(audit) { |a| a.wait_for_completed } }
       # threads.each { |t| t.join }
       #
-      execution_stack_trace("transaction", [], nil, block.to_ruby)
-      if @in_transaction
-        @already_in_transaction = true
-      else
-        @in_transaction = true
+      call_str = stringify_call("transaction", [], nil, block.to_ruby)
+      write_readable_log(call_str)
+      if @in_transaction.empty?
         real_stack_objects = @stack_objects
         real_iterating_stack = @iterating_stack
         real_trace_log = VirtualMonkey::trace_log
@@ -156,28 +153,31 @@ module VirtualMonkey
 
       result = nil
       begin
-        #NOTE: Do not include retrying capabilities for transactions, it messes up trace_log
+        @in_transaction.push(true)
+        # TODO: Add retrying capabilities, trace_log is not a concern anymore
         populate_settings if @deployment
         if not @done_resuming
-          if real_trace_log == YAML::load(IO.read(@options[:resume_file]))
-            @done_resuming = true
+          if VirtualMonkey::trace_log == []
+            if real_trace_log == YAML::load(IO.read(@options[:resume_file]))
+              @done_resuming = true
+            end
+          else
+            if VirtualMonkey::trace_log == YAML::load(IO.read(@options[:resume_file]))
+              @done_resuming = true
+            end
           end
         end
         result = yield() if @done_resuming
       ensure
-        if @already_in_transaction
-          @already_in_transaction = false
-        else
-          # Merge transaction's trace 
-          # NOTE: Needs to write out to readable log ONLY
+        @in_transaction.pop
+        if @in_transaction.empty?
           # Return class and instance variables to normal
           @iterating_stack = real_iterating_stack
           @stack_objects = real_stack_objects
           VirtualMonkey::trace_log = real_trace_log
         end
       end
-      write_trace_log
-      @in_transaction = false
+      write_trace_log(call_str) if @in_transaction.empty?
       result
     end
 
@@ -187,6 +187,13 @@ module VirtualMonkey
         data_ary[i] = ("  " * @rerun_last_command.length) + data_ary[i]
       end
       print "#{data_ary.join("\n")}\n"
+    end
+
+    def write_trace_log(call=nil)
+      add_to_trace_log(call) if call.is_a?(String)
+      if @done_resuming and @options[:resume_file]
+        File.open(@options[:resume_file], "w") { |f| f.write( VirtualMonkey::trace_log.to_yaml ) }
+      end
     end
 
     private
@@ -269,12 +276,6 @@ module VirtualMonkey
       @st_table.select { |s,st| s.href == ref.href }.last.last
     end
 
-    def write_trace_log
-      if @done_resuming and @options[:resume_file]
-        File.open(@options[:resume_file], "w") { |f| f.write( VirtualMonkey::trace_log.to_yaml ) }
-      end
-    end
-
     # select_set returns an Array of ServerInterfaces and accepts any of the following:
     # * <~Array> will return the Array
     # * <~String> will first attempt to find a function in the runner with that String to get
@@ -323,18 +324,17 @@ module VirtualMonkey
 
     # Execution Stack Trace function
     def execution_stack_trace(sym, args, obj=nil, block_text="")
+      call = stringify_call(sym, args, obj, block_text)
+      write_readable_log(call)
+
+      add_to_trace_log(call)
+    end
+
+    def add_to_trace_log(call)
       return nil unless VirtualMonkey::trace_log
 
       referenced_ary = []
-      # Stringify Call
-      arg_ary = args.map { |item| stringify_arg(item) }
-      call = sym.to_s
-      call += "(#{arg_ary.join(", ")})" unless args.empty?
-      call = stringify_arg(obj) + "." + call if obj
-      call += block_text.gsub(/proc /, " ") if block_text != ""
       add_hash = { call => referenced_ary }
-      write_readable_log(call)
-
       # Add string to proper place
       if @rerun_last_command.length < @stack_objects.length # shallower or same level call
         @stack_objects.pop(Math.abs(@stack_objects.length - @rerun_last_command.length))
@@ -346,6 +346,15 @@ module VirtualMonkey
         @iterating_stack << add_hash # here were are adding to iterating stack
       end
       @stack_objects << referenced_ary
+    end
+
+    def stringify_call(sym, args, obj=nil, block_text="")
+      arg_ary = args.map { |item| stringify_arg(item) }
+      call = sym.to_s
+      call += "(#{arg_ary.join(", ")})" unless args.empty?
+      call = stringify_arg(obj) + "." + call if obj
+      call += block_text.gsub(/proc /, " ") if block_text != ""
+      return call
     end
 
     # Stringify stack_trace args

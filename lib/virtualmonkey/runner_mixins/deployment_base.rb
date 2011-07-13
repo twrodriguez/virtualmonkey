@@ -15,6 +15,14 @@ module VirtualMonkey
         populate_settings
       end
   
+      def server_by_info_tag(tags = {})
+        set = @servers
+        tags.each { |key,val|
+          set = set.select { |s| s.get_info_tags(key)["self"][key] == val }
+        }
+        set.first
+      end
+
       # Ensures the following blacklist entries are entered for all runners
       def deployment_base_blacklist
         [
