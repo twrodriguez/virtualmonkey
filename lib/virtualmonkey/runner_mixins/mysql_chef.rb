@@ -6,6 +6,45 @@ module VirtualMonkey
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
   
+      def mysql_servers
+        res = []
+        @servers.each do |server|
+          st = ServerTemplate.find(resource_id(server.server_template_href))
+          if st.nickname =~ /Database Manager/
+            res << server
+          end
+        end
+        raise "FATAL: No Database Manager servers found" unless res.length > 0
+        res
+      end
+
+      # lookup all the RightScripts that we will want to run
+      def mysql_lookup_scripts
+       scripts = [
+                   [ 'setup_block_device', 'db_mysql::setup_block_device' ],
+                   [ 'do_backup', 'db_mysql::do_backup' ],
+                   [ 'do_restore', 'db_mysql::do_restore' ],
+                   [ 'do_backup_s3', 'db_mysql::do_backup_s3' ],
+                   [ 'do_backup_ebs', 'db_mysql::do_backup_ebs' ],
+                   [ 'do_backup_cloud_files', 'db_mysql::do_backup_cloud_files' ],
+                   [ 'do_restore_s3', 'db_mysql::do_restore_s3' ],
+                   [ 'do_restore_ebs', 'db_mysql::do_restore_ebs' ],
+                   [ 'do_restore_cloud_files', 'db_mysql::do_restore_cloud_files' ],
+                   [ 'do_restore_cloud_files', 'db_mysql::do_restore_cloud_files' ],
+                   [ 'do_force_reset', 'db_mysql::do_force_reset' ]
+                 ]
+        raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
+  
+        st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
+        load_script_table(st,scripts)
+      end
+
+      def import_unified_app_sqldump
+        load_script('import_dump', RightScript.new('href' => '/api/acct/2901/right_scripts/187123'))
+        raise "Did not find script: import_dump" unless script_to_run?('import_dump')
+        run_script_on_set('import_dump', mysql_servers, true, { 'DBAPPLICATION_PASSWORD' => 'cred:DBAPPLICATION_PASSWORD', 'DBAPPLICATION_USER' => 'cred:DBAPPLICATION_USER' })
+      end
+
       # sets the lineage for the deployment
       # * kind<~String> can be "chef" or nil
       def set_variation_lineage()

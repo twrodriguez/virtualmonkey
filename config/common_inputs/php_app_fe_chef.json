@@ -1,6 +1,8 @@
 {
   "lb_haproxy/health_check_uri" : "text:/index.html",
   "lb_haproxy/host" : "text:localhost",
+  "lb_haproxy/cron_reconverge_hour" : "ignore:$ignore",
+  "lb_haproxy/cron_reconverge_minute" : "ignore:$ignore",
   "php/code/url"  : "text:git://github.com/rightscale/examples",
   "php/code/branch"  : "text:unified_php",
   "php/db_dns_name" : "text:notsure",

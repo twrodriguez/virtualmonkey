@@ -40,8 +40,7 @@ class GrinderJob
   end
 
   def deploy_id
-    @id = deployment.nickname.match(/-[0-9]+-/)[0].match(/[0-9]+/)[0] unless @id
-    @id
+    @id = deployment.rs_id
   end
 
   # Could be deprecated...
