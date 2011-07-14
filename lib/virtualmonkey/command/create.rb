@@ -6,7 +6,8 @@ module VirtualMonkey
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
       @@options = Trollop::options do
         text @@available_commands[:create]
-        eval(VirtualMonkey::Command::use_options(:config_file, :clouds, :only, :no_spot, :one_deploy, :prefix))
+        eval(VirtualMonkey::Command::use_options( :config_file, :clouds, :only, :no_spot, :one_deploy, :prefix,
+                                                  :yes, :verbose))
       end
 
       raise "--config_file is required" unless @@options[:config_file]

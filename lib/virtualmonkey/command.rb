@@ -84,7 +84,7 @@ module VirtualMonkey
 
       @@usage_msg = "Valid commands for monkey:\n\n#{@@usage_msg}\n\n"
       @@usage_msg += "Help usage: 'monkey help <command>' OR 'monkey <command> --help'\n"
-# TODO      @@usage_msg += "If this is your first time using Virtual Monkey, start with new_runner and new_config"
+      @@usage_msg += "If this is your first time using Virtual Monkey, start with new_runner and new_config"
 
       if @@available_commands[@@command.to_sym]
         VirtualMonkey::Command.__send__(@@command)
