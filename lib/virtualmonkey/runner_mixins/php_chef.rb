@@ -30,8 +30,8 @@ module VirtualMonkey
       def php_chef_fe_lookup_scripts
         recipes = [
                     [ 'attach_all', 'lb_haproxy::do_attach_all' ],
-                    [ 'disable_reconverge', 'lb_haproxy::do_disable_reconverge' ],
-                    [ 'enable_reconverge', 'lb_haproxy::setup_reconverge' ]
+                    [ 'disable_reconverge', 'sys::do_reconverge_list_enable' ],
+                    [ 'enable_reconverge', 'sys::do_reconverge_list_disable' ]
                   ]
         fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
         load_script_table(fe_st,recipes)
