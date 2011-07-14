@@ -12,7 +12,7 @@ module VirtualMonkey
       end
 
       def detach_all
-        run_script_on_all('detach')
+        run_script_on_set('detach', app_servers)
       end
 
       def detach_checks
