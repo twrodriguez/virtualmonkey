@@ -207,10 +207,13 @@ module VirtualMonkey
     def __exception_handle__(e)
       all_methods = self.methods + self.private_methods
       exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m !~ /^__/ }
+
       
+      return false if @retry_loop.last > 10 # No more than 10 retries
       exception_handle_methods.each { |m|
         if self.__send__(m,e)
           # If an exception_handle method doesn't return false, it handled correctly
+          incr_retry_loop
           return true # Exception Handled
         end
       }

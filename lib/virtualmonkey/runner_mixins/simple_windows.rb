@@ -6,15 +6,13 @@ module VirtualMonkey
   
       def simple_windows_exception_handle(e)
         puts "Got this \"#{e.message}\"."
-        if e.message =~ /timed out waiting for the state to be operational/ and @retry_loop.last < 60
+        if e.message =~ /timed out waiting for the state to be operational/
           puts "Got \"#{e.message}\". Retrying...."
-          sleep 60
-          incr_retry_loop
+          sleep 300
           return true # Exception Handled
-        elsif e.message =~ /this server is stranded and needs to be operational/ and @retry_loop.last < 60
+        elsif e.message =~ /this server is stranded and needs to be operational/
           puts "Got \"#{e.message}\". Retrying...."
-          sleep 60
-          incr_retry_loop
+          sleep 300
           return true # Exception Handled
         else
           return false

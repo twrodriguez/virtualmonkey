@@ -11,6 +11,7 @@ while some_not_included and retry_loop < (files.size ** 2) do
   rescue SyntaxError => se
     raise se
   rescue Exception => e
+    raise e if e.message =~ /abort|interrupt/i
     some_not_included = true
     files.push(files.shift)
   end

@@ -44,18 +44,20 @@ module VirtualMonkey
   
       # Makes this exception_handle available for all runners
       def deployment_base_exception_handle(e)
-        if e.message =~ /Insufficient capacity/ and @retry_loop.last < 10
+        if e.message =~ /Insufficient capacity/
           puts "Got \"Insufficient capacity\". Retrying...."
           sleep 60
-          incr_retry_loop
           return true # Exception Handled
-        elsif e.message =~ /Service Temporarily Unavailable/ and @retry_loop.last < 30
+        elsif e.message =~ /execution expired/i
+          puts "Got \"execution expired...\". Retrying...."
+          sleep 5
+          return true # Exception Handled
+        elsif e.message =~ /Service Temporarily Unavailable/
           puts "Got \"Service Temporarily Unavailable\". Retrying...."
           sleep 10
-          incr_retry_loop
           return true # Exception Handled
         else
-          return false
+          return false # Exception Not Handled
         end
       end
   

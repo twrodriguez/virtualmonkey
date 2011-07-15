@@ -18,6 +18,7 @@ while some_not_included and retry_loop < (files.size ** 2) do
   rescue SyntaxError => se
     raise se
   rescue Exception => e
+    raise e if e.message =~ /abort|interrupt/i
     some_not_included = true
     files.push(files.shift)
   end
@@ -25,6 +26,8 @@ while some_not_included and retry_loop < (files.size ** 2) do
 end
 
 module VirtualMonkey
+  VERSION = "2.0"
+
   module Command
     # Parses the initial command string, removing it from ARGV, then runs command.
     def self.go
@@ -45,7 +48,7 @@ module VirtualMonkey
         :create                     => "Create MCI and Cloud permutation Deployments for a set of ServerTemplates",
         :destroy                    => "Destroy a set of Deployments",
         :destroy_ssh_keys           => "Destroy virtualmonkey-generated SSH Keys",
-        :generate_ssh_keys          => "Generate SSH Key files per Cloud",
+        :generate_ssh_keys          => "Generate SSH Key files per Cloud and stores their hrefs in ssh_keys.json",
         :list                       => "List the full Deployment nicknames and Server statuses for a set of Deployments",
         :new_config                 => "Interactively create a new Troop Config JSON File",
         :new_runner                 => "Interactively create a new testing scenario and all necessary files",
@@ -55,6 +58,7 @@ module VirtualMonkey
         :run                        => "Execute a set of feature tests across a set of Deployments in parallel",
         :troop                      => "Calls 'create', 'run', and 'destroy' for a given troop config file",
         :update_inputs              => "Updates the inputs and editable server parameters for a set of Deployments",
+        :version                    => "Displays version and exits",
         :help                       => "Displays usage information"
       }
 
@@ -79,12 +83,15 @@ module VirtualMonkey
         :one_deploy     => "opt :one_deploy, 'Load all variations of a single ST into one Deployment',        :short => '-z', :type => :boolean"
       }
 
-      max_width = @@available_commands.keys.map { |k| k.to_s.length }.max
-      @@usage_msg = @@available_commands.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
+      @@version_string = "VirtualMonkey #{VirtualMonkey::VERSION}"
 
-      @@usage_msg = "Valid commands for monkey:\n\n#{@@usage_msg}\n\n"
-      @@usage_msg += "Help usage: 'monkey help <command>' OR 'monkey <command> --help'\n"
-      @@usage_msg += "If this is your first time using Virtual Monkey, start with new_runner and new_config"
+      @@usage_msg = "\nValid commands for #{@@version_string}:\n\n"
+
+      max_width = @@available_commands.keys.map { |k| k.to_s.length }.max
+      @@usage_msg += @@available_commands.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
+
+      @@usage_msg += "\n\nHelp usage: 'monkey help <command>' OR 'monkey <command> --help'\n"
+      @@usage_msg += "If this is your first time using Virtual Monkey, start with new_runner and new_config\n\n"
 
       if @@available_commands[@@command.to_sym]
         VirtualMonkey::Command.__send__(@@command)
@@ -95,10 +102,8 @@ module VirtualMonkey
     end
 
     def self.use_options(*args)
-      ret = []
-      args.sort { |a,b| a.to_s <=> b.to_s }.each { |op|
-        ret << @@flags[op]
-      }
+      ret = args.sort { |a,b| a.to_s <=> b.to_s }.map { |op| @@flags[op] }
+      ret << "version '#{VirtualMonkey::VERSION}'"
       return ret.join(";")
     end
 
@@ -106,10 +111,16 @@ module VirtualMonkey
     def self.help
       if subcommand = ARGV.shift
         ENV['REST_CONNECTION_LOG'] = "/dev/null"
-        print `#{File.join(File.dirname(__FILE__), "..", "..", "bin", "monkey")} #{subcommand} --help`
+        ARGV.unshift("--help")
+        VirtualMonkey::Command.__send__(subcommand)
       else
         puts @@usage_msg
       end
+    end
+
+    # Version command
+    def self.version
+      puts @@version_string
     end
   end
 end
