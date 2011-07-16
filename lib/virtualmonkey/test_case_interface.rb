@@ -1,6 +1,6 @@
 require 'irb'
 if require 'ruby-debug'
-  Debugger.start(:post_mortem => true) if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['MONKEY_POST_MORTEM'] == "true"
+  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true"
 end
 
 module VirtualMonkey
@@ -19,13 +19,18 @@ module VirtualMonkey
       write_readable_log("#{args}")
     end
 
+    def sleep(time)
+      write_readable_log("sleep(#{time})")
+      super(time) if @done_resuming
+    end
+
     # Overrides raise to provide deep debugging abilities
     def raise(*args)
       begin
         super(*args)
       rescue Exception => e
         if not self.__send__(:__exception_handle__, e)
-          if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['MONKEY_POST_MORTEM'] != "true"
+          if ENV['MONKEY_NO_DEBUG'] != "true" and not Debugger.post_mortem
             puts "Got exception: #{e.message}" if e
             puts "Backtrace: #{e.backtrace.join("\n")}" if e
             puts "Pausing for inspection before continuing to raise Exception..."

@@ -15,10 +15,8 @@ while some_not_included and retry_loop < (files.size ** 2) do
     for f in files do
       some_not_included ||= require f.chomp(".rb")
     end
-  rescue SyntaxError => se
-    raise se
-  rescue Exception => e
-    raise e if e.message =~ /abort|interrupt/i
+  rescue NameError => e
+    raise e unless e.message =~ /uninitialized constant/i
     some_not_included = true
     files.push(files.shift)
   end
@@ -47,7 +45,7 @@ module VirtualMonkey
         :clone                      => "Clone a deployment n times and run though feature tests",
         :create                     => "Create MCI and Cloud permutation Deployments for a set of ServerTemplates",
         :destroy                    => "Destroy a set of Deployments",
-        :destroy_ssh_keys           => "Destroy virtualmonkey-generated SSH Keys",
+        :destroy_ssh_keys           => "Destroy VirtualMonkey-generated SSH Keys",
         :generate_ssh_keys          => "Generate SSH Key files per Cloud and stores their hrefs in ssh_keys.json",
         :list                       => "List the full Deployment nicknames and Server statuses for a set of Deployments",
         :new_config                 => "Interactively create a new Troop Config JSON File",
@@ -91,7 +89,7 @@ module VirtualMonkey
       @@usage_msg += @@available_commands.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
 
       @@usage_msg += "\n\nHelp usage: 'monkey help <command>' OR 'monkey <command> --help'\n"
-      @@usage_msg += "If this is your first time using Virtual Monkey, start with new_runner and new_config\n\n"
+      @@usage_msg += "If this is your first time using VirtualMonkey, start with new_runner and new_config\n\n"
 
       if @@available_commands[@@command.to_sym]
         VirtualMonkey::Command.__send__(@@command)

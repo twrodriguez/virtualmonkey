@@ -69,7 +69,8 @@ class GrinderJob
                       :target         => self,
                       :environment    => {"AWS_ACCESS_KEY_ID" => Fog.credentials[:aws_access_key_id],
                                           "AWS_SECRET_ACCESS_KEY" => Fog.credentials[:aws_secret_access_key],
-                                          "REST_CONNECTION_LOG" => @rest_log},
+                                          "REST_CONNECTION_LOG" => @rest_log,
+                                          "MONKEY_NO_DEBUG" => "true"},
                       :stdout_handler => :on_read_stdout,
                       :stderr_handler => :on_read_stderr,
                       :exit_handler   => :on_exit)
@@ -87,13 +88,10 @@ class GrinderMonk
     new_job.logfile = File.join(@log_dir, "#{deployment.nickname}.log")
     new_job.rest_log = File.join(@log_dir, "#{deployment.nickname}.rest_connection.log")
     new_job.deployment = deployment
-#    new_job.trace_log = File.join(@log_dir, "#{File.basename(feature, ".rb")}.yaml")
     new_job.verbose = true if @options[:verbose]
-#    break_point = @options[:breakpoint] if @options[:breakpoint] XXX DEPRECATED XXX
-#    cmd = "bin/grinder #{feature} #{break_point}"
     cmd = "bin/grinder -f #{feature} -d \"#{deployment.nickname}\" -g -l #{new_job.logfile} -t "
     test_ary.each { |test| cmd += " \"#{test}\" " }
-    cmd += " -n " if @options[:no_resume]
+    cmd += " -r " if @options[:no_resume]
     @jobs << new_job
     puts "running #{cmd}"
     new_job.run(cmd)

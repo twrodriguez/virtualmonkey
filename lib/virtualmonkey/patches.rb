@@ -1,5 +1,5 @@
 if require 'ruby-debug'
-  Debugger.start(:post_mortem => true) if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['MONKEY_POST_MORTEM'] == "true"
+  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true"
 end
 
 # Hash Patches

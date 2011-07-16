@@ -8,27 +8,31 @@ $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 require 'rubygems'
 require 'virtualmonkey'
 if require 'ruby-debug'
-  Debugger.start(:post_mortem => true) if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['MONKEY_POST_MORTEM'] == "true"
+  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true"
 end
 require 'irb'
 
 # Trollop
-default_log_file = File.join("tmp", "trace_file")
+default_log_file = File.join("", "tmp", "trace_file")
+self_deployment = ENV['MONKEY_SELF_DEPLOYMENT_NAME'] if VirtualMonkey::Toolbox::find_myself_in_api()
+self_deployment ||= "nil"
+
 options = Trollop::options do
-  opt :file, "Feature file name", :type => :string, :required => true
-  opt :log, "Log file name (defaults to #{default_log_file})", :type => :string, :default => default_log_file, :required => true
-  opt :tests, "Space-separated strings of tests to execute", :type => :strings
-  opt :deployment, "Full deployment name", :type => :string, :short => "-d"
-  opt :no_debug, "Disable inline debugging", :short => "-g"
-  opt :no_resume, "Do not resume; start test from scratch", :short => "-n"
+  opt :deployment, "Full deployment name",                                  :short => "-d", :type => :string, :default => self_deployment, :required => true
+  opt :file, "Feature file name",                                           :short => "-f", :type => :string, :required => true
+  opt :no_debug, "Disable all debugging",                                   :short => "-g", :type => :boolean
+  opt :log, "Log file name",                                                :short => "-l", :type => :string, :default => default_log_file, :required => true
+  opt :no_resume, "Do not resume; start test from scratch",                 :short => "-r", :type => :boolean
+  opt :post_mortem, "Enable Post Mortem debugging",                         :short => "-s", :type => :boolean
+  opt :tests, "Space-separated strings of tests to execute (default: all)", :short => "-t", :type => :strings
+  conflicts :no_debug, :post_mortem
 end
 
+# Set up debugging mode
 ENV['MONKEY_NO_DEBUG'] ||= "#{options[:no_debug]}"
-unless options[:deployment]
-  if VirtualMonkey::Toolbox::find_myself_in_api()
-    options[:deployment] = ENV['MONKEY_SELF_DEPLOYMENT_NAME']
-  end
-end
+Debugger.post_mortem = options[:post_mortem] if ENV['MONKEY_NO_DEBUG'] != "true"
+
+# Get confirmation if its detected that this instance is in the selected deployment
 unless ENV['MONKEY_NO_DEBUG'] =~ /true/i
   if options[:deployment] == ENV['MONKEY_SELF_DEPLOYMENT_NAME']
     confirm = ask("WARNING: You are about to run grinder on the deployment your virtualmonkey server is in. Are you sure you want to do this? (y/n)", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
@@ -36,5 +40,6 @@ unless ENV['MONKEY_NO_DEBUG'] =~ /true/i
   end
 end
 
+# Run
 test_case = VirtualMonkey::TestCase.new(options[:file], options)
 test_case.run(*options[:tests])
