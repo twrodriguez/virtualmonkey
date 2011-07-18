@@ -21,7 +21,7 @@ before do
   @runner.launch_set(:mysql_servers)
   @runner.launch_set(:fe_servers)
   @runner.wait_for_set(:mysql_servers, "operational")
-  @runner.set_mysql_fqdn
+  @runner.set_private_mysql_fqdn
   @runner.import_unified_app_sqldump
   @runner.wait_for_set(:fe_servers, "operational")
   @runner.launch_set(:app_servers)
@@ -34,7 +34,7 @@ end
 #
 
 test "run_unified_application_checks" do
-  @runner.run_unified_application_checks(:app_servers, 8000)
+#  @runner.run_unified_application_checks(:app_servers, 8000)
 end
 
 test "reboot_operations" do
@@ -73,7 +73,7 @@ end
 
 test "reconverge" do
   @runner.detach_all
-  puts sleep(130)
+  puts sleep(60*20)
   @runner.frontend_checks(80)
 end
 

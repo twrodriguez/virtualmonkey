@@ -3,10 +3,15 @@ module VirtualMonkey
     module PhpChef
 
       def set_mysql_fqdn
- 				the_name = mysql_servers.first.dns_name
+        the_name = mysql_servers.first.dns_name
         @deployment.set_input("db_mysql/fqdn", "text:#{the_name}")
-			end
-		
+      end
+
+      def set_private_mysql_fqdn
+        the_name = mysql_servers.first.private_ip
+        @deployment.set_input("db_mysql/fqdn", "text:#{the_name}")
+      end
+
       def disable_reconverge
         run_script_on_set('disable_reconverge', fe_servers)
       end
@@ -31,7 +36,7 @@ module VirtualMonkey
         recipes = [
                     [ 'attach_all', 'lb_haproxy::do_attach_all' ],
                     [ 'disable_reconverge', 'sys::do_reconverge_list_disable' ],
-                    [ 'enable_reconverge', 'sys::do_reconverge_list_disable' ]
+                    [ 'enable_reconverge', 'sys::do_reconverge_list_enable' ]
                   ]
         fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
         load_script_table(fe_st,recipes)
@@ -104,6 +109,6 @@ module VirtualMonkey
 	raise "FATAL: no certificate chain for Equifax detected." unless $?.success?
       end
  
-		end
-	end 
+    end
+  end 
 end
