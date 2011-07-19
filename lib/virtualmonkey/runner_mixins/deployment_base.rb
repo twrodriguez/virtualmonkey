@@ -365,7 +365,6 @@ module VirtualMonkey
       
       # Detect operating system on each server and stuff the corresponding values for platform into the servers params (for temp storage only)
       def detect_os
-        @server_os = Array.new
         @servers.each do |server|
           if probe(server, "lsb_release -is | grep Ubuntu")
             puts "setting server to ubuntu"
@@ -433,17 +432,15 @@ module VirtualMonkey
           raise "Fatal: Failed to verify that monitoring is operational" unless response
   #TODO: pass in some list of plugin info to check multiple values.  For now just
   # hardcoding the cpu check
-          unless server.multicloud
-            sleep 180 # This is to allow monitoring data to accumulate
-            monitor = transaction { server.get_sketchy_data({'start' => -60,
-                                                             'end' => -20,
-                                                             'plugin_name' => "cpu-0",
-                                                             'plugin_type' => "cpu-idle"}) }
-            idle_values = monitor['data']['value']
-            raise "No cpu idle data" unless idle_values.length > 0
-            raise "CPU idle time is < 0: #{idle_values}" unless idle_values[0] > 0
-            puts "Monitoring is OK for #{server.nickname}"
-          end
+          sleep 180 # This is to allow monitoring data to accumulate
+          monitor = transaction { server.get_sketchy_data({'start' => -60,
+                                                           'end' => -20,
+                                                           'plugin_name' => "cpu-0",
+                                                           'plugin_type' => "cpu-idle"}) }
+          idle_values = monitor['data']['value']
+          raise "No cpu idle data" unless idle_values.length > 0
+          raise "CPU idle time is < 0: #{idle_values}" unless idle_values[0] > 0
+          puts "Monitoring is OK for #{server.nickname}"
         end
       end
   
@@ -505,7 +502,7 @@ module VirtualMonkey
       
       # this is where ALL the generic application server checks live, this could get rather long but for now it's a single method with a sequence of checks
       def run_simple_check(server)
-        test_mail_confi(server)
+        test_mail_config(server)
         test_syslog_config(server)
       end
     end
