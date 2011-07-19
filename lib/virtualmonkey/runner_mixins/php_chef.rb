@@ -8,7 +8,8 @@ module VirtualMonkey
       end
 
       def set_private_mysql_fqdn
-        the_name = mysql_servers.first.private_ip
+        the_name = mysql_servers.first.private_ip 
+        the_name = mysql_servers.first.dns_name unless the_name
         @deployment.set_input("db_mysql/fqdn", "text:#{the_name}")
       end
 
