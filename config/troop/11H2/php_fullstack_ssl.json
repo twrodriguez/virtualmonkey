@@ -1,0 +1,13 @@
+{
+  "feature":"php_fullstack_ssl.rb",
+  "cloud_variables":"all_clouds.json",
+  "common_inputs":"php_app_ssl_fe_chef.json",
+  "prefix":"FULLSTACK_SSL",
+  "server_template_ids":[
+    "27958",
+    "27958",
+    "120077",
+    "120077",
+    "107666"
+  ]
+}
