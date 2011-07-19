@@ -10,7 +10,6 @@ before do
 # TODO: variations to set
 # mysql fqdn
   @runner.set_variation_http_only
-  @runner.set_variation_cron_time
 
 # Mysql variations
   @runner.set_variation_lineage
@@ -69,14 +68,23 @@ end
 
 before "reconverge" do
   @runner.enable_reconverge
+  @runner.set_variation_cron_time
 end
 
 test "reconverge" do
   @runner.detach_all
-  puts sleep(60*20)
+  puts sleep(60*2) # 2 minutes
   @runner.frontend_checks(80)
 end
 
-after "reconverge" do
+before "cron_reconverge" do
+  @runner.enable_reconverge
+end
+
+test "cron_reconverge" do
+  @runner.test_cron_reconverge
+end
+
+after "reconverge", "cron_reconverge" do
   @runner.disable_reconverge
 end

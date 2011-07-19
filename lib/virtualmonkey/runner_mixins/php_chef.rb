@@ -70,8 +70,19 @@ module VirtualMonkey
       end
 
       def set_variation_cron_time
-        @deployment.set_input("lb_haproxy/cron_reconverge_hour", "text:*")
-        @deployment.set_input("lb_haproxy/cron_reconverge_minute", "text:*")
+        probe(fe_servers, "crontab -l | sed -re 's|^[0-9]+,[0-9]+,[0-9]+,[0-9]+( \\* \\* \\* \\* rs_run_recipe -n lb_haproxy::do_attach_all 2>&1 > /var/log/rs_sys_reconverge.log)$|*\\1|' | crontab -")
+      end
+
+      def test_cron_reconverge
+        probe(fe_servers, "crontab -l | sed -re 's|^([0-9]+,[0-9]+,[0-9]+,[0-9]+) \\* \\* \\* \\* rs_run_recipe -n lb_haproxy::do_attach_all 2>&1 > /var/log/rs_sys_reconverge.log$|\\1|p;d'") do |result, status|
+          raise "Cron reconverge failed, cron job lb_haproxy::do_attach_all missing" if result.empty?
+
+          i = nil
+          result.split(',').map { |s| s.to_i }.each do |n|
+            raise "Cron reconverge failed, not scheduled in 15 minute interval: #{result}" unless i == nil || i == n
+            i = n + 15
+          end
+        end
       end
 
       def set_variation_ssl
