@@ -75,8 +75,6 @@ module VirtualMonkey
   
         @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
         puts "STORAGE_TYPE: #{@storage_type}"
-        @deployment.nickname += "-STORAGE_TYPE_#{@storage_type}"
-        @deployment.save
    
         obj_behavior(@deployment, :set_input, "db_mysql/backup/storage_type", "text:#{@storage_type}")
       end
