@@ -9,17 +9,17 @@ before do
 
 # TODO: variations to set
 # mysql fqdn
-  @runner.set_variation_cron_time
+
+ # sets ssl inputs at deployment level
+  @runner.set_variation_ssl
+  @runner.set_variation_ssl_chain
+  @runner.set_variation_ssl_passphrase
 
 # Mysql variations
   @runner.set_variation_lineage
   @runner.set_variation_container
   @runner.set_variation_storage_type
 
- # sets ssl inputs at deployment level
-  @runner.set_variation_ssl
-  @runner.set_variation_ssl_chain
-  @runner.set_variation_ssl_passphrase
 # launching
   @runner.launch_set(:mysql_servers)
   @runner.launch_set(:fe_servers)
@@ -41,14 +41,14 @@ end
 # @runner.run_unified_application_checks(:app_servers, 80)
 #end
 
-#Running mysql reboot tests???????
 test "reboot_operations" do
   @runner.run_reboot_operations
 end
 
-test "monitoring" do
-  @runner.check_monitoring
-end
+# These tests are covered in the php_full_stack.rb feature
+#test "monitoring" do
+#  @runner.check_monitoring
+#end
 
 #
 ## ATTACHMENT GROUP
@@ -64,12 +64,13 @@ test "attach_request" do
   @runner.frontend_checks(443)
 end
 
-#after "attach_all", "attach_request" do
- # @runner.test_detach  the detach will be done in "ssl" do I dont think we need it ... hence its commented out
-#end
+after "attach_all", "attach_request" do
+  @runner.test_detach
+end
 
 # Because we setup 2 frontends differently to test the code paths of "with:passphrase" and "without:passphrase", one frontend_checks run is sufficient to see if SSL is being served on all Fes
 test "ssl" do
+  @runner.test_attach_all
   @runner.frontend_checks(443)
   @runner.test_detach
 end
@@ -82,11 +83,42 @@ test "ssl_chain" do
   @runner.test_ssl_chain
 end
 
-test "base_checks" do
-  @runner.check_monitoring
-  @runner.run_reboot_operations
-  @runner.wait_for_all("operational")
-  @runner.check_monitoring
-#  @runner.run_logger_audit
-end
+#
+# These tests are covered in the php_full_stack.rb feature
+#test "base_checks" do
+#  @runner.check_monitoring
+#  @runner.run_reboot_operations
+#  @runner.wait_for_all("operational")
+#  @runner.check_monitoring
+##  @runner.run_logger_audit
+#end
+
+
+#
+## Reconverge Test
+#
+
+# These tests are covered in the php_full_stack.rb feature
+#before "reconverge" do
+#  @runner.enable_reconverge
+#  @runner.set_variation_cron_time
+#end
+#
+#test "reconverge" do
+#  @runner.detach_all
+#  puts sleep(60*2) # 2 minutes
+#  @runner.frontend_checks(80)
+#end
+#  
+#before "cron_reconverge" do
+#  @runner.enable_reconverge
+#end
+#  
+#test "cron_reconverge" do
+#  @runner.test_cron_reconverge
+#end
+  
+#after "reconverge", "cron_reconverge" do
+#  @runner.disable_reconverge
+#end
 
