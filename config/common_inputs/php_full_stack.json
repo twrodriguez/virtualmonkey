@@ -20,7 +20,8 @@
   "db_mysql/backup/rackspace_user" : "cred:RACKSPACE_USERNAME",
   "db_mysql/backup/rackspace_secret" : "cred:RACKSPACE_AUTH_KEY",
   "rs_utils/private_ssh_key" : "key:publish-test:1",
-  "sys_firewall/enabled": "text:enabled"
+  "sys_firewall/enabled": "text:enabled",
+  "db_mysql/fqdn": "text:localhost"
 
 }
 
