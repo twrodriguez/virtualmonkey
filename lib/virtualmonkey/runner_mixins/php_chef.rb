@@ -22,10 +22,16 @@ module VirtualMonkey
       end
 
       def detach_checks
-        probe(fe_servers, "sed -n '/^[ \t]*server/p' /home/haproxy/rightscale_lb.cfg") { |result, status|
+        probe(fe_servers, "sed -n '/^[\s]*server[\s]+((?!disabled-server).*)*$/p' /home/haproxy/rightscale_lb.cfg") { |result, status|
           raise "Detach failed, servers are left in /home/haproxy/rightscale_lb.cfg - #{result}" unless result.empty?
           raise "Detach failed, status returned #{status}" unless status == 0
           true
+        }
+        # Make sure the disabled server is still in the config
+        # server disabled-server 127.0.0.1:1 disabled
+	probe(fe_servers, "grep -q 'server disabled-server 127.0.0.1:1 disabled' /home/haproxy/rightscale_lb.cfg") { |result, status|
+	  raise "Detach failed, disabled-server no longer in configuration" unless status == 0
+	  true
         }
       end
 
