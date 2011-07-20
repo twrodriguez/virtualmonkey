@@ -189,7 +189,8 @@ class DeploymentMonk
           # For non-ec2 clouds we should pick an instance_type
           if cloud.to_i > 10
             i_types = McInstanceType.find_all(cloud)
-            server_params["instance_type_href"] = i_types.first.href
+            select_itype = i_types[i_types.length / 2]
+            server_params["instance_type_href"] = select_itype.href
           end
 
           # If overriding the multicloudimage need to specify the ec2 image href because you can't set an MCI that's not in the ServerTemplate
