@@ -62,6 +62,7 @@ end
 test "attach_request" do
   @runner.test_attach_request
   @runner.frontend_checks(443)
+  @runner.test_detach
 end
 
 after "attach_all", "attach_request" do

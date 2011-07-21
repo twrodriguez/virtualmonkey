@@ -32,9 +32,9 @@ end
 ## Unified Application on 8000
 #
 
-test "run_unified_application_checks" do
+#test "run_unified_application_checks" do
 #  @runner.run_unified_application_checks(:app_servers, 8000)
-end
+#end
 
 test "reboot_operations" do
   @runner.run_reboot_operations
