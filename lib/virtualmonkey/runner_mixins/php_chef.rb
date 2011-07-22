@@ -92,6 +92,17 @@ module VirtualMonkey
         end
       end
 
+      def set_variation_defunct_server
+        probe(fe_servers, "echo -e '\\tserver BOGUS 1.2.3.4:8000 check inter 3000 rise 2 fall 3 maxconn 500' >> /home/haproxy/rightscale_lb.cfg")
+      end
+
+      def test_defunct_server
+        probe(fe_servers, "! grep 'server BOGUS 1\\.2\\.3\\.4' /home/haproxy/rightscale_lb.cfg") do |result, status|
+          raise "Removing defunct server failed, bogus server still listed: #{result}" unless result.empty?
+          true
+        end
+      end
+
       def set_variation_ssl
         @deployment.set_input("web_apache/ssl_enable", "text:true")
         @deployment.set_input("web_apache/ssl_key", "cred:virtual_monkey_key")

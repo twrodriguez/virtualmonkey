@@ -88,3 +88,18 @@ end
 after "reconverge", "cron_reconverge" do
   @runner.disable_reconverge
 end
+
+#
+## Defunct Server Test
+#
+
+before "defunct_server" do
+  @runner.set_variation_defunct_server
+end
+
+test "defunct_server" do
+  @runner.transaction do
+    @runner.test_attach_all
+    @runner.test_defunct_server
+  end
+end
