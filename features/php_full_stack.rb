@@ -66,28 +66,28 @@ end
 ## Reconverge Test
 #
 
-before "reconverge" do
-  @runner.enable_reconverge
-  @runner.set_variation_cron_time
-end
+#before "reconverge" do
+ # @runner.enable_reconverge
+ # @runner.set_variation_cron_time
+#end
 
-test "reconverge" do
-  @runner.detach_all
-  puts sleep(60*2) # 2 minutes
-  @runner.frontend_checks(80)
-end
+#test "reconverge" do
+#  @runner.detach_all
+#  puts sleep(60*2) # 2 minutes
+#  @runner.frontend_checks(80)
+#end
 
-before "cron_reconverge" do
-  @runner.enable_reconverge
-end
+#before "cron_reconverge" do
+#  @runner.enable_reconverge
+#end
 
-test "cron_reconverge" do
-  @runner.test_cron_reconverge
-end
+#test "cron_reconverge" do
+ # @runner.test_cron_reconverge    ###### not doing this anymore so dont test it
+#end
 
-after "reconverge", "cron_reconverge" do
-  @runner.disable_reconverge
-end
+#after "reconverge", "cron_reconverge" do
+ # @runner.disable_reconverge
+#end
 
 #
 ## Defunct Server Test
