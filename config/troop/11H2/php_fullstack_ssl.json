@@ -1,7 +1,7 @@
 {
   "feature":"php_fullstack_ssl.rb",
   "cloud_variables":"all_clouds.json",
-  "common_inputs":"php_app_ssl_fe_chef.json",
+  "common_inputs":"php_full_stack.json",
   "prefix":"FULLSTACK_SSL",
   "server_template_ids":[
     "27958",
