@@ -1,8 +1,13 @@
 module VirtualMonkey
   module Command
     # This command does all the steps create/run/conditionaly destroy
-    def self.troop
+    def self.troop(*args)
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:troop]
         eval(VirtualMonkey::Command::use_options( :config_file, :no_spot, :prefix, :use_mci, :qa, :verbose, :yes,

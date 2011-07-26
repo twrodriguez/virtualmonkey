@@ -1,6 +1,11 @@
 module VirtualMonkey
   module Command
-    def self.generate_ssh_keys
+    def self.generate_ssh_keys(*args)
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:generate_ssh_keys]
         opt :add_cloud, "Add a non-ec2 cloud to ssh_keys (takes the integer cloud id)", :type => :integer
@@ -11,7 +16,12 @@ module VirtualMonkey
       puts "SSH Keyfiles generated."
     end
 
-    def self.destroy_ssh_keys
+    def self.destroy_ssh_keys(*args)
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:destroy_ssh_keys]
       end
@@ -20,7 +30,12 @@ module VirtualMonkey
       puts "SSH Keyfiles destroyed."
     end
 
-    def self.populate_security_groups
+    def self.populate_security_groups(*args)
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:populate_security_groups]
         opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
@@ -31,7 +46,12 @@ module VirtualMonkey
       puts "Security Group file populated."
     end
 
-    def self.populate_datacenters
+    def self.populate_datacenters(*args)
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:populate_datacenters]
         opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
@@ -41,7 +61,12 @@ module VirtualMonkey
       puts "Datacenters file populated."
     end
 
-    def self.populate_all_cloud_vars
+    def self.populate_all_cloud_vars(*args)
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:populate_all_cloud_vars]
         opt :force, "Forces command to continue if an exception is raised in a subcommand, populating as many files as possible."
@@ -51,7 +76,12 @@ module VirtualMonkey
       puts "Cloud Variables folder populated."
     end
 
-    def self.api_check
+    def self.api_check(*args)
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:api_check]
         opt :api_version, "Check to see if the monkey has RightScale API access for the given version (0.1, 1.0, or 1.5)", :type => :float, :required => true
@@ -65,7 +95,12 @@ module VirtualMonkey
       end
     end
 
-    def self.audit_logs
+    def self.audit_logs(*args)
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:audit_logs]
         eval(VirtualMonkey::Command::use_options(:prefix, :only, :config_file, :qa, :list_trainer))

@@ -3,9 +3,10 @@ require 'erb'
 require 'fog'
 require 'eventmachine'
 require 'right_popen'
+require 'content_type'
 
 class GrinderJob
-  attr_accessor :status, :output, :logfile, :deployment, :rest_log, :trace_log, :no_resume, :verbose
+  attr_accessor :status, :output, :logfile, :deployment, :rest_log, :other_logs, :no_resume, :verbose
 
   def link_to_rightscale
 #    i = deployment.href.split(/\//).last
@@ -83,10 +84,13 @@ class GrinderMonk
   # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
   # * feature<~String> the feature filename 
-  def run_test(deployment, feature, test_ary)
+  def run_test(deployment, feature, test_ary, other_logs = [])
     new_job = GrinderJob.new
     new_job.logfile = File.join(@log_dir, "#{deployment.nickname}.log")
     new_job.rest_log = File.join(@log_dir, "#{deployment.nickname}.rest_connection.log")
+    new_job.other_logs = other_logs.map { |log|
+      File.join(@log_dir, "#{deployment.nickname}.#{File.basename(log)}")
+    }
     new_job.deployment = deployment
     new_job.verbose = true if @options[:verbose]
     cmd = "bin/grinder -f #{feature} -d \"#{deployment.nickname}\" -g -l #{new_job.logfile} -t "
@@ -127,7 +131,7 @@ class GrinderMonk
     }
 
     deployments.each_with_index { |d,i| 
-      run_test(d,cmd,deployment_tests[i]) 
+      run_test(d, cmd, deployment_tests[i], test_case.options[:additional_logs])
     }
   end
 
@@ -188,10 +192,13 @@ class GrinderMonk
  
     report_on.each do |j|
       begin
-        done = 0
+        done = false
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.logfile)}", IO.read(j.logfile), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.rest_log)}", IO.read(j.rest_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
-        done = 1
+        j.other_logs.each { |log|
+          s3.put_object(bucket_name, "#{@log_started}/#{File.basename(log)}", IO.read(log), 'x-amz-acl' => 'public-read', 'Content-Type' => File.content_type(log))
+        }
+        done = true
       rescue Exception => e
         unless e.message =~ /Bad file descriptor|no such file or directory/i
           raise e

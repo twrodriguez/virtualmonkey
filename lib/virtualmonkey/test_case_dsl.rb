@@ -9,6 +9,8 @@ module VirtualMonkey
       @after = {}
       @options = options
       @tests_to_resume = nil
+      @options[:additional_logs] = []
+      @runner = nil
       ruby = IO.read(file)
       eval(ruby)
       self
@@ -94,11 +96,25 @@ module VirtualMonkey
       VirtualMonkey::trace_log = []
     end
 
-    def set(var, arg)
-      if arg.is_a?(Class) and var == :runner
-        @options[:runner] = arg
+    def set(var, *args)
+      case var
+      when :runner
+        if args.first.is_a?(Class)
+          @options[var] = args.first
+        else
+          raise "Need a VirtualMonkey::Runner Class!"
+        end
+      when :logs
+        args.each { |log| @options[:additional_logs] << log if log.is_a?(String) }
+        @options[:additional_logs].uniq!
+      when :runner_options
+        if args.first.is_a?(Hash)
+          @options[var] = args.first
+        else
+          raise ":runner_options can only be set to a Hash!"
+        end
       else
-        raise "Need a VirtualMonkey::Runner Class!"
+        puts "#{var} is not a valid option!"
       end
     end
 
@@ -110,21 +126,25 @@ module VirtualMonkey
       if args.empty?
         @before[:all] = block
       else
-        args.each { |test_name| @before[test_name] = block }
+        args.each { |test| @before[test] = block if test.is_a?(String) }
       end
     end
 
     def test(*args, &block)
-      args.each { |test_name| @test[test_name] = block }
+      args.each { |test| @test[test] = block if test.is_a?(String) }
     end
 
     def after(*args, &block)
-      puts args.inspect
       if args.empty?
         @after[:all] = block
       else
-        args.each { |test_name| @after[test_name] = block }
+        args.each { |test| @after[test] = block if test.is_a?(String) }
       end
+    end
+
+    def method_missing(sym, *args, &block)
+      raise NoMethodError.new("undefined method '#{sym}' for #{inspect}:#{self.class}") unless @runner
+      @runner.__send__(sym, *args, &block)
     end
   end
 end

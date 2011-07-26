@@ -47,6 +47,7 @@ module VirtualMonkey
         :destroy                    => "Destroy a set of Deployments",
         :destroy_ssh_keys           => "Destroy VirtualMonkey-generated SSH Keys",
         :generate_ssh_keys          => "Generate SSH Key files per Cloud and stores their hrefs in ssh_keys.json",
+        :import_deployment          => "Import an existing Deployment and create a new testing scenario for it",
         :list                       => "List the full Deployment nicknames and Server statuses for a set of Deployments",
         :new_config                 => "Interactively create a new Troop Config JSON File",
         :new_runner                 => "Interactively create a new testing scenario and all necessary files",
@@ -93,6 +94,8 @@ module VirtualMonkey
 
       if @@available_commands[@@command.to_sym]
         VirtualMonkey::Command.__send__(@@command)
+      elsif @@command == "-h" or @@command == "--help"
+        VirtualMonkey::Command.help
       else
         STDERR.puts "Invalid command #{@@command}\n\n#{@@usage_msg}"
         exit(1)
@@ -101,7 +104,7 @@ module VirtualMonkey
 
     def self.use_options(*args)
       ret = args.sort { |a,b| a.to_s <=> b.to_s }.map { |op| @@flags[op] }
-      ret << "version '#{VirtualMonkey::VERSION}'"
+#      ret << "version '#{VirtualMonkey::VERSION}'"
       return ret.join(";")
     end
 

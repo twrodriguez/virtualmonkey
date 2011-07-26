@@ -56,6 +56,7 @@ module VirtualMonkey
       @retry_loop = []
       @done_resuming = true
       @in_transaction = []
+      @max_retries = 10
       @options = options
       @deprecation_error = `curl -s "www.kdegraaf.net/cgi-bin/bofh" | grep -o "<b>.*</b>"`
       @deprecation_error.gsub!(/<\/*b>/,"")
@@ -63,6 +64,18 @@ module VirtualMonkey
       if @options[:resume_file] && File.exists?(@options[:resume_file])
         @done_resuming = false     
       end
+
+      # Set-up relative logs in case we're being run in parallel
+      file_name = "#{@deployment.nickname}.#{File.basename(log)}"
+      base_dir = ENV['MONKEY_LOG_BASE_DIR'] || File.dirname(log)
+      @log_map = {}
+      @options[:additional_logs].each { |log| @log_map[log] = File.join(base_dir, file_name) }
+      # USE THIS IN RUNNER CLASS:
+      # File.open(@log_map["my_special_report.html"], "w") { |f| f.write("blah") }
+      #
+      # USE THIS IN FEATURE FILE:
+      # set :logs, "my_special_report.html"
+
       VirtualMonkey::trace_log << { "feature_file" => @options[:file] }
       write_readable_log("feature_file: #{@options[:file]}")
       # Do renaming stuff
@@ -201,6 +214,14 @@ module VirtualMonkey
       end
     end
 
+    def match_servers_by_st(ref)
+      @st_table.select { |s,st| st.href == ref.href }.map { |s,st| s }
+    end
+
+    def match_st_by_server(ref)
+      @st_table.select { |s,st| s.href == ref.href }.last.last
+    end
+
     private
 
     def obj_behavior(obj, sym, *args)
@@ -214,7 +235,7 @@ module VirtualMonkey
       exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m !~ /^__/ }
 
       
-      return false if @retry_loop.empty? or @retry_loop.last > 10 # No more than 10 retries
+      return false if @retry_loop.empty? or @retry_loop.last > @max_retries # No more than 10 retries
       exception_handle_methods.each { |m|
         if self.__send__(m,e)
           # If an exception_handle method doesn't return false, it handled correctly
@@ -274,14 +295,6 @@ module VirtualMonkey
         self.__send__(:__lookup_scripts__)
         self.__send__(:__list_loader__)
       end
-    end
-
-    def match_servers_by_st(ref)
-      @st_table.select { |s,st| st.href == ref.href }.map { |s,st| s }
-    end
-
-    def match_st_by_server(ref)
-      @st_table.select { |s,st| s.href == ref.href }.last.last
     end
 
     # select_set returns an Array of ServerInterfaces and accepts any of the following:

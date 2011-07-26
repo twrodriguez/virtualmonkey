@@ -2,7 +2,12 @@ module VirtualMonkey
   module Command
   
 # monkey destroy --tag unique_tag
-    def self.destroy
+    def self.destroy(*args)
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:destroy]
         eval(VirtualMonkey::Command::use_options( :config_file, :only, :keep, :prefix, :yes, :clouds,

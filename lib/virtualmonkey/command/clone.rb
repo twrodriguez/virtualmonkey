@@ -2,8 +2,13 @@ module VirtualMonkey
   module Command
 
 # monkey clone --deployment name --feature testcase.rb --breakpoint 4 --copies 7
-    def self.clone
+    def self.clone(*args)
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
       @@options = Trollop::options do
         text @@available_commands[:clone]
         eval(VirtualMonkey::Command::use_options( :deployment, :config_file, :n_copies,
