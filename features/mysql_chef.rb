@@ -1,7 +1,10 @@
 set :runner, VirtualMonkey::Runner::MysqlChef
 
+clean_start do
+  @runner.stop_all
+end
+
 before do
-  @runner.stop_all(true)
   @runner.set_variation_lineage
   @runner.set_variation_container
   @runner.set_variation_storage_type

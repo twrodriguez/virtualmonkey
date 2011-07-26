@@ -1,10 +1,9 @@
 {
   "prefix":"MYSQL_51_CHEF_TROOP",
-
   "common_inputs":"mysql_chef.json",
   "server_template_ids":[
     "107666"
   ],
   "feature":"mysql_chef.rb",
-  "cloud_variables":"aws_us_east.json"
+  "cloud_variables":"all_clouds.json"
 }

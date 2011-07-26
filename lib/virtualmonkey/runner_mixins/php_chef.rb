@@ -8,7 +8,8 @@ module VirtualMonkey
       end
 
       def set_private_mysql_fqdn
-        the_name = mysql_servers.first.private_ip
+        the_name = mysql_servers.first.private_ip 
+        the_name = mysql_servers.first.dns_name unless the_name
         @deployment.set_input("db_mysql/fqdn", "text:#{the_name}")
       end
 
@@ -21,10 +22,16 @@ module VirtualMonkey
       end
 
       def detach_checks
-        probe(fe_servers, "sed -n '/^[ \t]*server/p' /home/haproxy/rightscale_lb.cfg") { |result, status|
+        probe(fe_servers, "sed -n '/^[\s]*server[\s]+((?!disabled-server).*)*$/p' /home/haproxy/rightscale_lb.cfg") { |result, status|
           raise "Detach failed, servers are left in /home/haproxy/rightscale_lb.cfg - #{result}" unless result.empty?
           raise "Detach failed, status returned #{status}" unless status == 0
           true
+        }
+        # Make sure the disabled server is still in the config
+        # server disabled-server 127.0.0.1:1 disabled
+	probe(fe_servers, "grep -q 'server disabled-server 127.0.0.1:1 disabled' /home/haproxy/rightscale_lb.cfg") { |result, status|
+	  raise "Detach failed, disabled-server no longer in configuration" unless status == 0
+	  true
         }
       end
 
@@ -70,8 +77,30 @@ module VirtualMonkey
       end
 
       def set_variation_cron_time
-        @deployment.set_input("lb_haproxy/cron_reconverge_hour", "text:*")
-        @deployment.set_input("lb_haproxy/cron_reconverge_minute", "text:*")
+        probe(fe_servers, "crontab -l | sed -re 's|^[0-9]+,[0-9]+,[0-9]+,[0-9]+( \\* \\* \\* \\* rs_run_recipe -n lb_haproxy::do_attach_all 2>&1 > /var/log/rs_sys_reconverge.log)$|*\\1|' | crontab -")
+      end
+
+      def test_cron_reconverge
+        probe(fe_servers, "crontab -l | sed -re 's|^([0-9]+,[0-9]+,[0-9]+,[0-9]+) \\* \\* \\* \\* rs_run_recipe -n lb_haproxy::do_attach_all 2>&1 > /var/log/rs_sys_reconverge.log$|\\1|p;d'") do |result, status|
+          raise "Cron reconverge failed, cron job lb_haproxy::do_attach_all missing" if result.empty?
+
+          i = nil
+          result.split(',').map { |s| s.to_i }.each do |n|
+            raise "Cron reconverge failed, not scheduled in 15 minute interval: #{result}" unless i == nil || i == n
+            i = n + 15
+          end
+        end
+      end
+
+      def set_variation_defunct_server
+        probe(fe_servers, "echo -e '\\tserver BOGUS 1.2.3.4:8000 check inter 3000 rise 2 fall 3 maxconn 500' >> /home/haproxy/rightscale_lb.cfg")
+      end
+
+      def test_defunct_server
+        probe(fe_servers, "! grep 'server BOGUS 1\\.2\\.3\\.4' /home/haproxy/rightscale_lb.cfg") do |result, status|
+          raise "Removing defunct server failed, bogus server still listed: #{result}" unless result.empty?
+          true
+        end
       end
 
       def set_variation_ssl
