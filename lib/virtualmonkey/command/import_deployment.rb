@@ -2,11 +2,7 @@ module VirtualMonkey
   module Command
     # This command does all the steps create/run/conditionaly destroy
     def self.import_deployment(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:import_deployment]
         eval(VirtualMonkey::Command::use_options(:deployment))

@@ -27,9 +27,7 @@ module VirtualMonkey
   VERSION = "2.0"
 
   module Command
-    # Parses the initial command string, removing it from ARGV, then runs command.
-    def self.go
-      @@command = ARGV.shift
+    def self.init(*args)
       @@global_state_dir = File.join(File.dirname(__FILE__), "..", "..", "test_states")
       @@features_dir = File.join(File.dirname(__FILE__), "..", "..", "features")
       @@cfg_dir = File.join(File.dirname(__FILE__), "..", "..", "config")
@@ -39,9 +37,9 @@ module VirtualMonkey
       @@ci_dir = File.join(@@cfg_dir, "common_inputs")
       @@troop_dir = File.join(@@cfg_dir, "troop")
 
+      # Monkey available_commands
       @@available_commands = {
         :api_check                  => "Verify API version connectivity",
-        :audit_logs                 => "Execute Blacklist/Whitelist auditing of log files",
         :clone                      => "Clone a deployment n times and run though feature tests",
         :create                     => "Create MCI and Cloud permutation Deployments for a set of ServerTemplates",
         :destroy                    => "Destroy a set of Deployments",
@@ -61,6 +59,17 @@ module VirtualMonkey
         :help                       => "Displays usage information"
       }
 
+      # QA available_commands
+      @@available_qa_commands = {
+        :alpha      => "",
+        :beta       => "",
+        :ga         => "",
+        :log_audit  => "",
+        :port_scan  => "",
+        :version    => "Displays version and exits",
+        :help       => "Displays usage information"
+      }
+
       @@flags = {
         :terminate      => "opt :terminate, 'Terminate if tests successfully complete. (No destroy)',         :short => '-a', :type => :boolean",
         :common_inputs  => "opt :common_inputs, 'Input JSON files to be set at Deployment AND Server levels', :short => '-c', :type => :strings",
@@ -68,12 +77,10 @@ module VirtualMonkey
         :config_file    => "opt :config_file, 'Troop Config JSON File',                                       :short => '-f', :type => :string",
         :clouds         => "opt :clouds, 'Space-separated list of cloud_ids to use',                          :short => '-i', :type => :integers",
         :keep           => "opt :keep, 'Do not delete servers or deployments after terminating',              :short => '-k', :type => :boolean",
-        :list_trainer   => "opt :list_trainer, 'run through the interactive white- and black-list trainer.',  :short => '-l', :type => :boolean",
         :use_mci        => "opt :use_mci, 'List of MCI hrefs to substitute for the ST-attached MCIs',         :short => '-m', :type => :string, :multi => true",
         :n_copies       => "opt :n_copies, 'Number of clones to make',                                        :short => '-n', :type => :integer, :default => 1",
         :only           => "opt :only, 'Regex string to use for subselection matching on MCIs',               :short => '-o', :type => :string",
         :no_spot        => "opt :no_spot, 'do not use spot instances',                                        :short => '-p', :type => :boolean, :default => true",
-        :qa             => "opt :qa, 'Special QA mode for exhaustively performing every possible test',       :short => '-q', :type => :boolean",
         :no_resume      => "opt :no_resume, 'Do not use trace info to resume a previous test',                :short => '-r', :type => :boolean",
         :tests          => "opt :tests, 'List of test names to run across Deployments (default is all)',      :short => '-t', :type => :strings",
         :verbose        => "opt :verbose, 'Print all output to STDOUT as well as the log files',              :short => '-v', :type => :boolean",
@@ -84,14 +91,31 @@ module VirtualMonkey
 
       @@version_string = "VirtualMonkey #{VirtualMonkey::VERSION}"
 
+      # Regular message
       @@usage_msg = "\nValid commands for #{@@version_string}:\n\n"
-
       max_width = @@available_commands.keys.map { |k| k.to_s.length }.max
       @@usage_msg += @@available_commands.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
-
       @@usage_msg += "\n\nHelp usage: 'monkey help <command>' OR 'monkey <command> --help'\n"
       @@usage_msg += "If this is your first time using VirtualMonkey, start with new_runner and new_config\n\n"
 
+      # QA Mode message
+      @@qa_usage_msg = "\nValid commands for #{@@version_string} (QA mode):\n\n"
+      qa_max_width = @@available_qa_commands.keys.map { |k| k.to_s.length }.max
+      @@qa_usage_msg += @@available_qa_commands.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }.map { |k,v| "  %#{qa_max_width}s:   #{v}" % k }.join("\n")
+      @@qa_usage_msg += "\n\nHelp usage: 'qa help <command>' OR 'qa <command> --help'\n\n"
+
+      # Parse any passed args and put them in ARGV if they exist
+      if args.length > 1
+        ARGV.replace args
+      elsif args.length == 1
+        ARGV.replace args.first.split(/ /)
+      end
+    end
+
+    # Parses the initial command string, removing it from ARGV, then runs command.
+    def self.go(*args)
+      self.init(*args)
+      @@command = ARGV.shift
       if @@available_commands[@@command.to_sym]
         VirtualMonkey::Command.__send__(@@command)
       elsif @@command == "-h" or @@command == "--help"
@@ -109,18 +133,19 @@ module VirtualMonkey
     end
 
     # Help command
-    def self.help
+    def self.help(*args)
+      self.init(*args)
       if subcommand = ARGV.shift
         ENV['REST_CONNECTION_LOG'] = "/dev/null"
-        ARGV.unshift("--help")
-        VirtualMonkey::Command.__send__(subcommand)
+        VirtualMonkey::Command.__send__(subcommand, "--help")
       else
         puts @@usage_msg
       end
     end
 
     # Version command
-    def self.version
+    def self.version(*args)
+      self.init(*args)
       puts @@version_string
     end
   end

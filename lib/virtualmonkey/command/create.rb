@@ -4,11 +4,7 @@ module VirtualMonkey
 # monkey create --server_template_ids 123,123 --common_inputs blah.json --feature simple.feature --tag unique_name --TBD:filter?
     def self.create(*args)
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:create]
         eval(VirtualMonkey::Command::use_options( :config_file, :clouds, :only, :no_spot, :one_deploy, :prefix,

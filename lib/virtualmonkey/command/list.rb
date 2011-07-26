@@ -1,11 +1,7 @@
 module VirtualMonkey
   module Command
     def self.list(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:list]
         eval(VirtualMonkey::Command::use_options(:prefix, :verbose))

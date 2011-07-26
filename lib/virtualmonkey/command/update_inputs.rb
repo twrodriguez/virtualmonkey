@@ -3,11 +3,7 @@ module VirtualMonkey
 
 # monkey update_inputs --common_inputs blah.json --tag unique_name --cloud_variables blah.json
     def self.update_inputs(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:update_inputs]
         eval(VirtualMonkey::Command::use_options(:common_inputs, :prefix, :config_file, :clouds))

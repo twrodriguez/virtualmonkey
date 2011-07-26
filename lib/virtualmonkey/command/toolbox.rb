@@ -1,11 +1,7 @@
 module VirtualMonkey
   module Command
     def self.generate_ssh_keys(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:generate_ssh_keys]
         opt :add_cloud, "Add a non-ec2 cloud to ssh_keys (takes the integer cloud id)", :type => :integer
@@ -17,11 +13,7 @@ module VirtualMonkey
     end
 
     def self.destroy_ssh_keys(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:destroy_ssh_keys]
       end
@@ -31,11 +23,7 @@ module VirtualMonkey
     end
 
     def self.populate_security_groups(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:populate_security_groups]
         opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
@@ -47,11 +35,7 @@ module VirtualMonkey
     end
 
     def self.populate_datacenters(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:populate_datacenters]
         opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
@@ -62,11 +46,7 @@ module VirtualMonkey
     end
 
     def self.populate_all_cloud_vars(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:populate_all_cloud_vars]
         opt :force, "Forces command to continue if an exception is raised in a subcommand, populating as many files as possible."
@@ -77,11 +57,7 @@ module VirtualMonkey
     end
 
     def self.api_check(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:api_check]
         opt :api_version, "Check to see if the monkey has RightScale API access for the given version (0.1, 1.0, or 1.5)", :type => :float, :required => true
@@ -93,26 +69,6 @@ module VirtualMonkey
       else
         STDERR.puts "Invalid version number: #{@@options[:api_version]}"
       end
-    end
-
-    def self.audit_logs(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
-      @@options = Trollop::options do
-        text @@available_commands[:audit_logs]
-        eval(VirtualMonkey::Command::use_options(:prefix, :only, :config_file, :qa, :list_trainer))
-      end
-
-      raise "--config_file is required" unless @@options[:config_file]
-      load_config_file
-
-      @@dm = DeploymentMonk.new(@@options[:prefix])
-      select_only_logic("Train lists on")
-
-      @@do_these.each { |d| audit_log_deployment_logic(d, @@options[:list_trainer]) }
     end
   end 
 end

@@ -2,11 +2,7 @@ module VirtualMonkey
   module Command
     # This command does all the steps create/run/conditionaly destroy
     def self.new_runner(*args)
-      if args.length > 1
-        ARGV.replace args
-      elsif args.length == 1
-        ARGV.replace args.first.split(/ /)
-      end
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:new_runner]
       end
