@@ -52,7 +52,11 @@ module VirtualMonkey
         mc_deployment = McDeployment[deployment.rs_id.to_i].first
         mc_deployment.show
         common_inputs = {}
-        mc_deployment.inputs.each { |hsh| common_inputs[hsh["name"]] = hsh["value"] }
+        mc_deployment.inputs.each { |hsh|
+          common_inputs[hsh["name"]] = hsh["value"] unless hsh["value"] == "text:"
+        }
+
+      #TODO: ServerTemplate inputs (incoming 1.5 API)
 
 #        server_inputs = {}
 #        deployment.servers_no_reload.each { |s|

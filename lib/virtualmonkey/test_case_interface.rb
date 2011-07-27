@@ -66,10 +66,13 @@ module VirtualMonkey
       end
 
       # Set-up relative logs in case we're being run in parallel
-      file_name = "#{@deployment.nickname}.#{File.basename(log)}"
-      base_dir = ENV['MONKEY_LOG_BASE_DIR'] || File.dirname(log)
+      # TODO: Additional logs should include each server's logs from the lists
       @log_map = {}
-      @options[:additional_logs].each { |log| @log_map[log] = File.join(base_dir, file_name) }
+      @options[:additional_logs].each { |log|
+        file_name = "#{@deployment.nickname}.#{File.basename(log)}"
+        base_dir = ENV['MONKEY_LOG_BASE_DIR'] || File.dirname(log)
+        @log_map[log] = File.join(base_dir, file_name)
+      }
       # USE THIS IN RUNNER CLASS:
       # File.open(@log_map["my_special_report.html"], "w") { |f| f.write("blah") }
       #

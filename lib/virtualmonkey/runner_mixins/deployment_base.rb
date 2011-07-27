@@ -6,20 +6,27 @@ module VirtualMonkey
       attr_accessor :scripts_to_run
       
       def initialize(deployment, opts = {})
-        test_case_interface_init(opts)
         @scripts_to_run = {}
         @server_templates = []
         @st_table = []
         @deployment = Deployment.find_by_nickname_speed(deployment).first
         raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
+        test_case_interface_init(opts)
         populate_settings
       end
-  
-      def server_by_info_tag(tags = {})
+
+      # Select a server based on the info tags attached to it
+      # If a hash of tags is passed, the server needs to match all of them by value
+      # If a block is passed, all info tags will be passed to the block as an array
+      def server_by_info_tag(tags = {}, &block)
         set = @servers
-        tags.each { |key,val|
-          set = set.select { |s| s.get_info_tags(key)["self"][key] == val }
-        }
+        if block
+          set = set.select { |s| yield(s.get_info_tags["self"]) }
+        else
+          tags.each { |key,val|
+            set = set.select { |s| s.get_info_tags(key)["self"][key] == val }
+          }
+        end
         set.first
       end
 

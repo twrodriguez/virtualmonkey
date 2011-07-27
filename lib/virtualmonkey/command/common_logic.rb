@@ -210,7 +210,7 @@ module VirtualMonkey
     end
 
     def self.build_script_array(st_ary)
-      st_ary.uniq.each { |st|
+      st_ary.uniq_by { |st| st.href }.each { |st|
         script_array = []
         op_execs = st.executables.select { |rs| rs.apply == "operational" }
         op_exec_names = op_execs.map { |rs| rs.recipe ? rs.recipe : rs.right_script["name"] }
@@ -228,8 +228,9 @@ module VirtualMonkey
         # Model Deployment Given
         st_ary = []
         deployment.servers_no_reload.each { |s|
-          st_ary << ServerTemplate.new('href' => s.server_template_href)
+          st_ary << ServerTemplate.find(s.server_template_href)
         }
+        @@troop_config[:server_templates_ids] = st_ary.map { |st| st.rs_id.to_s }
       else
         # Interactively Build
         correct = false
@@ -294,7 +295,7 @@ end
 
 test "script_#{index}" do
   run_script_on_set("script_#{index}",
-                    match_servers_by_st(server_templates.detect { |st| st.name =~ /#{st.name}/ }),
+                    match_servers_by_st(server_templates.detect { |st| st.name =~ /#{st.nickname}/ }),
                     true, {})
 end
 
@@ -338,12 +339,12 @@ EOS
       # in the deployment.
       def #{@@underscore_name}_lookup_scripts
 EOS
-      st_ary = @@script_table.map { |index,script,st| st }.uniq
+      st_ary = @@script_table.map { |index,script,st| st }.uniq_by { |st| st.href }
       st_ary.each { |st_ref|
         st_script_table = @@script_table.select { |index,script,st| st.href == st_ref.href }
-        mixin_tpl += "        ######################{"#" * st.name.length}###\n"
-        mixin_tpl += "        # Load Scripts from '#{st.name}' #\n"
-        mixin_tpl += "        ######################{"#" * st.name.length}###\n"
+        mixin_tpl += "        ######################{"#" * st_ref.nickname.length}###\n"
+        mixin_tpl += "        # Load Scripts from '#{st_ref.nickname}' #\n"
+        mixin_tpl += "        ######################{"#" * st_ref.nickname.length}###\n"
         mixin_tpl += "        scripts = [\n"
         script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{script}']" }
         mixin_tpl += "#{script_array.join(",\n")}\n"
@@ -394,8 +395,8 @@ EOS
       # [ "/path/to/log/file", "server_template_name_regex", "matching_regex" ]
       def #{@@underscore_name}_#{list}
         [
-          #["/var/log/messages", "#{st_ary.first}", "#{regex_ary[list].first}"],
-          #["/var/log/messages", "#{st_ary.last}", "#{regex_ary[list].last}"]
+          #["/var/log/messages", "#{st_ary.first.nickname}", "#{regex_ary[list].first}"],
+          #["/var/log/messages", "#{st_ary.last.nickname}", "#{regex_ary[list].last}"]
         ]
       end
 EOS
