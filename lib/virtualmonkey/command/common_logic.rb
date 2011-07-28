@@ -342,9 +342,11 @@ EOS
       st_ary = @@script_table.map { |index,script,st| st }.uniq_by { |st| st.href }
       st_ary.each { |st_ref|
         st_script_table = @@script_table.select { |index,script,st| st.href == st_ref.href }
-        mixin_tpl += "        ######################{"#" * st_ref.nickname.length}###\n"
-        mixin_tpl += "        # Load Scripts from '#{st_ref.nickname}' #\n"
-        mixin_tpl += "        ######################{"#" * st_ref.nickname.length}###\n"
+        st_ver = (st_ref.is_head_version ? "[HEAD]" : "[rev #{st_ref.version}]")
+        comment_string = "# Load Scripts from '#{st_ref.nickname}' #{st_ver} #"
+        mixin_tpl += "        #{"#" * comment_string.length}\n"
+        mixin_tpl += "        #{comment_string}\n"
+        mixin_tpl += "        #{"#" * comment_string.length}\n"
         mixin_tpl += "        scripts = [\n"
         script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{script}']" }
         mixin_tpl += "#{script_array.join(",\n")}\n"
@@ -363,6 +365,7 @@ EOS
 =end
       # Exception Handle
       mixin_tpl += <<EOS
+
       # Every instance method included in the runner class that has
       # "exception_handle" in its name is called when an unhandled exception
       # is raised through a behavior (without a verification block). These
@@ -371,7 +374,7 @@ EOS
       # handled the exception, or return false otherwise.
       def #{@@underscore_name}_exception_handle
         if e.message =~ /INSERT YOUR ERROR HERE/
-          puts "Got \"INSERT YOUR ERROR HERE\". Retrying..."
+          puts "Got 'INSERT YOUR ERROR HERE'. Retrying..."
           sleep 30
           return true # Exception Handled
         else
@@ -386,6 +389,7 @@ EOS
                       MessageCheck::BLACKLIST => ["exception", "error"],
                       MessageCheck::NEEDLIST => ["this should be here", "required line"] }
         mixin_tpl += <<EOS
+
       # Every instance method included in the runner class that has
       # "#{list}" in its name is called when the Class is instantiated.
       # These functions add entries to the #{list} for log auditing.
