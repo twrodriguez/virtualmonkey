@@ -58,6 +58,7 @@ module VirtualMonkey
       @in_transaction = []
       @max_retries = 10
       @options = options
+      @options[:additional_logs] ||= []
       @deprecation_error = `curl -s "www.kdegraaf.net/cgi-bin/bofh" | grep -o "<b>.*</b>"`
       @deprecation_error.gsub!(/<\/*b>/,"")
       @deprecation_error.chomp!

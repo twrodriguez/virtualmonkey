@@ -92,7 +92,7 @@ class GrinderMonk
     }
     new_job.deployment = deployment
     new_job.verbose = true if @options[:verbose]
-    cmd = "bin/grinder -f #{feature} -d \"#{deployment.nickname}\" -g -l #{new_job.logfile} -t "
+    cmd = "bin/grinder -f \"#{feature}\" -d \"#{deployment.nickname}\" -g -l \"#{new_job.logfile}\" -t "
     test_ary.each { |test| cmd += " \"#{test}\" " }
     cmd += " -r " if @options[:no_resume]
     @jobs << new_job
