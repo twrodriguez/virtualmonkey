@@ -3,7 +3,6 @@ require 'erb'
 require 'fog'
 require 'eventmachine'
 require 'right_popen'
-require 'content_type'
 
 class GrinderJob
   attr_accessor :status, :output, :logfile, :deployment, :rest_log, :other_logs, :no_resume, :verbose
@@ -196,7 +195,8 @@ class GrinderMonk
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.logfile)}", IO.read(j.logfile), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.rest_log)}", IO.read(j.rest_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         j.other_logs.each { |log|
-          s3.put_object(bucket_name, "#{@log_started}/#{File.basename(log)}", IO.read(log), 'x-amz-acl' => 'public-read', 'Content-Type' => File.content_type(log))
+          content = `file -ib #{log}`.split(/;/).first
+          s3.put_object(bucket_name, "#{@log_started}/#{File.basename(log)}", IO.read(log), 'x-amz-acl' => 'public-read', 'Content-Type' => content)
         }
         done = true
       rescue Exception => e
