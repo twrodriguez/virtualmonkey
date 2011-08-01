@@ -426,8 +426,8 @@ module VirtualMonkey
             rescue
               response = nil
               count += 1
-              sleep 10
             end
+              sleep 10
           end
           raise "Fatal: Failed to verify that monitoring is operational" unless response
   #TODO: pass in some list of plugin info to check multiple values.  For now just

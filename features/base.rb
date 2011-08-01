@@ -1,7 +1,10 @@
-  set :runner, VirtualMonkey::Runner::Simple
+set :runner, VirtualMonkey::Runner::Simple
+
+clean_start do
+  @runner.stop_all
+end
 
 before do
-  @runner.stop_all
   @runner.launch_all
   @runner.wait_for_all("operational")
 end
