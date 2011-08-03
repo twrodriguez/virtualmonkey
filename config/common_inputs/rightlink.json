@@ -1,5 +1,4 @@
 {
-  "VAR1": "variable1",
-  "VAR2": "variable2",
-  "PRIVATE_SSH_KEY" : "key:publish-test:1"
+  "VAR1": "text:variable1",
+  "VAR2": "text:variable2"
 }
