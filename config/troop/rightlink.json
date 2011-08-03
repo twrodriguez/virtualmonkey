@@ -1,10 +1,10 @@
 {
 
   "server_template_ids":[
-    "69025"
+    "123803"
   ],
-  "feature":"rightlink.feature",
-  "cloud_variables":"aws_us_east.json",
+  "feature":"rightlink.rb",
+  "cloud_variables":"aws_clouds.json",
   "prefix":"TROOP-rightlink",
-  "common_inputs":"none.json"
+  "common_inputs":"rightlink.json"
 }
