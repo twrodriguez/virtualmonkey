@@ -1,1 +1,32 @@
-[]
+[
+  [
+    "/var/log/messages",
+    ".*",
+    "exception"
+  ],
+  [
+    "/var/log/messages",
+    ".*",
+    "error"
+  ],
+  [
+    "/var/log/messages",
+    ".*",
+    "fatal"
+  ],
+  [
+    "/var/log/messages",
+    ".*",
+    "fail"
+  ],
+  [
+    "/var/log/messages",
+    ".*",
+    "missing"
+  ],
+  [
+    "/var/log/messages",
+    ".*",
+    "BEGIN RSA PRIVATE KEY"
+  ]
+]

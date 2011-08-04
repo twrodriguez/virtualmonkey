@@ -10,9 +10,9 @@ before do
 end
 
 
-test "check_monitoring" do
-  @runner.check_monitoring
-end
+#test "check_monitoring" do
+ # @runner.check_monitoring
+#end
 
 test "run_all_operational_scripts" do
 
@@ -23,4 +23,5 @@ test "run_all_operational_scripts" do
 @runner.test_run_test_check
 @runner.test_run_depend_check
 @runner.test_iteration_output
+@runner.run_logger_audit
 end
