@@ -1,0 +1,9 @@
+{
+  "common_inputs":"none.json",
+  "feature":"rightlink_5.7.rb",
+  "clouds": "all_clouds.json",
+  "server_template_ids":[
+    "123739"
+  ],
+  "prefix":"RIGHTLINK_5.7_TROOP"
+}
