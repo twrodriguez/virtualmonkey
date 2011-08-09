@@ -14,7 +14,7 @@ end
 module VirtualMonkey
   def self.my_api_self
     @@my_api_self ||= nil
-    @@my_api_self = find_myself_in_api if @@my_api_self.nil?
+    @@my_api_self = VirtualMonkey::Toolbox::find_myself_in_api if @@my_api_self.nil?
     @@my_api_self
   end
 
