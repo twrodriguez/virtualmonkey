@@ -1,12 +1,23 @@
+# Import user and metadata if we're in the cloud
 if File.exists?("/var/spool/cloud/meta-data.rb")
   require '/var/spool/cloud/user-data'
   require '/var/spool/cloud/meta-data-cache'
   ENV['I_AM_IN_EC2'] = "true"
+elsif File.exists?("/var/spool/cloud/user-data.rb")
+  require '/var/spool/cloud/user-data'
+  ENV['RS_API_URL'] = "#{`hostname`}-#{ENV['SSH_CONNECTION'].split(/ /)[-2].gsub(/\./, "-")}" # LINUX ONLY
+  ENV['I_AM_IN_MULTICLOUD'] = "true"
 else
-  ENV['RS_API_URL'] = "#{ENV['USER']}-#{`hostname`}".strip
+  ENV['RS_API_URL'] = "#{ENV['USER']}-#{`hostname`}".strip # LINUX ONLY
 end
 
 module VirtualMonkey
+  def self.my_api_self
+    @@my_api_self ||= nil
+    @@my_api_self = find_myself_in_api if @@my_api_self.nil?
+    @@my_api_self
+  end
+
   module Toolbox
     extend self
 
@@ -118,6 +129,28 @@ module VirtualMonkey
           ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.nickname
           return myself
         end
+      elsif ENV['I_AM_IN_MULTICLOUD']
+        cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"].to_i }
+        ip_fields = [:public_dns_name, :public_ip_address, :private_dns_name, :private_ip_address]
+        ssh_address = ENV["SSH_CONNECTION"].split(/ /)[-2]
+        my_instance = nil
+        cloud_ids.each { |cid|
+          ip_fields.each { |field|
+            my_instance = McInstance.find_with_filter(cid, field => ssh_address).first
+            if my_instance
+              my_instance.show
+              if my_instance.user_data.include?(ENV['RS_RN_URL'])
+                # Found myself, let's get servers, etc.
+                myself = McServer.find(i.parent)
+                my_deploy = Deployment.find(myself['deployment_href'])
+                ENV['MONKEY_SELF_SERVER_HREF'] = myself['href']
+                ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = myself['deployment_href']
+                ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.nickname
+                return myself
+              end
+            end
+          }
+        }
       end
       return false
     end
@@ -248,7 +281,7 @@ module VirtualMonkey
         temp_key.destroy if temp_key.aws_key_name =~ /monkey/
       }
       File.delete(@@keys_file) if File.exists?(@@keys_file)
-      rest_settings[:ssh_keys].each { |f| File.delete(f) if File.exists?(f) and f =~ /monkey/ }
+      (rest_settings[:ssh_keys] || []).each { |f| File.delete(f) if File.exists?(f) and f =~ /monkey/ }
     end
 
     # If this virtualmonkey is in EC2, will grab the same security groups attached to it to use for
@@ -266,13 +299,25 @@ module VirtualMonkey
           puts "Data found for cloud #{cloud}. Skipping..."
           next
         end
+        if VirtualMonkey::my_api_self
+          if ENV['I_AM_IN_EC2']
+            my_sec_group = ENV['EC2_SECURITY_GROUPS']
+          elsif ENV['I_AM_IN_MULTICLOUD'] and VirtualMonkey::my_api_self.security_groups
+            my_sec_group = VirtualMonkey::my_api_self.security_groups.first["href"]
+          else
+            my_sec_group = nil
+          end
+        end
+        sg_name = "#{use_this_sec_group || my_sec_group || 'default'}"
+        puts "Looking for the '#{sg_name}' security group in all supporting clouds."
+=begin
         if ENV['EC2_SECURITY_GROUPS']
           sg_name = "#{ENV['EC2_SECURITY_GROUPS']}"
         else
           sg_name = "default"
-          puts "WARNING: You are not running in ec2, will use the 'default' security group."
         end
         sg_name = use_this_sec_group if use_this_sec_group
+=end
         if cloud <= 10
           found = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /#{sg_name}/ }.first
           if found

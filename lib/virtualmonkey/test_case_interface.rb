@@ -317,6 +317,10 @@ module VirtualMonkey
           set = @servers.select { |s| s.nickname =~ /#{set}/ }
         end
       end
+      if set.is_a?(Regexp)
+        set = match_servers_by_st(@server_templates.detect { |st| st.name =~ set })
+      end
+      set = match_servers_by_st(set) if set.is_a?(ServerTemplate)
       set = __send__(set) if set.is_a?(Symbol)
       set = [ set ] unless set.is_a?(Array)
       return set

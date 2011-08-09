@@ -294,9 +294,7 @@ before "script_#{index}" do
 end
 
 test "script_#{index}" do
-  run_script_on_set("script_#{index}",
-                    match_servers_by_st(server_templates.detect { |st| st.name =~ /#{st.nickname}/ }),
-                    true, {})
+  run_script_on_set("script_#{index}", server_templates.detect { |st| st.name =~ /#{st.nickname}/ }, true, {})
 end
 
 after "script_#{index}" do

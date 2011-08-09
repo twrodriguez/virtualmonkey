@@ -389,17 +389,15 @@ module VirtualMonkey
         end
       end
       
-      # Assumes the host machine is EC2, uses the meta-data to grab the IP address of this
+      # Assumes the host machine is in the cloud, uses the toolbox functions to grab the IP address of this
       # 'tester server' eg. used for the input variation MASTER_DB_DNSNAME
       def get_tester_ip_addr
-        if File.exists?("/var/spool/ec2/meta-data.rb")
-          require "/var/spool/ec2/meta-data-cache" 
+        if VirtualMonkey::my_api_self
+          ip = VirtualMonkey::my_api_self.reachable_ip
         else
-          ENV['EC2_PUBLIC_HOSTNAME'] = "127.0.0.1"
+          ip = "127.0.0.1"
         end
-        my_ip_input = "text:" 
-        my_ip_input += ENV['EC2_PUBLIC_HOSTNAME']
-        my_ip_input
+        return "text:#{ip}" 
       end
       
       # Log rotation

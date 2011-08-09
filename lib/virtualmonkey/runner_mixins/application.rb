@@ -3,6 +3,7 @@ require 'timeout'
 module VirtualMonkey
   module Mixin
     module Application
+      include VirtualMonkey::Mixin::DeploymentBase
   
       # returns an Array of the App Servers in the deployment
       def app_servers
@@ -51,19 +52,6 @@ module VirtualMonkey
           url_base = "#{server.dns_name}:#{port}"
          test_http_response("Mephisto", url_base, port) 
         end
-      end
-  
-      # Assumes the host machine is EC2, uses the meta-data to grab the IP address of this
-      # 'tester server' eg. used for the input variation MASTER_DB_DNSNAME
-      def get_tester_ip_addr
-        if File.exists?("/var/spool/ec2/meta-data.rb")
-          require "/var/spool/ec2/meta-data-cache" 
-        else
-          ENV['EC2_PUBLIC_HOSTNAME'] = "127.0.0.1"
-        end
-        my_ip_input = "text:" 
-        my_ip_input += ENV['EC2_PUBLIC_HOSTNAME']
-        my_ip_input
       end
   
       # Run spot checks for APP servers in the deployment
