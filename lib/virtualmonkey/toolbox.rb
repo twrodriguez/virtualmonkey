@@ -123,14 +123,14 @@ module VirtualMonkey
       if ENV['I_AM_IN_EC2']
         myself = Server.find_with_filter('aws_id' => ENV['EC2_INSTANCE_ID']).first
         if myself
-          my_deploy = Deployment.find(myself['deployment_href'])
-          ENV['MONKEY_SELF_SERVER_HREF'] = myself['href']
-          ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = myself['deployment_href']
+          my_deploy = Deployment.find(myself.deployment_href)
+          ENV['MONKEY_SELF_SERVER_HREF'] = myself.href
+          ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = my_deploy.href
           ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.nickname
           return myself
         end
       elsif ENV['I_AM_IN_MULTICLOUD']
-        cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"].to_i }
+        cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"].to_i }.reject { |cid| cid < 10 }
         ip_fields = [:public_dns_name, :public_ip_address, :private_dns_name, :private_ip_address]
         ssh_address = ENV["SSH_CONNECTION"].split(/ /)[-2]
         my_instance = nil
@@ -141,10 +141,10 @@ module VirtualMonkey
               my_instance.show
               if my_instance.user_data.include?(ENV['RS_RN_URL'])
                 # Found myself, let's get servers, etc.
-                myself = McServer.find(i.parent)
-                my_deploy = Deployment.find(myself['deployment_href'])
-                ENV['MONKEY_SELF_SERVER_HREF'] = myself['href']
-                ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = myself['deployment_href']
+                myself = McServer.find(my_instance.parent)
+                my_deploy = Deployment.find(myself.deployment_href)
+                ENV['MONKEY_SELF_SERVER_HREF'] = myself.href
+                ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = my_deploy.href
                 ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.nickname
                 return myself
               end
