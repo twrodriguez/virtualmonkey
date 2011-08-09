@@ -142,10 +142,10 @@ module VirtualMonkey
               if my_instance.user_data.include?(ENV['RS_RN_URL'])
                 # Found myself, let's get servers, etc.
                 myself = McServer.find(my_instance.parent)
-                my_deploy = Deployment.find(myself.deployment_href)
+                my_deploy = McDeployment.find(myself.deployment_href)
                 ENV['MONKEY_SELF_SERVER_HREF'] = myself.href
                 ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = my_deploy.href
-                ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.nickname
+                ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.name
                 return myself
               end
             end
