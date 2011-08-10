@@ -5,10 +5,10 @@ module VirtualMonkey
       include VirtualMonkey::Mixin::SimpleWindows
   
       def server_ad
-          @servers.select { |s| s.nickname =~ /Database/i }.first
+          @servers.select { |s| s.nickname =~ /AD 2008/i }.first
       end
   
-      def oleg_windows_sql_lookup_scripts
+      def oleg_windows_ad_lookup_scripts
        scripts = [
                    [ 'AD change Administrator password', 'AD change Administrator password' ],
                    [ 'AD create a backup', 'AD create a backup' ],
