@@ -120,14 +120,20 @@ class GrinderMonk
     test_case = VirtualMonkey::TestCase.new(@options[:feature], @options)
     total_keys = test_case.get_keys
     total_keys = total_keys - (total_keys - set) unless set.nil? || set.empty?
-    keys_per_dep = (total_keys.length.to_f / deployments.length.to_f).ceil
-   
-    deployment_tests = []
-    (keys_per_dep * deployments.length).times { |i|
-      di = i % deployments.length
-      deployment_tests[di] ||= []
-      deployment_tests[di] << total_keys[i % total_keys.length]
-    }
+    if ENV['FULL_TEST_PERMUTATION']
+      deployment_tests = [total_keys] * deployments.length
+    else
+      keys_per_dep = (total_keys.length.to_f / deployments.length.to_f).ceil
+
+      deployment_tests = []
+      (keys_per_dep * deployments.length).times { |i|
+        di = i % deployments.length
+        deployment_tests[di] ||= []
+        deployment_tests[di] << total_keys[i % total_keys.length]
+      }
+    end
+
+    deployment_tests.map! { |ary| ary.shuffle } unless ENV['MONKEY_STRICT_TEST_ORDERING']
 
     deployments.each_with_index { |d,i| 
       run_test(d, cmd, deployment_tests[i], test_case.options[:additional_logs])

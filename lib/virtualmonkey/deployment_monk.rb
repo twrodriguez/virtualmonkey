@@ -195,11 +195,22 @@ class DeploymentMonk
 
           # If overriding the multicloudimage need to specify the ec2 image href because you can't set an MCI that's not in the ServerTemplate
           if options[:mci_override] && !options[:mci_override].empty?
-            use_this_image_setting = mci['multi_cloud_image_cloud_settings'].detect { |setting| setting["image_href"].include?("cloud_id=#{cloud}") }
             server_params.reject! {|k,v| k == "mci_href"}
-            server_params["ec2_image_href"] = use_this_image_setting["image_href"]
-            server_params["instance_type"] = use_this_image_setting["aws_instance_type"]
-            # TODO mci_override is not implemented for 1.5 MCI images
+            use_this_image_setting = mci_list(options, st).first['multi_cloud_image_cloud_settings'].detect { |setting|
+              if setting.is_a?(MultiCloudImageCloudSettingInternal)
+                ret = (setting.cloud_id == cloud.to_i)
+              elsif setting.is_a?(McMultiCloudImageSetting)
+                ret = setting.cloud.include?("clouds/#{cloud}")
+              end
+              ret
+            }
+            if cloud.to_i < 10
+              server_params["ec2_image_href"] = use_this_image_setting["image_href"]
+              server_params["instance_type"] = use_this_image_setting["aws_instance_type"]
+            else
+              server_params["image_href"] = use_this_image_setting.image
+              server_params["instance_type_href"] = use_this_image_setting.instance_type
+            end
           end
 
           server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))

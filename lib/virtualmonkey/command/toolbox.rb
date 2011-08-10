@@ -27,10 +27,11 @@ module VirtualMonkey
       @@options = Trollop::options do
         text @@available_commands[:populate_security_groups]
         opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
-        opt :name, "Populate the file with this security group", :type => :string
+        opt :security_group_name, "Populate the file with this security group (will search for the name of the security group attached to the monkey instance, then 'default' by default)", :type => :string, :short => '-n'
+        opt :overwrite, "Refresh values by replacing existing data"
       end
 
-      VirtualMonkey::Toolbox::populate_security_groups(@@options[:add_cloud], @@options[:name])
+      VirtualMonkey::Toolbox::populate_security_groups(@@options[:add_cloud], @@options[:name], @@options[:overwrite])
       puts "Security Group file populated."
     end
 
@@ -39,9 +40,10 @@ module VirtualMonkey
       @@options = Trollop::options do
         text @@available_commands[:populate_datacenters]
         opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
+        opt :overwrite, "Refresh values by replacing existing data"
       end
 
-      VirtualMonkey::Toolbox::populate_datacenters(@@options[:add_cloud])
+      VirtualMonkey::Toolbox::populate_datacenters(@@options[:add_cloud], @@options[:overwrite])
       puts "Datacenters file populated."
     end
 
@@ -50,9 +52,12 @@ module VirtualMonkey
       @@options = Trollop::options do
         text @@available_commands[:populate_all_cloud_vars]
         opt :force, "Forces command to continue if an exception is raised in a subcommand, populating as many files as possible."
+        # TODO: Add ssh_key_id_ary...
+        opt :security_group_name, "Populate the file with this security group (will search for the name of the security group attached to the monkey instance, then 'default' by default)", :type => :string, :short => '-n'
+        opt :overwrite, "Refresh values by replacing existing data"
       end
 
-      VirtualMonkey::Toolbox::populate_all_cloud_vars(@@options[:force])
+      VirtualMonkey::Toolbox::populate_all_cloud_vars(@@options[:force], @@options)
       puts "Cloud Variables folder populated."
     end
 

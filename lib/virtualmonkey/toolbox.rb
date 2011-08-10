@@ -1,11 +1,28 @@
+if ENV['SSH_CONNECTION'] # LINUX ONLY
+  ENV['REACHABLE_IP'] = ENV['SSH_CONNECTION'].split(/ /)[-2]
+else
+  possible_ips = []
+  0.upto(9) { |i|
+    if `ifconfig eth#{i}` =~ /inet addr:([0-9\.]*) /
+      possible_ips << $1
+    end
+  }
+  ENV['REACHABLE_IP'] = possible_ips.first
+end
+
 # Import user and metadata if we're in the cloud
 if File.exists?("/var/spool/cloud/meta-data.rb")
   require '/var/spool/cloud/user-data'
   require '/var/spool/cloud/meta-data-cache'
-  ENV['I_AM_IN_EC2'] = "true"
+  if ENV['RS_API_URL']
+    ENV['I_AM_IN_EC2'] = "true"
+  else # Eucalyptus
+    ENV['RS_API_URL'] = 
+    ENV['I_AM_IN_MULTICLOUD'] = "true"
+  end
 elsif File.exists?("/var/spool/cloud/user-data.rb")
   require '/var/spool/cloud/user-data'
-  ENV['RS_API_URL'] = "#{`hostname`}-#{ENV['SSH_CONNECTION'].split(/ /)[-2].gsub(/\./, "-")}" # LINUX ONLY
+  ENV['RS_API_URL'] = "#{`hostname`}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
   ENV['I_AM_IN_MULTICLOUD'] = "true"
 else
   ENV['RS_API_URL'] = "#{ENV['USER']}-#{`hostname`}".strip # LINUX ONLY
@@ -132,7 +149,7 @@ module VirtualMonkey
       elsif ENV['I_AM_IN_MULTICLOUD']
         cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"].to_i }.reject { |cid| cid < 10 }
         ip_fields = [:public_dns_name, :public_ip_address, :private_dns_name, :private_ip_address]
-        ssh_address = ENV["SSH_CONNECTION"].split(/ /)[-2]
+        ssh_address = ENV['REACHABLE_IP']
         my_instance = nil
         cloud_ids.each { |cid|
           ip_fields.each { |field|
@@ -288,14 +305,15 @@ module VirtualMonkey
     # generated servers (requires the same security group name in each cloud). Will default to the 'default'
     # security group for every cloud that doesn't have the named security group. use_this_sec_group should
     # be a string, or nil.
-    def populate_security_groups(single_cloud = nil, use_this_sec_group = nil)
+    def populate_security_groups(single_cloud = nil, use_this_sec_group = nil, overwrite = false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids.reject! { |i| i != single_cloud } if single_cloud
 
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {}) 
 
       cloud_ids.each { |cloud|
-        if sgs["#{cloud}"] and sgs["#{cloud}"] != {} # We already have data for this cloud, skip
+        if sgs["#{cloud}"] and sgs["#{cloud}"] != {} and not overwrite
+          # We already have data for this cloud, skip
           puts "Data found for cloud #{cloud}. Skipping..."
           next
         end
@@ -357,14 +375,15 @@ module VirtualMonkey
     end
 
     # Grabs the API hrefs of the datacenters for each cloud. API 1.5 only
-    def populate_datacenters(single_cloud = nil)
+    def populate_datacenters(single_cloud = nil, overwrite = false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids.reject! { |i| i != single_cloud } if single_cloud
 
       dcs = (File.exists?(@@dcs_file) ? JSON::parse(IO.read(@@dcs_file)) : {}) 
 
       cloud_ids.each { |cloud|
-        if dcs["#{cloud}"] and dcs["#{cloud}"] != {} # We already have data for this cloud, skip
+        if dcs["#{cloud}"] and dcs["#{cloud}"] != {} and not overwrite
+          # We already have data for this cloud, skip
           puts "Data found for cloud #{cloud}. Skipping..."
           next
         end
@@ -402,37 +421,37 @@ module VirtualMonkey
         puts "Generating SSH Keys for cloud #{c['cloud_id']}..."
         if force
           begin
-            generate_ssh_keys(c['cloud_id'], options['ssh_key_ids'])
+            generate_ssh_keys(c['cloud_id'], options[:ssh_key_ids])
           rescue Exception => e
             puts "Got exception: #{e.message}"
             puts "Forcing continuation..."
           end
         else
-          generate_ssh_keys(c['cloud_id'], options['ssh_key_ids'])
+          generate_ssh_keys(c['cloud_id'], options[:ssh_key_ids])
         end
 
         puts "Populating Security Groups for cloud #{c['cloud_id']}..."
         if force
           begin
-            populate_security_groups(c['cloud_id'], options['security_group_name'])
+            populate_security_groups(c['cloud_id'], options[:security_group_name], options[:overwrite])
           rescue Exception => e
             puts "Got exception: #{e.message}"
             puts "Forcing continuation..."
           end
         else
-          populate_security_groups(c['cloud_id'], options['security_group_name'])
+          populate_security_groups(c['cloud_id'], options[:security_group_name], options[:overwrite])
         end
 
         puts "Populating Datacenters for cloud #{c['cloud_id']}..."
         if force
           begin
-            populate_datacenters(c['cloud_id'])
+            populate_datacenters(c['cloud_id'], options[:overwrite])
           rescue Exception => e
             puts "Got exception: #{e.message}"
             puts "Forcing continuation..."
           end
         else
-          populate_datacenters(c['cloud_id'])
+          populate_datacenters(c['cloud_id'], options[:overwrite])
         end
         c['name'].gsub!(/[- ]/, "_")
         c['name'].gsub!(/_+/, "_")
