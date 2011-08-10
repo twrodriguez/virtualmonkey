@@ -17,12 +17,12 @@ if File.exists?("/var/spool/cloud/meta-data.rb")
   if ENV['RS_API_URL']
     ENV['I_AM_IN_EC2'] = "true"
   else # Eucalyptus
-    ENV['RS_API_URL'] = "#{`hostname`}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
+    ENV['RS_API_URL'] = "#{`hostname`.strip}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
     ENV['I_AM_IN_MULTICLOUD'] = "true"
   end
 elsif File.exists?("/var/spool/cloud/user-data.rb")
   require '/var/spool/cloud/user-data'
-  ENV['RS_API_URL'] = "#{`hostname`}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
+  ENV['RS_API_URL'] = "#{`hostname`.strip}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
   ENV['I_AM_IN_MULTICLOUD'] = "true"
 else
   ENV['RS_API_URL'] = "#{ENV['USER']}-#{`hostname`}".strip # LINUX ONLY
