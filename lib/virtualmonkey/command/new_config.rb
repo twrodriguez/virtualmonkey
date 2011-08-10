@@ -12,8 +12,8 @@ module VirtualMonkey
       cloud_variables_glob = Dir.glob(File.join(@@cv_dir, "**")).collect { |c| File.basename(c) }
       common_inputs_glob = Dir.glob(File.join(@@ci_dir, "**")).collect { |c| File.basename(c) }
       name = ask("Filename?").strip
-      @@troop_file = File.join(@@troop_dir, name)
-      
+      @@troop_file = File.join(@@troop_dir, "#{name}.json")
+
       # CREATE NEW CONFIG
       @@troop_config = {}
       @@troop_config[:prefix] = ask("What prefix to use for creating the deployments?")
@@ -22,7 +22,7 @@ module VirtualMonkey
 
       # TODO: Multicloud Deployments
       puts "Available Clouds:"
-      VirtualMonkey::Toolbox::get_available_clouds().each { |cloud| puts "#{c['cloud_id']}: #{c['name']}" }
+      VirtualMonkey::Toolbox::get_available_clouds().each { |c| puts "#{c['cloud_id']}: #{c['name']}" }
       list_of_clouds = ask("Enter a comma-separated list of cloud_ids to use").split(",")
       @@troop_config[:clouds] = list_of_clouds.map { |c| c.to_i }
 

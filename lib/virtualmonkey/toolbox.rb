@@ -17,7 +17,7 @@ if File.exists?("/var/spool/cloud/meta-data.rb")
   if ENV['RS_API_URL']
     ENV['I_AM_IN_EC2'] = "true"
   else # Eucalyptus
-    ENV['RS_API_URL'] = 
+    ENV['RS_API_URL'] = "#{`hostname`}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
     ENV['I_AM_IN_MULTICLOUD'] = "true"
   end
 elsif File.exists?("/var/spool/cloud/user-data.rb")
@@ -29,8 +29,9 @@ else
 end
 
 module VirtualMonkey
+  @@my_api_self = nil
+
   def self.my_api_self
-    @@my_api_self ||= nil
     @@my_api_self = VirtualMonkey::Toolbox::find_myself_in_api if @@my_api_self.nil?
     @@my_api_self
   end
@@ -220,9 +221,10 @@ module VirtualMonkey
         else
           # Use API user's managed ssh key
           puts "Using API user's managed ssh key, make sure \"~/.ssh/#{key_name}\" exists!"
-          keys["#{cloud}"] = {"parameters" =>
-                                {"PRIVATE_SSH_KEY" => "key:publish-test:1"}
-                              }
+          keys["#{cloud}"] = {}
+          if api0_1? and Ec2SshKeyInternal.find_by_cloud_id(1).select { |o| o.aws_key_name =~ /publish-test/ }.first
+            keys["#{cloud}"]["parameters"] = {"PRIVATE_SSH_KEY" => "key:publish-test:1"}
+          end
           begin
             found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first
             if ssh_key_id_ary[cloud.to_s]
