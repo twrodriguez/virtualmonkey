@@ -34,7 +34,7 @@ class VariationEngine
       deployment.servers_no_reload.each do |server|
         server.reload
         server.settings
-	server.parameters
+        server.parameters
         if server.ec2_instance_type =~ /small/ 
           small_counter += 1
           new_type = @instance_vars32.keys[small_counter % @instance_vars32.size]
@@ -45,6 +45,9 @@ class VariationEngine
           new_type = @instance_vars64.keys[large_counter % @instance_vars64.size]
           server.instance_type = new_type
           server.max_spot_price = @instance_vars64[new_type] if @options[:spot]
+        elsif server.cloud_id.to_i > 10
+          new_type = McInstanceType.find_all(server.cloud_id).shuffle.first
+          server.next_instance.instance_type = new_type.href
         end
         server.pricing = "spot" if @options[:spot]
         server.save
