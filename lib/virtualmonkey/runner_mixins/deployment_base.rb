@@ -422,30 +422,32 @@ module VirtualMonkey
       # Checks that monitoring is enabled on all servers in the deployment.  Will raise an error if monitoring is not enabled.
       def check_monitoring
         @servers.each do |server|
-          transaction { server.settings }
-          response = nil
-          count = 0
-          until response || count > 20 do
-            begin
-              response = transaction { server.monitoring }
-            rescue
-              response = nil
-              count += 1
-              sleep 10
+          transaction {
+            server.settings
+            response = nil
+            count = 0
+            until response || count > 20 do
+              begin
+                response = transaction { server.monitoring }
+              rescue
+                response = nil
+                count += 1
+                sleep 10
+              end
             end
-          end
-          raise "Fatal: Failed to verify that monitoring is operational" unless response
+            raise "Fatal: Failed to verify that monitoring is operational" unless response
   #TODO: pass in some list of plugin info to check multiple values.  For now just
   # hardcoding the cpu check
-          sleep 180 # This is to allow monitoring data to accumulate
-          monitor = transaction { server.get_sketchy_data({'start' => -60,
-                                                           'end' => -20,
-                                                           'plugin_name' => "cpu-0",
-                                                           'plugin_type' => "cpu-idle"}) }
-          idle_values = monitor['data']['value']
-          raise "No cpu idle data" unless idle_values.length > 0
-          raise "CPU idle time is < 0: #{idle_values}" unless idle_values[0] > 0
-          puts "Monitoring is OK for #{server.nickname}"
+            sleep 180 # This is to allow monitoring data to accumulate
+            monitor = transaction { server.get_sketchy_data({'start' => -60,
+                                                             'end' => -20,
+                                                             'plugin_name' => "cpu-0",
+                                                             'plugin_type' => "cpu-idle"}) }
+            idle_values = monitor['data']['value']
+            raise "No cpu idle data" unless idle_values.length > 0
+            raise "CPU idle time is < 0: #{idle_values}" unless idle_values[0] > 0
+            puts "Monitoring is OK for #{server.nickname}"
+          }
         end
       end
   

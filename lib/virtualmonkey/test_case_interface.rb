@@ -14,6 +14,8 @@ module VirtualMonkey
   end
 
   module TestCaseInterface
+    alias_method :orig_raise, :raise
+
     # Overrides puts to provide slightly better logging
     def puts(*args)
       write_readable_log("#{args}")
@@ -93,7 +95,7 @@ module VirtualMonkey
 
       behavior_methods.each do |m|
         new_m = "__behavior_#{m}"
-        self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{m}, *args, &block); end")
+        self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{new_m}, *args, &block); end")
       end
     end
     
@@ -106,7 +108,7 @@ module VirtualMonkey
         #pre-command
         populate_settings if @deployment
         #command
-        result = __send__("__behavior_#{sym}".to_sym, *args, &block)
+        result = __send__(sym, *args, &block)
         #post-command
         continue_test
       end while @rerun_last_command.pop
@@ -345,6 +347,21 @@ module VirtualMonkey
     def timestamp
       t = Time.now
       "#{t.strftime("[%m/%d/%Y %H:%M:%S.")}%-6d] " % t.usec
+    end
+
+    def method_missing(sym, *args, &block)
+      str = sym.to_s
+      assignment = str.gsub!(/=/,"")
+      str_dash = str.gsub(/_/,"-")
+      if @options[:runner_options][str]
+        @options[:runner_options][str] = args.first if assignment
+        return @options[:runner_options][str]
+      elsif @options[:runner_options][str_dash]
+        @options[:runner_options][str_dash] = args.first if assignment
+        return @options[:runner_options][str_dash]
+      else
+        raise NoMethodError.new("undefined method '#{sym}' for #{self.class}")
+      end
     end
 
     ##################################

@@ -75,8 +75,9 @@ class DeploymentMonk
   end
 
   def mci_list(options, st)
-    if options[:mci_override] && !options[:mci_override].empty?
-        mci = MultiCloudImage.new(:href => options[:mci_override].first)
+    if options[:use_mci] && !options[:use_mci].empty?
+        mci = MultiCloudImage.new("href" => options[:use_mci].first)
+        mci.reload
         mci.find_and_flatten_settings
         multi_cloud_images = [mci]
     elsif options[:only]
@@ -104,8 +105,9 @@ class DeploymentMonk
     @clouds.compact!
     @clouds.uniq!
     @clouds.map! { |m| m.to_s }
+    raise "The selected MCIs don't support any clouds!" if @clouds.empty?
     
-    dep_tempname = nil
+    dep_tempname = ""
     new_deploy = nil
     nick_name_holder = [] # this variable is used when we want to create a single deployment and we use it to name the deployment properly 
     deployment_created = false # this variable is used to control creating a single deployment 
@@ -194,7 +196,7 @@ class DeploymentMonk
           end
 
           # If overriding the multicloudimage need to specify the ec2 image href because you can't set an MCI that's not in the ServerTemplate
-          if options[:mci_override] && !options[:mci_override].empty?
+          if options[:use_mci] && !options[:use_mci].empty?
             server_params.reject! {|k,v| k == "mci_href"}
             use_this_image_setting = mci_list(options, st).first['multi_cloud_image_cloud_settings'].detect { |setting|
               if setting.is_a?(MultiCloudImageCloudSettingInternal)
@@ -213,7 +215,13 @@ class DeploymentMonk
             end
           end
 
-          server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
+          begin
+            server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
+          rescue Exception => e
+            msg = "#\n# GOT EXCEPTION: #{e.message}\n#\n"
+            STDERR.print(msg)
+            next
+          end
 
           # AWS Cloud-specific Code XXX LEGACY XXX
           if cloud.to_i < 10
@@ -223,7 +231,7 @@ class DeploymentMonk
             # WHY WE NEED THIS? create maybe already does this 
             # uses a special internal call for setting the MCI on the server
             sint = ServerInternal.new(:href => server.href)
-            sint.set_multi_cloud_image(use_this_image) unless options[:mci_override] && !options[:mci_override].empty?
+            sint.set_multi_cloud_image(use_this_image) unless options[:use_mci] && !options[:use_mci].empty?
 
             # finally, set the spot price
             unless options[:no_spot]

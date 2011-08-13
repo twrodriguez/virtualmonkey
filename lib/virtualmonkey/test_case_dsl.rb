@@ -97,22 +97,31 @@ module VirtualMonkey
     end
 
     def set(var, *args)
-      case var
-      when :runner
-        if args.first.is_a?(Class)
-          @options[var] = args.first
+      case var.class
+      when Symbol
+        case var
+        when :runner
+          if args.first.is_a?(Class)
+            @options[var] = args.first
+          else
+            raise "Need a VirtualMonkey::Runner Class!"
+          end
+        when :logs
+          args.each { |log| @options[:additional_logs] << log if log.is_a?(String) }
+          @options[:additional_logs].uniq!
+        when :runner_options
+          if args.first.is_a?(Hash)
+            @options[var] ||= {}
+            @options[var].deep_merge!(args.first)
+          else
+            raise ":runner_options can only be set to a Hash!"
+          end
         else
-          raise "Need a VirtualMonkey::Runner Class!"
+          puts "#{var} is not a valid option!"
         end
-      when :logs
-        args.each { |log| @options[:additional_logs] << log if log.is_a?(String) }
-        @options[:additional_logs].uniq!
-      when :runner_options
-        if args.first.is_a?(Hash)
-          @options[var] = args.first
-        else
-          raise ":runner_options can only be set to a Hash!"
-        end
+      when String
+        @options[:runner_options] ||= {}
+        @options[:runner_options][var] = args.first
       else
         puts "#{var} is not a valid option!"
       end

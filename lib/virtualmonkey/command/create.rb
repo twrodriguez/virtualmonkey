@@ -8,7 +8,7 @@ module VirtualMonkey
       @@options = Trollop::options do
         text @@available_commands[:create]
         eval(VirtualMonkey::Command::use_options( :config_file, :clouds, :only, :no_spot, :one_deploy, :prefix,
-                                                  :yes, :verbose))
+                                                  :yes, :verbose, :use_mci))
       end
 
       raise "--config_file is required" unless @@options[:config_file]
