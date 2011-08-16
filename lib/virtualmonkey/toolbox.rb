@@ -3,7 +3,7 @@ if ENV['SSH_CONNECTION'] # LINUX ONLY
 else
   possible_ips = []
   0.upto(9) { |i|
-    if `ifconfig eth#{i}` =~ /inet addr:([0-9\.]*) /
+    if `ifconfig eth#{i} 2> /dev/null` =~ /inet addr:([0-9\.]*) /
       possible_ips << $1
     end
   }

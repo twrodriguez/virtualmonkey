@@ -108,7 +108,7 @@ module VirtualMonkey
 
       def monkey_self_test_lookup_scripts
         scripts = [
-                   ['generate cloud data', 'RB virtualmonkey generate cloud test data']
+                   ['generate cloud data', 'RB virtualmonkey generate cloud test data'],
                    ['destroy cloud data', 'RB virtualmonkey destroy cloud test data']
                   ]
         st = ServerTemplate.find(resource_id(s_one.server_template_href))
