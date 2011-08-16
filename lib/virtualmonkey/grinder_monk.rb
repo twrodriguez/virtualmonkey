@@ -5,7 +5,7 @@ require 'eventmachine'
 require 'right_popen'
 
 class GrinderJob
-  attr_accessor :status, :output, :logfile, :deployment, :rest_log, :trace_log, :no_resume, :verbose
+  attr_accessor :status, :output, :logfile, :deployment, :rest_log, :other_logs, :no_resume, :verbose
 
   def link_to_rightscale
 #    i = deployment.href.split(/\//).last
@@ -83,13 +83,16 @@ class GrinderMonk
   # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
   # * feature<~String> the feature filename 
-  def run_test(deployment, feature, test_ary)
+  def run_test(deployment, feature, test_ary, other_logs = [])
     new_job = GrinderJob.new
     new_job.logfile = File.join(@log_dir, "#{deployment.nickname}.log")
     new_job.rest_log = File.join(@log_dir, "#{deployment.nickname}.rest_connection.log")
+    new_job.other_logs = other_logs.map { |log|
+      File.join(@log_dir, "#{deployment.nickname}.#{File.basename(log)}")
+    }
     new_job.deployment = deployment
     new_job.verbose = true if @options[:verbose]
-    cmd = "bin/grinder -f #{feature} -d \"#{deployment.nickname}\" -g -l #{new_job.logfile} -t "
+    cmd = "bin/grinder -f \"#{feature}\" -d \"#{deployment.nickname}\" -g -l \"#{new_job.logfile}\" -t "
     test_ary.each { |test| cmd += " \"#{test}\" " }
     cmd += " -r " if @options[:no_resume]
     @jobs << new_job
@@ -117,17 +120,23 @@ class GrinderMonk
     test_case = VirtualMonkey::TestCase.new(@options[:feature], @options)
     total_keys = test_case.get_keys
     total_keys = total_keys - (total_keys - set) unless set.nil? || set.empty?
-    keys_per_dep = (total_keys.length.to_f / deployments.length.to_f).ceil
-   
-    deployment_tests = []
-    (keys_per_dep * deployments.length).times { |i|
-      di = i % deployments.length
-      deployment_tests[di] ||= []
-      deployment_tests[di] << total_keys[i % total_keys.length]
-    }
+    if ENV['FULL_TEST_PERMUTATION']
+      deployment_tests = [total_keys] * deployments.length
+    else
+      keys_per_dep = (total_keys.length.to_f / deployments.length.to_f).ceil
+
+      deployment_tests = []
+      (keys_per_dep * deployments.length).times { |i|
+        di = i % deployments.length
+        deployment_tests[di] ||= []
+        deployment_tests[di] << total_keys[i % total_keys.length]
+      }
+    end
+
+    deployment_tests.map! { |ary| ary.shuffle } unless ENV['MONKEY_STRICT_TEST_ORDERING']
 
     deployments.each_with_index { |d,i| 
-      run_test(d,cmd,deployment_tests[i]) 
+      run_test(d, cmd, deployment_tests[i], test_case.options[:additional_logs])
     }
   end
 
@@ -188,14 +197,18 @@ class GrinderMonk
  
     report_on.each do |j|
       begin
-        done = 0
+        done = false
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.logfile)}", IO.read(j.logfile), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.rest_log)}", IO.read(j.rest_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
-        done = 1
+        j.other_logs.each { |log|
+          if File.exists?(log)
+            content = `file -ib #{log}`.split(/;/).first
+            s3.put_object(bucket_name, "#{@log_started}/#{File.basename(log)}", IO.read(log), 'x-amz-acl' => 'public-read', 'Content-Type' => content)
+          end
+        }
+        done = true
       rescue Exception => e
-        unless e.message =~ /Bad file descriptor|no such file or directory/i
-          raise e
-        end
+        raise e unless e.message =~ /Bad file descriptor|no such file or directory/i
         sleep 1
       end while not done
     end

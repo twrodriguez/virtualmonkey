@@ -32,7 +32,7 @@ class DeploymentMonk
     end
   end
 
-  def initialize(prefix, server_templates = [], extra_images = [], suppress_monkey_warning = false, single_deployment = false)
+  def initialize(prefix, server_templates = [], extra_images = [], allow_meta_monkey = false, single_deployment = false)
     @clouds = []
     @single_deployment = single_deployment
     @prefix = prefix
@@ -66,17 +66,18 @@ class DeploymentMonk
         st = ServerTemplate.find(st.to_i)
       end
       # Do not allow Servers using the VirtualMonkey ServerTemplate to be subject to monkey code
-      unless suppress_monkey_warning
+      unless allow_meta_monkey
         raise "ABORTING: VirtualMonkey has been found in a deployment." if st.nickname =~ /virtual *monkey/i
       end
-      @server_templates << st unless st.nickname =~ /virtual *monkey/i
+      @server_templates << st if allow_meta_monkey or st.nickname !~ /virtual *monkey/i
     end
     raise "Error: To launch a single deployment a maximum of one server template is allowed " if ((@server_templates.length > 1) && @single_deployment)
   end
 
   def mci_list(options, st)
-    if options[:mci_override] && !options[:mci_override].empty?
-        mci = MultiCloudImage.new(:href => options[:mci_override].first)
+    if options[:use_mci] && !options[:use_mci].empty?
+        mci = MultiCloudImage.new("href" => options[:use_mci].first)
+        mci.reload
         mci.find_and_flatten_settings
         multi_cloud_images = [mci]
     elsif options[:only]
@@ -104,8 +105,9 @@ class DeploymentMonk
     @clouds.compact!
     @clouds.uniq!
     @clouds.map! { |m| m.to_s }
+    raise "The selected MCIs don't support any clouds!" if @clouds.empty?
     
-    dep_tempname = nil
+    dep_tempname = ""
     new_deploy = nil
     nick_name_holder = [] # this variable is used when we want to create a single deployment and we use it to name the deployment properly 
     deployment_created = false # this variable is used to control creating a single deployment 
@@ -194,15 +196,32 @@ class DeploymentMonk
           end
 
           # If overriding the multicloudimage need to specify the ec2 image href because you can't set an MCI that's not in the ServerTemplate
-          if options[:mci_override] && !options[:mci_override].empty?
-            use_this_image_setting = mci['multi_cloud_image_cloud_settings'].detect { |setting| setting["image_href"].include?("cloud_id=#{cloud}") }
+          if options[:use_mci] && !options[:use_mci].empty?
             server_params.reject! {|k,v| k == "mci_href"}
-            server_params["ec2_image_href"] = use_this_image_setting["image_href"]
-            server_params["instance_type"] = use_this_image_setting["aws_instance_type"]
-            # TODO mci_override is not implemented for 1.5 MCI images
+            use_this_image_setting = mci_list(options, st).first['multi_cloud_image_cloud_settings'].detect { |setting|
+              if setting.is_a?(MultiCloudImageCloudSettingInternal)
+                ret = (setting.cloud_id == cloud.to_i)
+              elsif setting.is_a?(McMultiCloudImageSetting)
+                ret = setting.cloud.include?("clouds/#{cloud}")
+              end
+              ret
+            }
+            if cloud.to_i < 10
+              server_params["ec2_image_href"] = use_this_image_setting["image_href"]
+              server_params["instance_type"] = use_this_image_setting["aws_instance_type"]
+            else
+              server_params["image_href"] = use_this_image_setting.image
+              server_params["instance_type_href"] = use_this_image_setting.instance_type
+            end
           end
 
-          server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
+          begin
+            server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
+          rescue Exception => e
+            msg = "#\n# GOT EXCEPTION: #{e.message}\n#\n"
+            STDERR.print(msg)
+            next
+          end
 
           # AWS Cloud-specific Code XXX LEGACY XXX
           if cloud.to_i < 10
@@ -212,7 +231,7 @@ class DeploymentMonk
             # WHY WE NEED THIS? create maybe already does this 
             # uses a special internal call for setting the MCI on the server
             sint = ServerInternal.new(:href => server.href)
-            sint.set_multi_cloud_image(use_this_image) unless options[:mci_override] && !options[:mci_override].empty?
+            sint.set_multi_cloud_image(use_this_image) unless options[:use_mci] && !options[:use_mci].empty?
 
             # finally, set the spot price
             unless options[:no_spot]

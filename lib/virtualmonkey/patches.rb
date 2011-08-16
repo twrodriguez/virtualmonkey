@@ -27,6 +27,26 @@ class Array
       raise NoMethodError.new("undefined method '#{method_name}' for Array")
     end
   end
+
+  def uniq_by(&block)
+    transforms = {}
+    reject do |elem|
+      t = block[elem]
+      should_reject = transforms[t]
+      transforms[t] = true
+      should_reject
+    end
+  end
+
+  def uniq_by!(&block)
+    transforms = {}
+    reject! do |elem|
+      t = block[elem]
+      should_reject = transforms[t]
+      transforms[t] = true
+      should_reject
+    end
+  end
 end
 
 module Math

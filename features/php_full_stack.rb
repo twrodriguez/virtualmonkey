@@ -9,6 +9,8 @@ before do
 
 # TODO: variations to set
 # mysql fqdn
+ @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+@runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   @runner.set_variation_http_only
 
 # Mysql variations
@@ -20,7 +22,7 @@ before do
   @runner.launch_set(:mysql_servers)
   @runner.launch_set(:fe_servers)
   @runner.wait_for_set(:mysql_servers, "operational")
-  @runner.set_private_mysql_fqdn
+  #@runner.set_private_mysql_fqdn
   @runner.import_unified_app_sqldump
   @runner.wait_for_set(:fe_servers, "operational")
   @runner.launch_set(:app_servers)
@@ -32,35 +34,37 @@ end
 ## Unified Application on 8000
 #
 
-#test "run_unified_application_checks" do
-#  @runner.run_unified_application_checks(:app_servers, 8000)
+test "run_unified_application_checks" do
+  sleep(360)
+  @runner.run_unified_application_checks(:fe_servers, 80)
+
+end
+
+#test "reboot_operations" do
+ # @runner.run_reboot_operations
 #end
 
-test "reboot_operations" do
-  @runner.run_reboot_operations
-end
-
-test "monitoring" do
-  @runner.check_monitoring
-end
+#test "monitoring" do
+#  @runner.check_monitoring
+#end
 
 #
 ## ATTACHMENT GROUP
 #
 
-test "attach_all" do
-  @runner.test_attach_all
-  @runner.frontend_checks(80)
-end
+#test "attach_all" do
+#  @runner.test_attach_all
+#  @runner.frontend_checks(80)
+#end
 
-test "attach_request" do
-  @runner.test_attach_request
-  @runner.frontend_checks(80)
-end
+#test "attach_request" do
+#  @runner.test_attach_request
+#  @runner.frontend_checks(80)
+#end
 
-after "attach_all", "attach_request" do
-  @runner.test_detach
-end
+#after "attach_all", "attach_request" do
+#  @runner.test_detach
+#end
 
 #
 ## Reconverge Test
@@ -93,13 +97,13 @@ end
 ## Defunct Server Test
 #
 
-before "defunct_server" do
-  @runner.set_variation_defunct_server
-end
+#before "defunct_server" do
+#  @runner.set_variation_defunct_server
+#end
 
-test "defunct_server" do
-  @runner.transaction do
-    @runner.test_attach_all
-    @runner.test_defunct_server
-  end
-end
+#test "defunct_server" do
+#  @runner.transaction do
+#    @runner.test_attach_all
+#    @runner.test_defunct_server
+#  end
+#end

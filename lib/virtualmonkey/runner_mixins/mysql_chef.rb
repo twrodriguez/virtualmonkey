@@ -31,6 +31,8 @@ module VirtualMonkey
                    [ 'do_restore_ebs', 'db_mysql::do_restore_ebs' ],
                    [ 'do_restore_cloud_files', 'db_mysql::do_restore_cloud_files' ],
                    [ 'do_restore_cloud_files', 'db_mysql::do_restore_cloud_files' ],
+                   [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ],
+                   [ 'do_reconverge_list_disable', 'sys::do_reconverge_list_disable' ],
                    [ 'do_force_reset', 'db_mysql::do_force_reset' ]
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
@@ -139,6 +141,16 @@ module VirtualMonkey
           end
         end
       end
+
+      def enable_db_reconverge
+        run_script_on_set('enable_reconverge', mysql_servers)
+      end
+
+      def disable_db_reconverge
+        run_script_on_set('disable_reconverge', mysql_servers)
+      end
+
+
       # creates a MySQL enabled EBS stripe on the server
       # * server<~Server> the server to create stripe on
   #XXX stripe is created during boot - this is not needed
@@ -238,12 +250,17 @@ module VirtualMonkey
   
       def release_container
         set_variation_container
+        ary = []
         raise "FATAL: could not cleanup because @container was '#{@container}'" unless @container
         s3 = Fog::Storage.new(:provider => 'AWS')
-        rax = Fog::Storage.new(:provider => 'Rackspace')
-        delete_rax = rax.directories.all.select {|d| d.key =~ /^#{@container}/}
-        delete_s3 = s3.directories.all.select {|d| d.key =~ /^#{@container}/}
-        [delete_rax, delete_s3].each do |con|
+        ary << s3.directories.all.select {|d| d.key =~ /^#{@container}/}
+        if Fog.credentials[:rackspace_username] and Fog.credentials[:rackspace_api_key]
+          rax = Fog::Storage.new(:provider => 'Rackspace')
+          ary << rax.directories.all.select {|d| d.key =~ /^#{@container}/}
+        else
+          puts "No Rackspace Credentials!"
+        end
+        ary.each do |con|
           con.each do |dir|
             dir.files.each do |file|
               file.destroy

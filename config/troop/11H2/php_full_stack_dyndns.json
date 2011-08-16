@@ -1,5 +1,5 @@
 {
-  "feature":"php_full_stack.rb",
+  "feature":"php_fullstack_dyndns.rb",
   "cloud_variables":"all_clouds.json",
   "common_inputs":"php_full_stack.json",
   "prefix":"FULLSTACK",
@@ -8,6 +8,6 @@
     "27958",
     "120077",
     "120077",
-    "123643"
+    "107666"
   ]
 }
