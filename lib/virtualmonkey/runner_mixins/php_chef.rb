@@ -13,7 +13,7 @@ module VirtualMonkey
         @deployment.set_input("db_mysql/fqdn", "text:#{the_name}")
       end
 
-      def disable_reconverge
+      def disable_fe_reconverge
         run_script_on_set('disable_reconverge', fe_servers)
       end
 
@@ -35,7 +35,7 @@ module VirtualMonkey
         }
       end
 
-      def enable_reconverge
+      def enable_lb_reconverge
         run_script_on_set('enable_reconverge', fe_servers)
       end
 
@@ -43,7 +43,7 @@ module VirtualMonkey
         recipes = [
                     [ 'attach_all', 'lb_haproxy::do_attach_all' ],
                     [ 'disable_reconverge', 'sys::do_reconverge_list_disable' ],
-                    [ 'enable_reconverge', 'sys::do_reconverge_list_enable' ]
+                   [ 'enable_reconverge', 'sys::do_reconverge_list_enable' ]
                   ]
         fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
         load_script_table(fe_st,recipes)
