@@ -2,22 +2,22 @@ module VirtualMonkey
   module Command
 
 # monkey clone --deployment name --feature testcase.rb --breakpoint 4 --copies 7
-    def self.clone
+    def self.clone(*args)
       raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:clone]
         eval(VirtualMonkey::Command::use_options( :deployment, :config_file, :n_copies,
-                                                  :yes, :verbose, :qa, :terminate))
+                                                  :yes, :verbose, :terminate))
       end
 
-      @@options[:prefix] = @@options[:deployment]
-      @@dm = DeploymentMonk.new(@@options[:deployment])
-      if @@dm.deployments.length > 1
+      deployments = Deployment.find_by_nickname_speed(@@options[:deployment])
+      if deployments.length > 1
         raise "FATAL: Ambiguous Regex; more than one deployment matched /#{@@options[:deployment]}/"
-      elsif @@dm.deployments.length < 1
+      elsif deployments.length < 1
         raise "FATAL: Ambiguous Regex; no deployment matched /#{@@options[:deployment]}/"
       end
-      origin = @@dm.deployments.first
+      origin = deployments.first
       @@do_these ||= []
       # clone deployment
       for i in 1 .. @@options[:n_copies]

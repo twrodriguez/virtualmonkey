@@ -14,6 +14,8 @@ module VirtualMonkey
   end
 
   module TestCaseInterface
+    alias_method :orig_raise, :raise
+
     # Overrides puts to provide slightly better logging
     def puts(*args)
       write_readable_log("#{args}")
@@ -56,13 +58,37 @@ module VirtualMonkey
       @retry_loop = []
       @done_resuming = true
       @in_transaction = []
+      @max_retries = 10
       @options = options
+      @options[:additional_logs] ||= []
       @deprecation_error = `curl -s "www.kdegraaf.net/cgi-bin/bofh" | grep -o "<b>.*</b>"`
       @deprecation_error.gsub!(/<\/*b>/,"")
       @deprecation_error.chomp!
       if @options[:resume_file] && File.exists?(@options[:resume_file])
         @done_resuming = false     
       end
+
+      # Setup runner_options
+      @options[:runner_options].keys.each { |opt|
+        sym = opt.gsub(/-/,"_").to_sym
+        self.class.class_eval("attr_accessor :#{sym}")
+        self.__send__("#{sym}=".to_sym, @options[:runner_options][opt])
+      }
+
+      # Set-up relative logs in case we're being run in parallel
+      # TODO: Additional logs should include each server's logs from the lists
+      @log_map = {}
+      @options[:additional_logs].each { |log|
+        file_name = "#{@deployment.nickname}.#{File.basename(log)}"
+        base_dir = ENV['MONKEY_LOG_BASE_DIR'] || File.dirname(log)
+        @log_map[log] = File.join(base_dir, file_name)
+      }
+      # USE THIS IN RUNNER CLASS:
+      # File.open(@log_map["my_special_report.html"], "w") { |f| f.write("blah") }
+      #
+      # USE THIS IN FEATURE FILE:
+      # set :logs, "my_special_report.html"
+
       VirtualMonkey::trace_log << { "feature_file" => @options[:file] }
       write_readable_log("feature_file: #{@options[:file]}")
       # Do renaming stuff
@@ -76,7 +102,7 @@ module VirtualMonkey
 
       behavior_methods.each do |m|
         new_m = "__behavior_#{m}"
-        self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{m}, *args, &block); end")
+        self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{new_m}, *args, &block); end")
       end
     end
     
@@ -89,7 +115,7 @@ module VirtualMonkey
         #pre-command
         populate_settings if @deployment
         #command
-        result = __send__("__behavior_#{sym}".to_sym, *args, &block)
+        result = __send__(sym, *args, &block)
         #post-command
         continue_test
       end while @rerun_last_command.pop
@@ -201,6 +227,14 @@ module VirtualMonkey
       end
     end
 
+    def match_servers_by_st(ref)
+      @st_table.select { |s,st| st.href == ref.href }.map { |s,st| s }
+    end
+
+    def match_st_by_server(ref)
+      @st_table.select { |s,st| s.href == ref.href }.last.last
+    end
+
     private
 
     def obj_behavior(obj, sym, *args)
@@ -214,7 +248,7 @@ module VirtualMonkey
       exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m !~ /^__/ }
 
       
-      return false if @retry_loop.empty? or @retry_loop.last > 10 # No more than 10 retries
+      return false if @retry_loop.empty? or @retry_loop.last > @max_retries # No more than 10 retries
       exception_handle_methods.each { |m|
         if self.__send__(m,e)
           # If an exception_handle method doesn't return false, it handled correctly
@@ -265,7 +299,11 @@ module VirtualMonkey
         @servers.reject! { |s|
           s.settings
           st = ServerTemplate.find(resource_id(s.server_template_href))
-          ret = (st.nickname =~ /virtual *monkey/i)
+          if @options[:allow_meta_monkey]
+            ret = false
+          else
+            ret = (st.nickname =~ /virtual *monkey/i)
+          end
           @server_templates << st unless ret
           @st_table << [s, st] unless ret
           ret
@@ -274,14 +312,6 @@ module VirtualMonkey
         self.__send__(:__lookup_scripts__)
         self.__send__(:__list_loader__)
       end
-    end
-
-    def match_servers_by_st(ref)
-      @st_table.select { |s,st| st.href == ref.href }.map { |s,st| s }
-    end
-
-    def match_st_by_server(ref)
-      @st_table.select { |s,st| s.href == ref.href }.last.last
     end
 
     # select_set returns an Array of ServerInterfaces and accepts any of the following:
@@ -300,6 +330,10 @@ module VirtualMonkey
           set = @servers.select { |s| s.nickname =~ /#{set}/ }
         end
       end
+      if set.is_a?(Regexp)
+        set = match_servers_by_st(@server_templates.detect { |st| st.name =~ set })
+      end
+      set = match_servers_by_st(set) if set.is_a?(ServerTemplate)
       set = __send__(set) if set.is_a?(Symbol)
       set = [ set ] unless set.is_a?(Array)
       return set
@@ -325,6 +359,23 @@ module VirtualMonkey
       t = Time.now
       "#{t.strftime("[%m/%d/%Y %H:%M:%S.")}%-6d] " % t.usec
     end
+
+=begin
+    def method_missing(sym, *args, &block)
+      str = sym.to_s
+      assignment = str.gsub!(/=/,"")
+      str_dash = str.gsub(/_/,"-")
+      if @options[:runner_options][str]
+        @options[:runner_options][str] = args.first if assignment
+        return @options[:runner_options][str]
+      elsif @options[:runner_options][str_dash]
+        @options[:runner_options][str_dash] = args.first if assignment
+        return @options[:runner_options][str_dash]
+      else
+        raise NoMethodError.new("undefined method '#{sym}' for #{self.class}")
+      end
+    end
+=end
 
     ##################################
     # Execution Stack Trace Routines #

@@ -250,12 +250,17 @@ module VirtualMonkey
   
       def release_container
         set_variation_container
+        ary = []
         raise "FATAL: could not cleanup because @container was '#{@container}'" unless @container
         s3 = Fog::Storage.new(:provider => 'AWS')
-        rax = Fog::Storage.new(:provider => 'Rackspace')
-        delete_rax = rax.directories.all.select {|d| d.key =~ /^#{@container}/}
-        delete_s3 = s3.directories.all.select {|d| d.key =~ /^#{@container}/}
-        [delete_rax, delete_s3].each do |con|
+        ary << s3.directories.all.select {|d| d.key =~ /^#{@container}/}
+        if Fog.credentials[:rackspace_username] and Fog.credentials[:rackspace_api_key]
+          rax = Fog::Storage.new(:provider => 'Rackspace')
+          ary << rax.directories.all.select {|d| d.key =~ /^#{@container}/}
+        else
+          puts "No Rackspace Credentials!"
+        end
+        ary.each do |con|
           con.each do |dir|
             dir.files.each do |file|
               file.destroy
