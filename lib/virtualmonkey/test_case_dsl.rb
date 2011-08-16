@@ -103,8 +103,8 @@ module VirtualMonkey
         (ret.is_a?(Array) ? (args += ret) : (args << ret))
       end
 
-      case var.class
-      when Symbol
+      case var.class.to_s
+      when "Symbol"
         case var
         when :runner
           if args.first.is_a?(Class)
@@ -127,7 +127,7 @@ module VirtualMonkey
         else
           puts "#{var} is not a valid option!"
         end
-      when String
+      when "String"
         @options[:runner_options] ||= {}
         if args.length > 1
           @options[:runner_options][var] = args
