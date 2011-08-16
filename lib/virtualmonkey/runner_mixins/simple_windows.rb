@@ -8,11 +8,11 @@ module VirtualMonkey
         puts "Got this \"#{e.message}\"."
         if e.message =~ /timed out waiting for the state to be operational/
           puts "Got \"#{e.message}\". Retrying...."
-          sleep 300
+          sleep 15
           return true # Exception Handled
         elsif e.message =~ /this server is stranded and needs to be operational/
           puts "Got \"#{e.message}\". Retrying...."
-          sleep 300
+          sleep 15
           return true # Exception Handled
         else
           return false
