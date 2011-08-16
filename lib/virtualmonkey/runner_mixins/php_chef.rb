@@ -125,6 +125,10 @@ module VirtualMonkey
         ssl_passphrase_server.set_inputs(inputs)
       end
 
+      def set_variation_dnschoice(dns_choice)
+	 @deployment.set_input("sys_dns/choice", "#{dns_choice}")
+      end
+     
       def ssl_chain_server
         fe_servers.detect { |s| s.get_info_tags('ssl_chain')['self']['ssl_chain'] == 'true' }
       end

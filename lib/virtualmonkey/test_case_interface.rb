@@ -14,6 +14,9 @@ module VirtualMonkey
   end
 
   module TestCaseInterface
+    class Retry < Exception
+    end
+
     # Overrides puts to provide slightly better logging
     def puts(*args)
       write_readable_log("#{args}")
@@ -41,6 +44,8 @@ module VirtualMonkey
             debugger
           end
           super(e)
+        else
+          super(VirtualMonkey::TestCaseInterface::Retry.new)
         end
       end
     end
@@ -92,6 +97,7 @@ module VirtualMonkey
         result = __send__("__behavior_#{sym}".to_sym, *args, &block)
         #post-command
         continue_test
+      rescue VirtualMonkey::TestCaseInterface::Retry
       end while @rerun_last_command.pop
       write_trace_log
       @retry_loop.pop
