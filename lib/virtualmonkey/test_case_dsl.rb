@@ -64,7 +64,7 @@ module VirtualMonkey
       @runner.write_trace_log
       # Before
       if @options[:no_resume] and @clean_start
-        @clean_start.call
+        @runner.transaction(:do_not_trace) { @clean_start.call }
       end
       if @before[:all]
         @runner.write_readable_log("============== BEFORE ALL ==============")

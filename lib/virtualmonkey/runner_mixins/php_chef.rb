@@ -93,7 +93,7 @@ module VirtualMonkey
       end
 
       def set_variation_defunct_server
-        probe(fe_servers, "echo -e '\\tserver BOGUS 1.2.3.4:8000 check inter 3000 rise 2 fall 3 maxconn 500' >> /home/haproxy/rightscale_lb.cfg")
+        probe(fe_servers, "echo -e '        server BOGUS 1.2.3.4:8000 check inter 3000 rise 2 fall 3 maxconn 500' > /home/haproxy/haproxy.d/BOGUS; cat /home/haproxy/haproxy.d/BOGUS >> /home/haproxy/rightscale_lb.cfg")
       end
 
       def test_defunct_server

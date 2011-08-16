@@ -17,6 +17,14 @@ module VirtualMonkey
     class Retry < Exception
     end
 
+    class UnhandledException < Exception
+      def initialize(e); @exception = e; end
+      def inspect; @exception.inspect; end
+      def method_missing(m, *args, &block)
+        @exception.__send__(m, *args, &block)
+      end
+    end
+
     alias_method :orig_raise, :raise
 
     # Overrides puts to provide slightly better logging
@@ -32,7 +40,7 @@ module VirtualMonkey
     # Overrides raise to provide deep debugging abilities
     def raise(*args)
       begin
-        super(*args)
+        orig_raise(*args)
       rescue Exception => e
         if not self.__send__(:__exception_handle__, e)
           if ENV['MONKEY_NO_DEBUG'] != "true" and not Debugger.post_mortem
@@ -45,9 +53,9 @@ module VirtualMonkey
 #           end
             debugger
           end
-          super(e)
+          orig_raise(VirtualMonkey::TestCaseInterface::UnhandledException.new(e))
         else
-          super(VirtualMonkey::TestCaseInterface::Retry.new)
+          orig_raise(VirtualMonkey::TestCaseInterface::Retry.new)
         end
       end
     end
@@ -125,7 +133,7 @@ module VirtualMonkey
         continue_test
       rescue VirtualMonkey::TestCaseInterface::Retry
       end while @rerun_last_command.pop
-      write_trace_log
+      write_trace_log 
       @retry_loop.pop
       result
     end
@@ -169,7 +177,7 @@ module VirtualMonkey
 
     # transaction doesn't quite live up to its namesake. It only implies all-or-nothing resume capabilities,
     # rather than all-or-nothing execution.
-    def transaction(ordered_ary = nil, &block)
+    def transaction(option = nil, &block)
       # TODO: Manage threaded execution across the elements of the ordered_ary. Remember to shift from a
       # duplicated ary rather than passing in args.
       #
@@ -178,7 +186,7 @@ module VirtualMonkey
       # threads.each { |t| t.join }
       #
       call_str = stringify_call("transaction", [], nil, block.to_ruby)
-      write_readable_log(call_str)
+      write_readable_log(call_str) unless option == :do_not_trace
       if @in_transaction.empty?
         real_stack_objects = @stack_objects
         real_iterating_stack = @iterating_stack
@@ -191,7 +199,6 @@ module VirtualMonkey
       result = nil
       begin
         @in_transaction.push(true)
-        # TODO: Add retrying capabilities, trace_log is not a concern anymore
         populate_settings if @deployment
         if not @done_resuming
           if VirtualMonkey::trace_log == []
@@ -204,7 +211,22 @@ module VirtualMonkey
             end
           end
         end
-        result = yield() if @done_resuming
+
+        # Retry loop
+        begin
+          push_rerun_test
+          result = yield() if @done_resuming
+          continue_test
+        rescue VirtualMonkey::TestCaseInterface::Retry
+        rescue VirtualMonkey::TestCaseInterface::UnhandledException => e
+          orig_raise e
+        rescue Exception => e
+          begin
+            raise e # Need to use the internal raise
+          rescue VirtualMonkey::TestCaseInterface::Retry
+          end
+        end while @rerun_last_command.pop
+
       ensure
         @in_transaction.pop
         if @in_transaction.empty?
@@ -214,8 +236,11 @@ module VirtualMonkey
           VirtualMonkey::trace_log = real_trace_log
         end
       end
-      write_trace_log(call_str) if @in_transaction.empty?
+      write_trace_log(call_str) unless option == :do_not_trace
       result
+    end
+
+    def untraced_fn(&block)
     end
 
     def write_readable_log(data)
@@ -227,6 +252,7 @@ module VirtualMonkey
     end
 
     def write_trace_log(call=nil)
+      return nil if @in_transaction.empty?
       add_to_trace_log(call) if call.is_a?(String)
       if @done_resuming and @options[:resume_file]
         File.open(@options[:resume_file], "w") { |f| f.write( VirtualMonkey::trace_log.to_yaml ) }
@@ -253,7 +279,6 @@ module VirtualMonkey
       all_methods = self.methods + self.private_methods
       exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m !~ /^__/ }
 
-      
       return false if @retry_loop.empty? or @retry_loop.last > @max_retries # No more than 10 retries
       exception_handle_methods.each { |m|
         if self.__send__(m,e)
@@ -280,20 +305,26 @@ module VirtualMonkey
 
     # debugger irb help function
     def help
-      puts "Here are some of the wrapper methods that may be of use to you in your debugging quest:\n"
-      puts "probe(server_set, shell_command, &block): Provides a one-line interface for running a command on"
-      puts "                                          a set of servers and verifying their output. The block"
-      puts "                                          should take one argument, the output string from one of"
-      puts "                                          the servers, and return true or false based on however"
-      puts "                                          the developer wants to verify correctness.\n"
-      puts "                                          Examples:"
-      puts "                                            probe('.*', 'ls') { |s| puts s }"
-      puts "                                            probe(:fe_servers, 'ls') { |s| puts s }"
-      puts "                                            probe('app_servers', 'ls') { |s| puts s }"
-      puts "                                            probe('.*', 'uname -a') { |s| s =~ /x64/ }\n"
-      puts "continue_test: Disables the retry loop that reruns the last command (the current command that you're"
-      puts "               debugging.\n"
-      puts "help: Prints this help message."
+      puts <<EOS
+Here are some of the wrapper methods that may be of use to you in your debugging quest:
+
+probe(server_set, shell_command, &block): Provides a one-line interface for running a command on
+                                          a set of servers and verifying their output. The block
+                                          should take one argument, the output string from one of
+                                          the servers, and return true or false based on however
+                                          the developer wants to verify correctness.
+
+                                          Examples:
+                                            probe('.*', 'ls') { |s| puts s }
+                                            probe(:fe_servers, 'ls') { |s| puts s }
+                                            probe('app_servers', 'ls') { |s| puts s }
+                                            probe('.*', 'uname -a') { |s| s =~ /x64/ }
+
+continue_test: Disables the retry loop that reruns the last command (the current command that you're
+               debugging.
+
+help: Prints this help message.
+EOS
     end
 
     # Sets up most of the state for the runners
@@ -358,7 +389,7 @@ module VirtualMonkey
 
     # allows exceptions to only handle a limited number of times per behavior
     def incr_retry_loop
-      @retry_loop.push(@retry_loop.pop() + 1)
+      @retry_loop.map! { |i| i + 1 }
     end
 
     def timestamp
