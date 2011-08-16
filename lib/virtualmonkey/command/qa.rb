@@ -23,7 +23,7 @@ module VirtualMonkey
       raise "--config_file is required" unless @@options[:config_file]
       load_config_file
 
-      @@dm = DeploymentMonk.new(@@options[:prefix])
+      @@dm = DeploymentMonk.new(@@options[:prefix], [], [], @@options[:allow_meta_monkey])
       select_only_logic("Train lists on")
 
       @@do_these.each { |d| audit_log_deployment_logic(d, @@options[:list_trainer]) }

@@ -10,7 +10,7 @@ module VirtualMonkey
       end
 
       load_config_file if @@options[:config_file]
-      @@dm = DeploymentMonk.new(@@options[:prefix])
+      @@dm = DeploymentMonk.new(@@options[:prefix], [], [], @@options[:allow_meta_monkey])
       if @@options[:clouds]
         @@dm.load_clouds(@@options[:clouds])
 #      elsif @@options[:cloud_variables]

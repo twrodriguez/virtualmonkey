@@ -71,7 +71,7 @@ module VirtualMonkey
 
       EM.run {
         @@gm ||= GrinderMonk.new
-        @@dm ||= DeploymentMonk.new(@@options[:prefix])
+        @@dm ||= DeploymentMonk.new(@@options[:prefix], [], [], @@options[:allow_meta_monkey])
         @@options[:runner] ||= get_runner_class
         select_only_logic("Run tests on")
 
@@ -177,9 +177,9 @@ module VirtualMonkey
 
     # Encapsulates the logic for detecting what runner is used in a test case file
     def self.get_runner_class #returns class string
-#      return @@options[:runner] if @@options[:runner]
-#      return nil unless @@options[:feature]
-      return VirtualMonkey::TestCase.new(@@options[:feature]).options[:runner]
+      tc = VirtualMonkey::TestCase.new(@@options[:feature])
+      @@options[:allow_meta_monkey] = tc.options[:allow_meta_monkey]
+      return tc.options[:runner]
     end
 
     ##################################

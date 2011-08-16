@@ -12,7 +12,7 @@ module VirtualMonkey
 
       raise "--config_file is required" unless @@options[:config_file]
       load_config_file
-      @@dm = DeploymentMonk.new(@@options[:prefix])
+      @@dm = DeploymentMonk.new(@@options[:prefix], [], [], @@options[:allow_meta_monkey])
       select_only_logic("Really destroy")
       destroy_all_logic
     end

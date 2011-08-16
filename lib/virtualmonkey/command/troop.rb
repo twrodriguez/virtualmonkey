@@ -16,7 +16,9 @@ module VirtualMonkey
       # CREATE PHASE
       @@dm = DeploymentMonk.new(@@options[:prefix],
                                 @@options[:server_template_ids],
-                                [], false, @@options[:single_deployment])
+                                [],
+                                @@options[:allow_meta_monkey],
+                                @@options[:single_deployment])
       unless @@dm.deployments.size > 0
         create_logic
       else

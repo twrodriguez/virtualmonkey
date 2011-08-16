@@ -32,7 +32,7 @@ class DeploymentMonk
     end
   end
 
-  def initialize(prefix, server_templates = [], extra_images = [], suppress_monkey_warning = false, single_deployment = false)
+  def initialize(prefix, server_templates = [], extra_images = [], allow_meta_monkey = false, single_deployment = false)
     @clouds = []
     @single_deployment = single_deployment
     @prefix = prefix
@@ -66,10 +66,10 @@ class DeploymentMonk
         st = ServerTemplate.find(st.to_i)
       end
       # Do not allow Servers using the VirtualMonkey ServerTemplate to be subject to monkey code
-      unless suppress_monkey_warning
+      unless allow_meta_monkey
         raise "ABORTING: VirtualMonkey has been found in a deployment." if st.nickname =~ /virtual *monkey/i
       end
-      @server_templates << st unless st.nickname =~ /virtual *monkey/i
+      @server_templates << st if allow_meta_monkey or st.nickname !~ /virtual *monkey/i
     end
     raise "Error: To launch a single deployment a maximum of one server template is allowed " if ((@server_templates.length > 1) && @single_deployment)
   end

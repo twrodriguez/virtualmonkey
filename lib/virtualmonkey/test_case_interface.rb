@@ -68,6 +68,13 @@ module VirtualMonkey
         @done_resuming = false     
       end
 
+      # Setup runner_options
+      @options[:runner_options].keys.each { |opt|
+        sym = opt.gsub(/-/,"_").to_sym
+        self.class.class_eval("attr_accessor :#{sym}")
+        self.__send__("#{sym}=".to_sym, @options[:runner_options][opt])
+      }
+
       # Set-up relative logs in case we're being run in parallel
       # TODO: Additional logs should include each server's logs from the lists
       @log_map = {}
@@ -292,7 +299,11 @@ module VirtualMonkey
         @servers.reject! { |s|
           s.settings
           st = ServerTemplate.find(resource_id(s.server_template_href))
-          ret = (st.nickname =~ /virtual *monkey/i)
+          if @options[:allow_meta_monkey]
+            ret = false
+          else
+            ret = (st.nickname =~ /virtual *monkey/i)
+          end
           @server_templates << st unless ret
           @st_table << [s, st] unless ret
           ret
@@ -349,6 +360,7 @@ module VirtualMonkey
       "#{t.strftime("[%m/%d/%Y %H:%M:%S.")}%-6d] " % t.usec
     end
 
+=begin
     def method_missing(sym, *args, &block)
       str = sym.to_s
       assignment = str.gsub!(/=/,"")
@@ -363,6 +375,7 @@ module VirtualMonkey
         raise NoMethodError.new("undefined method '#{sym}' for #{self.class}")
       end
     end
+=end
 
     ##################################
     # Execution Stack Trace Routines #

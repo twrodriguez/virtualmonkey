@@ -10,6 +10,7 @@ module VirtualMonkey
       @options = options
       @tests_to_resume = nil
       @options[:additional_logs] = []
+      @options[:runner_options] = {}
       @runner = nil
       ruby = IO.read(file)
       eval(ruby)
@@ -96,7 +97,12 @@ module VirtualMonkey
       VirtualMonkey::trace_log = []
     end
 
-    def set(var, *args)
+    def set(var, *args, &block)
+      if block
+        ret = yield
+        (ret.is_a?(Array) ? (args += ret) : (args << ret))
+      end
+
       case var.class
       when Symbol
         case var
@@ -116,12 +122,18 @@ module VirtualMonkey
           else
             raise ":runner_options can only be set to a Hash!"
           end
+        when :allow_meta_monkey
+          @options[var] = true
         else
           puts "#{var} is not a valid option!"
         end
       when String
         @options[:runner_options] ||= {}
-        @options[:runner_options][var] = args.first
+        if args.length > 1
+          @options[:runner_options][var] = args
+        else
+          @options[:runner_options][var] = args.first
+        end
       else
         puts "#{var} is not a valid option!"
       end

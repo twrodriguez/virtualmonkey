@@ -11,14 +11,13 @@ module VirtualMonkey
                                                   :yes, :verbose, :terminate))
       end
 
-      @@options[:prefix] = @@options[:deployment]
-      @@dm = DeploymentMonk.new(@@options[:deployment])
-      if @@dm.deployments.length > 1
+      deployments = Deployment.find_by_nickname_speed(@@options[:deployment])
+      if deployments.length > 1
         raise "FATAL: Ambiguous Regex; more than one deployment matched /#{@@options[:deployment]}/"
-      elsif @@dm.deployments.length < 1
+      elsif deployments.length < 1
         raise "FATAL: Ambiguous Regex; no deployment matched /#{@@options[:deployment]}/"
       end
-      origin = @@dm.deployments.first
+      origin = deployments.first
       @@do_these ||= []
       # clone deployment
       for i in 1 .. @@options[:n_copies]
