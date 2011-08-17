@@ -24,7 +24,7 @@ module VirtualMonkey
     def check_for_resume
       # Should we resume?
       test_states = "test_states"
-      state_dir = File.join(test_states, @options[:deployment])
+      state_dir = File.join(File.dirname(__FILE__), "..", "..", test_states, @options[:deployment])
       @options[:resume_file] = File.join(state_dir, File.basename(@options[:file]))
       if File.directory?(state_dir)
         if File.exists?(@options[:resume_file])
