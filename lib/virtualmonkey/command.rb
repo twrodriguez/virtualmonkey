@@ -7,7 +7,7 @@ require 'pp'
 
 # Auto-require Section
 some_not_included = true
-files = Dir.glob(File.join(File.dirname(__FILE__), "command", "**"))
+files = Dir.glob(File.join(VirtualMonkey::COMMAND_DIR, "**"))
 retry_loop = 0
 while some_not_included and retry_loop < (files.size ** 2) do
   begin
@@ -78,14 +78,14 @@ module VirtualMonkey
     }
 
     def self.init(*args)
-      @@global_state_dir = File.join(File.dirname(__FILE__), "..", "..", "test_states")
-      @@features_dir = File.join(File.dirname(__FILE__), "..", "..", "features")
-      @@cfg_dir = File.join(File.dirname(__FILE__), "..", "..", "config")
-      @@runner_dir = File.join(File.dirname(__FILE__), "deployment_runners")
-      @@mixin_dir = File.join(File.dirname(__FILE__), "runner_mixins")
-      @@cv_dir = File.join(@@cfg_dir, "cloud_variables")
-      @@ci_dir = File.join(@@cfg_dir, "common_inputs")
-      @@troop_dir = File.join(@@cfg_dir, "troop")
+      @@global_state_dir = VirtualMonkey::TEST_STATE_DIR
+      @@features_dir = VirtualMonkey::FEATURE_DIR
+      @@cfg_dir = VirtualMonkey::CONFIG_DIR
+      @@runner_dir = VirtualMonkey::RUNNER_DIR
+      @@mixin_dir = VirtualMonkey::MIXIN_DIR
+      @@cv_dir = VirtualMonkey::CLOUD_VAR_DIR
+      @@ci_dir = VirtualMonkey::COMMON_INPUT_DIR
+      @@troop_dir = VirtualMonkey::TROOP_DIR
 
       # Monkey available_commands
       @@available_commands = AvailableCommands

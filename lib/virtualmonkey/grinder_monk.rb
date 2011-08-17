@@ -107,10 +107,10 @@ class GrinderMonk
     @failed = []
     @running = []
     dirname = Time.now.strftime(File.join("%Y", "%m", "%d", "%H-%M-%S"))
-    @log_dir = File.join("log", dirname)
+    @log_dir = File.join(VirtualMonkey::ROOTDIR, "log", dirname)
     @log_started = dirname
     FileUtils.mkdir_p(@log_dir)
-    @feature_dir = File.join(File.dirname(__FILE__), '..', '..', 'features')
+    @feature_dir = File.join(VirtualMonkey::ROOTDIR, 'features')
   end
  
   # runs a feature on an array of deployments
@@ -181,7 +181,7 @@ class GrinderMonk
     failed = @jobs.select { |s| s.status == 1 }
     running = @jobs.select { |s| s.status == nil }
     report_on = @jobs.select { |s| s.status == 0 || s.status == 1 }
-    index = ERB.new  File.read(File.dirname(__FILE__)+"/index.html.erb")
+    index = ERB.new  File.read(File.join(VirtualMonkey::LIB_DIR, "index.html.erb"))
     bucket_name = (Fog.credentials[:s3_bucket] ? Fog.credentials[:s3_bucket] : "virtual_monkey")
 
     ## upload to s3

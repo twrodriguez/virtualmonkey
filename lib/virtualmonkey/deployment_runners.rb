@@ -1,6 +1,6 @@
 # Auto-require
 some_not_included = true
-files = Dir.glob(File.join(File.dirname(__FILE__), "deployment_runners", "**"))
+files = Dir.glob(File.join(VirtualMonkey::RUNNER_DIR, "**"))
 retry_loop = 0
 while some_not_included and retry_loop < (files.size ** 2) do
   begin

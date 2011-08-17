@@ -273,7 +273,7 @@ class DeploymentMonk
 
   def load_clouds(cloud_ids)
     VirtualMonkey::Toolbox::populate_all_cloud_vars(:force)
-    all_clouds = JSON::parse(IO.read(File.join("config","cloud_variables","all_clouds.json")))
+    all_clouds = JSON::parse(IO.read(File.join(VirtualMonkey::CLOUD_VAR_DIR, "all_clouds.json")))
     cloud_ids.each { |id| @variables_for_cloud.deep_merge!(id.to_s => all_clouds[id.to_s]) }
   end
 
@@ -303,15 +303,15 @@ class DeploymentMonk
     return nil unless @variables_for_cloud[cloud]
     unless @ssh_keys[cloud] and @ssh_keys[cloud] != {}
       VirtualMonkey::Toolbox::generate_ssh_keys(cloud)
-      @ssh_keys = JSON::parse(IO.read(File.join("config","cloud_variables","ssh_keys.json")))
+      @ssh_keys = JSON::parse(IO.read(File.join(VirtualMonkey::CLOUD_VAR_DIR, "ssh_keys.json")))
     end
     unless @security_groups[cloud] and @security_groups[cloud] != {}
       VirtualMonkey::Toolbox::populate_security_groups(cloud)
-      @security_groups = JSON::parse(IO.read(File.join("config","cloud_variables","security_groups.json")))
+      @security_groups = JSON::parse(IO.read(File.join(VirtualMonkey::CLOUD_VAR_DIR, "security_groups.json")))
     end
     unless @datacenters[cloud] and @datacenters[cloud] != {}
       VirtualMonkey::Toolbox::populate_datacenters(cloud)
-      @datacenters = JSON::parse(IO.read(File.join("config","cloud_variables","datacenters.json")))
+      @datacenters = JSON::parse(IO.read(File.join(VirtualMonkey::CLOUD_VAR_DIR, "datacenters.json")))
     end
     @variables_for_cloud[cloud].deep_merge!(@ssh_keys[cloud])
     @variables_for_cloud[cloud].deep_merge!(@security_groups[cloud])
