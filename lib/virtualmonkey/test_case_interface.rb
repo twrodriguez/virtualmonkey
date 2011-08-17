@@ -20,6 +20,12 @@ module VirtualMonkey
     class UnhandledException < Exception
       def initialize(e); @exception = e; end
       def inspect; @exception.inspect; end
+      def message; @exception.message; end
+      def backtrace; @exception.backtrace; end
+      def to_s; @exception.to_s; end
+      def set_backtrace(*args, &block)
+        @exception.set_backtrace(*args, &block)
+      end
       def method_missing(m, *args, &block)
         @exception.__send__(m, *args, &block)
       end
