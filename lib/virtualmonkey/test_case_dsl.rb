@@ -42,9 +42,7 @@ module VirtualMonkey
           end
         end
       else
-        FileUtils.mkdir_p(test_states)
-#        Dir.mkdir(test_states) unless File.directory?(test_states)
-#        Dir.mkdir(state_dir)
+        FileUtils.mkdir_p(state_dir)
       end
       if File.exists?(@options[:resume_file])
         $stdout.syswrite "Confirmed resuming previous testcase, using paused tests...\n\n"

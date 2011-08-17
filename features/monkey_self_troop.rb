@@ -4,7 +4,7 @@ set :logs, "console_output.log", "index.html"
 set "branch", "beta"
 set "troop", File.join("11H2", "base_chef.json")
 set "prefix" {
-  troop_file = File.join(__FILE__, "..", "config", "troop", @options[:runner_options]["troop"])
+  troop_file = File.join(VirtualMonkey::TROOP_DIR, @options[:runner_options]["troop"])
   JSON::parse(IO.read(file))["prefix"]
 }
 
