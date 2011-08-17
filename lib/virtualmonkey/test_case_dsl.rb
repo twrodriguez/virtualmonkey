@@ -23,8 +23,8 @@ module VirtualMonkey
 
     def check_for_resume
       # Should we resume?
-      test_states = "test_states"
-      state_dir = File.join(File.dirname(__FILE__), "..", "..", test_states, @options[:deployment])
+      test_states = VirtualMonkey::TEST_STATE_DIR
+      state_dir = File.join(test_states, @options[:deployment])
       @options[:resume_file] = File.join(state_dir, File.basename(@options[:file]))
       if File.directory?(state_dir)
         if File.exists?(@options[:resume_file])
@@ -42,8 +42,9 @@ module VirtualMonkey
           end
         end
       else
-        Dir.mkdir(test_states) unless File.directory?(test_states)
-        Dir.mkdir(state_dir)
+        FileUtils.mkdir_p(test_states)
+#        Dir.mkdir(test_states) unless File.directory?(test_states)
+#        Dir.mkdir(state_dir)
       end
       if File.exists?(@options[:resume_file])
         $stdout.syswrite "Confirmed resuming previous testcase, using paused tests...\n\n"

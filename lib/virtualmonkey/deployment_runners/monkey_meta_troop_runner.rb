@@ -17,7 +17,7 @@ module VirtualMonkey
       end
 
       def populate_commands
-        troop_file = File.join(__FILE__, "..", "..", "..", "config", "troop", troop)
+        troop_file = File.join(VirtualMonkey::ROOTDIR, "config", "troop", troop)
         # Basic (Free) Commands
         @free_commands["help"] = @commands.keys.dup - ["help"]
         @free_commands["api_check"] += ["-a 0.1", "-a 1.0", "-a 1.5"]

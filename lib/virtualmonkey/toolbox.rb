@@ -80,12 +80,13 @@ module VirtualMonkey
 
     # Initializes most of the important class variables
     def setup_paths
-      @@cloud_vars_dir = File.join("config", "cloud_variables")
-      @@ssh_dir = File.join(File.expand_path("~"), ".ssh")
+      @@cloud_vars_dir = VirtualMonkey::CLOUD_VAR_DIR
+      @@ssh_dir = File.expand_path(File.join("~", ".ssh"))
       @@sgs_file = File.join(@@cloud_vars_dir, "security_groups.json")
       @@dcs_file = File.join(@@cloud_vars_dir, "datacenters.json")
       @@keys_file = File.join(@@cloud_vars_dir, "ssh_keys.json")
       @@rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
+      @@rest_yaml = File.join("", "etc", "rest_connection", "rest_api_config.yaml") unless File.exists?(@@rest_yaml)
     end
 
     # Query for available clouds

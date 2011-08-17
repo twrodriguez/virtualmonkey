@@ -80,7 +80,7 @@
         <li>
         <a href="<%= File.basename(failed_job.logfile) %>"><%= File.basename(failed_job.logfile) %></A><br>
         <a href="<%= File.basename(failed_job.rest_log) %>"><%= File.basename(failed_job.rest_log) %></A><br>
-        <% passed_job.other_logs do |log| %>
+        <% failed_job.other_logs.each do |log| %>
           <% if File.exists?(log) %>
             <a href="<%= File.basename(log) %>"><%= File.basename(log) %></A><br>
           <% end %>
@@ -97,7 +97,7 @@
         <li>
         <a href="<%= File.basename(passed_job.logfile) %>"><%= File.basename(passed_job.logfile) %></A><br>
         <a href="<%= File.basename(passed_job.rest_log) %>"><%= File.basename(passed_job.rest_log) %></A><br>
-        <% passed_job.other_logs do |log| %>
+        <% passed_job.other_logs.each do |log| %>
           <% if File.exists?(log) %>
             <a href="<%= File.basename(log) %>"><%= File.basename(log) %></A><br>
           <% end %>

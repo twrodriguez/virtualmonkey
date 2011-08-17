@@ -82,11 +82,13 @@ module VirtualMonkey
       end
 
       # Setup runner_options
-      @options[:runner_options].keys.each { |opt|
-        sym = opt.gsub(/-/,"_").to_sym
-        self.class.class_eval("attr_accessor :#{sym}")
-        self.__send__("#{sym}=".to_sym, @options[:runner_options][opt])
-      }
+      if @options[:runner_options] && @options[:runner_options].is_a?(Hash)
+        @options[:runner_options].keys.each { |opt|
+          sym = opt.gsub(/-/,"_").to_sym
+          self.class.class_eval("attr_accessor :#{sym}")
+          self.__send__("#{sym}=".to_sym, @options[:runner_options][opt])
+        }
+      end
 
       # Set-up relative logs in case we're being run in parallel
       # TODO: Additional logs should include each server's logs from the lists
