@@ -64,9 +64,11 @@ module VirtualMonkey
       end
   
       # Pick a storage_type depending on what cloud we're on.
-      def set_variation_storage_type
+      def set_variation_storage_type(storage=nil)
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
-        if cid == 232
+        if storage
+          @storage_type = storage
+        elsif cid == 232 # rackspace
           @storage_type = "ros"
         else
           pick = rand(100000) % 2
@@ -79,12 +81,12 @@ module VirtualMonkey
         puts "STORAGE_TYPE: #{@storage_type}"
         @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
    
-        obj_behavior(@deployment, :set_input, "block_device/storage_type", "text:#{@storage_type}")
+        @deployment.set_input("block_device/storage_type", "text:#{@storage_type}")
       end
   
       def test_s3
-      # run_script("do_force_reset", s_one)
-      #  sleep 10
+       run_script("do_force_reset", s_one)
+        sleep 10
        run_script("setup_block_device", s_one)
         sleep 10
         probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=200")
@@ -106,28 +108,54 @@ module VirtualMonkey
           true
         end
       end
-  
-      def test_ebs
-        # EBS is already setup, to save time we'll skip the force_reset
+
+      def test_volume
         run_script("do_force_reset", s_one)
-        #sleep 10
+        sleep 10
        run_script("setup_block_device", s_one)
         probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=500")
         sleep 100
-       run_script("do_backup_ebs", s_one)
+       run_script("do_backup", s_one)
         wait_for_snapshots
         sleep 100
        run_script("do_force_reset", s_one)
   # need to wait here for the volume status to settle (detaching)
         sleep 400
-       run_script("do_restore_ebs", s_one)
+       run_script("do_restore", s_one)
+        probe(s_one, "ls /mnt/storage") do |result, status|
+          raise "FATAL: no files found in the backup" if result == nil || result.empty?
+          true
+        end
+       # Needs test implemented for euca and cdc
+       #run_script("do_force_reset", s_one)
+       # sleep 400
+       #run_script("do_restore", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
+       # probe(s_one, "ls /mnt/storage") do |result, status|
+       #   raise "FATAL: no files found in the backup" if result == nil || result.empty?
+       #   true
+       # end
+      end
+
+      def test_ebs
+        #run_script("do_force_reset", s_one)
+        #sleep 10
+       run_script("setup_block_device", s_one)
+        probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=500")
+        sleep 100
+       run_script("do_backup_volume", s_one)
+        wait_for_snapshots
+        sleep 100
+       run_script("do_force_reset", s_one)
+  # need to wait here for the volume status to settle (detaching)
+        sleep 400
+       run_script("do_restore_volume", s_one)
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
         end
        run_script("do_force_reset", s_one)
         sleep 400
-       run_script("do_restore_ebs", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
+       run_script("do_restore_volume", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
@@ -161,16 +189,7 @@ module VirtualMonkey
   
       # pick the right set of tests depending on what cloud we're on
       def test_multicloud
-        cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
-        if cid == 232
-          test_cloud_files
-        else
-          if @storage_type == "ros"
-            test_s3
-          elsif @storage_type == "volume"
-            test_ebs
-          end
-        end
+        
       end
   
       def test_continuous_backups
@@ -246,7 +265,7 @@ module VirtualMonkey
         # Setup Backups for every minute
         opts = {"block_device/cron_backup_hour" => "text:*",
                 "block_device/cron_backup_minute" => "text:*"}
-       run_script("setup_continuous_backups_ebs", s_one, opts)
+       run_script("setup_continuous_backups_volume", s_one, opts)
         # Wait for snapshots to be created
         sleep 300
         retries = 0
@@ -262,7 +281,7 @@ module VirtualMonkey
         sleep 200
         raise "FATAL: Failed Continuous Backup Enable Test" unless find_snapshots.length > count
         # Disable cron job
-       run_script("do_disable_continuous_backups_ebs", s_one)
+       run_script("do_disable_continuous_backups_volume", s_one)
         sleep 200
         count =find_snapshots.length
         sleep 200
