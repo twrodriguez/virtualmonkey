@@ -512,6 +512,21 @@ module VirtualMonkey
         test_mail_config(server)
         test_syslog_config(server)
       end
+
+      # parameter tag_to_set is a string
+      # example pass in rs_agent_dev:package=5.7.11
+      def tag_all_servers(tag_to_set)
+
+	 servers.each_index { |counter|
+           servers[counter].settings
+           servers[counter].reload
+	   print "tag added " + tag_to_set.to_s + " " + servers[counter].to_s+ "\n"
+	   Tag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+           servers[counter].tags(true)
+	}
+       end
+
+
     end
   end
 end
