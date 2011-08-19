@@ -1,12 +1,3 @@
 {
-  "db_mysql/fqdn" : "text:localhost",
-  "db_mysql/backup/container" : "text:lamp-feature-bucket-us-east",
-  "db_mysql/backup/prefix" : "text:app_test",
-  "db_mysql/backup/schema_name" : "text:app_test",
-  "db_mysql/backup/storage_account_provider" : "text:ec2",
-  "db_mysql/backup/aws_access_key_id" : "cred:AWS_ACCESS_KEY_ID",
-  "db_mysql/backup/aws_secret_access_key" : "cred:AWS_SECRET_ACCESS_KEY",
-  "db_mysql/backup/rackspace_user" : "cred:RACKSPACE_USERNAME",
-  "db_mysql/backup/rackspace_secret" : "cred:RACKSPACE_AUTH_KEY",
-  "rs_utils/private_ssh_key" : "key:publish-test:1"
+  "db/backup/lineage" : "text:app_test"
 }
