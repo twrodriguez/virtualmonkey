@@ -148,6 +148,24 @@ module VirtualMonkey
  #    end
 
 
+      def run_reboot_operations
+  # Duplicate code here because we need to wait between the master and the slave time
+        #reboot_all(true) # serially_reboot = true
+        @servers.each do |s|
+          obj_behavior(s, :reboot, true)
+          obj_behavior(s, :wait_for_state, "operational")
+        end
+       wait_for_all("operational")
+       run_reboot_checks
+      end
+  
+      # This is where we perform multiple checks on the deployment after a reboot.
+      def run_reboot_checks
+        # one simple check we can do is the backup.  Backup can fail if anything is amiss
+       run_script("do_backup", mysql_servers.first)
+       sleep(120)
+       run_unified_application_checks(fe_servers, 80)
+      end
 
     end
   end
