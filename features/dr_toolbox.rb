@@ -1,12 +1,11 @@
 set :runner, VirtualMonkey::Runner::DrToolbox
 
 clean_start do
-  @runner.tag_all_servers("rs_agent_dev:package=5.7.11")
   @runner.stop_all
 end
 
-
 before do
+  @runner.tag_all_servers("rs_agent_dev:package=5.7.11")
   @runner.set_variation_lineage
   @runner.set_variation_container
   @runner.set_variation_storage_type("volume")

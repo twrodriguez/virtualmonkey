@@ -112,16 +112,14 @@ module VirtualMonkey
       def test_volume
         run_script("do_force_reset", s_one)
         sleep 10
-       run_script("setup_block_device", s_one)
+        run_script("setup_block_device", s_one)
         probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=500")
-        sleep 100
-       run_script("do_backup", s_one)
-        wait_for_snapshots
-        sleep 100
-       run_script("do_force_reset", s_one)
-  # need to wait here for the volume status to settle (detaching)
-        sleep 400
-       run_script("do_restore", s_one)
+        sleep 10
+        run_script("do_backup", s_one)
+        sleep 10
+        run_script("do_force_reset", s_one)
+        sleep 10
+        run_script("do_restore", s_one)
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
