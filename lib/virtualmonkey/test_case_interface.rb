@@ -123,11 +123,11 @@ module VirtualMonkey
 
       behavior_methods.each do |m|
         new_m = "__behavior_#{m}"
-        self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{new_m}, *args, &block); end")
+        self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{m},:#{new_m}, *args, &block); end")
       end
     end
     
-    def function_wrapper(sym, *args, &block)
+    def function_wrapper(sym, behave_sym, *args, &block)
       @retry_loop << 0
       execution_stack_trace(sym, args) unless block
       execution_stack_trace(sym, args, nil, block.to_ruby) if block
@@ -136,7 +136,7 @@ module VirtualMonkey
         #pre-command
         populate_settings if @deployment
         #command
-        result = __send__(sym, *args, &block)
+        result = __send__(behave_sym, *args, &block)
         #post-command
         continue_test
       rescue VirtualMonkey::TestCaseInterface::Retry
@@ -248,9 +248,6 @@ module VirtualMonkey
       result
     end
 
-    def untraced_fn(&block)
-    end
-
     def write_readable_log(data)
       data_ary = data.split("\n")
       data_ary.each_index do |i|
@@ -260,7 +257,7 @@ module VirtualMonkey
     end
 
     def write_trace_log(call=nil)
-      return nil if @in_transaction.empty?
+      return nil unless @in_transaction.empty?
       add_to_trace_log(call) if call.is_a?(String)
       if @done_resuming and @options[:resume_file]
         File.open(@options[:resume_file], "w") { |f| f.write( VirtualMonkey::trace_log.to_yaml ) }
