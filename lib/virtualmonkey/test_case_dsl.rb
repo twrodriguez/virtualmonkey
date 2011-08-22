@@ -56,7 +56,7 @@ module VirtualMonkey
       @runner = @options[:runner].new(@options[:deployment], @options)
       # Set up tests_to_run
       tests_to_run = @tests_to_resume if @tests_to_resume
-      tests_to_run = @test.keys if tests_to_run.empty?
+      tests_to_run = @test.keys if tests_to_run.compact.empty?
       # Add the tests to the tracelog
       VirtualMonkey::trace_log.first["tests"] = tests_to_run
       @runner.write_readable_log("running tests: #{tests_to_run.join(", ")}")

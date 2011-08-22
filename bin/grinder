@@ -41,5 +41,6 @@ unless ENV['MONKEY_NO_DEBUG'] =~ /true/i
 end
 
 # Run
+options[:tests] ||= []
 test_case = VirtualMonkey::TestCase.new(options[:file], options)
 test_case.run(*options[:tests])

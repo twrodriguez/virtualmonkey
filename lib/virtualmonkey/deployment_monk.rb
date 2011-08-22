@@ -41,13 +41,21 @@ class DeploymentMonk
     @common_inputs = {}
     @variables_for_cloud = {}
     @ssh_keys, @security_groups, @datacenters = {}, {}, {}
+    #
+    # mci.href => [ st.href, st.href ]
+    #
+    @multi_cloud_images = {}
+    #
+    # order => { st.href => mci }
+    #
+    @mci_order = {}
     puts "single_deployment: true" if @single_deployment
     raise "Need either populated deployments or passed in server_template ids" if server_templates.empty? && @deployments.empty?
 
     # Get list of unique server_template ids
     if server_templates.empty?
       puts "loading server templates from all deployments"
-      @deployments.each { |d| 
+      @deployments.each { |d|
         d.reload
         d.servers_no_reload.each { |s|
           server_templates << s.server_template_href.split(/\//).last.to_i
@@ -86,6 +94,7 @@ class DeploymentMonk
     else
       multi_cloud_images = st.multi_cloud_images
     end
+    raise "No MCIs found on ServerTemplate '#{st.nickname}'!" if multi_cloud_images.empty?
     multi_cloud_images
   end
 
@@ -93,19 +102,56 @@ class DeploymentMonk
     # Count the max number of images that we can select from (@image_count)
     # Get list of supported clouds (@clouds)
     dep_image_names = nil  # This variable holds the names of the images in the deployment
-    @image_count = 0
+#    @image_count = 0
     @server_templates.each do |st|
       multi_cloud_images = mci_list(options, st)
-      @image_count = multi_cloud_images.size if multi_cloud_images.size > @image_count
-      multi_cloud_images.each do |x|
-        @clouds += x.supported_cloud_ids
+#      @image_count = multi_cloud_images.size if multi_cloud_images.size > @image_count
+      multi_cloud_images.each do |mci|
+        @clouds += mci.supported_cloud_ids
+        @multi_cloud_images[mci.href] ||= { :mci => mci, :st_ary => [] }
+        next if @multi_cloud_images[mci.href][:st_ary].include?(st.href)
+        @multi_cloud_images[mci.href][:st_ary] << st.href
       end
     end
     @clouds.flatten!
     @clouds.compact!
     @clouds.uniq!
     @clouds.map! { |m| m.to_s }
+    @image_count = @multi_cloud_images.length
     raise "The selected MCIs don't support any clouds!" if @clouds.empty?
+    #
+    # Sort the MCI's so the same are created together
+    #
+    start = 0
+    mci_map_1 = [] # Array of Hashes
+    mci_map_2 = [] # Array of Arrays
+    mci_map_3 = [] # Table
+    @multi_cloud_images.each { |mci_href,hsh| mci_map_1 << hsh }
+    mci_map_1.sort! { |a,b| b[:st_ary].length <=> a[:st_ary].length } # Descending order
+    mci_map_2 = mci_map_1.map { |hsh| hsh[:st_ary] }
+    mci_map_2.each_with_index { |st_ary,index|
+      mci_map_3[index] ||= []
+      @server_templates.each { |st|
+        mci_map_3[index] << (st_ary.include?(st.href) ? mci_map_1[index][:mci] : nil)
+      }
+    }
+    mci_map_3.transpose.each_with_index { |mci_ary,st_index|
+      st_href = @server_templates[st_index].href
+      mci_ary.each_with_index { |mci,order_index|
+        if mci
+#          if order_index < @image_count
+            @mci_order[order_index][st_href] = mci
+#          else
+#            @mci_order.each_with_index { |hsh,i|
+#              next if hsh[st_href]
+#              @mci_order[i][st_href] = mci
+#              break
+#            }
+#          end
+        end
+      }
+    }
+debugger
     
     dep_tempname = ""
     new_deploy = nil
@@ -123,11 +169,15 @@ class DeploymentMonk
         # Check the candidate MCI or Skip if the selected MCI doesn't support the cloud
         mci_supports_cloud = true
         @server_templates.each do |st|
-          multi_cloud_images = mci_list(options, st)
-          if multi_cloud_images[index]
-            mci = multi_cloud_images[index]
+#          multi_cloud_images = mci_list(options, st)
+#          if multi_cloud_images[index]
+#            mci = multi_cloud_images[index]
+          if @mci_order[index][st.href]
+            mci = @mci_order[index][st.href]
           else
-            mci = multi_cloud_images[0]
+#            mci = multi_cloud_images[0]
+            order_index = @mci_order.detect { |index,st_hash| v[st.href] }
+            mci = @mci_order[order_index][st.href]
           end
           mci_supports_cloud &&= mci.supported_cloud_ids.include?(cloud.to_i)
         end
@@ -155,14 +205,20 @@ class DeploymentMonk
         @server_templates.each do |st|
           nick_name_holder << st.nickname.gsub(/ /,'_')  ## place the nickname into the array
           #Select an MCI to use
-          multi_cloud_images = mci_list(options, st)
-          if multi_cloud_images[index]
-            dep_image_list << multi_cloud_images[index]['name'].gsub(/ /,'_')
-            dep_image_names = multi_cloud_images[index]['name'].gsub(/ /,'_')
-            use_this_image = multi_cloud_images[index].href
+#          multi_cloud_images = mci_list(options, st)
+#          if multi_cloud_images[index]
+          if @mci_order[index][st.href]
+            mci = @mci_order[index][st.href]
+#            dep_image_list << multi_cloud_images[index]['name'].gsub(/ /,'_')
+#            dep_image_names = multi_cloud_images[index]['name'].gsub(/ /,'_')
+#            use_this_image = multi_cloud_images[index].href
           else
-            use_this_image = multi_cloud_images[0].href
+            order_index = @mci_order.detect { |index,st_hash| v[st.href] }
+            mci = @mci_order[order_index][st.href]
+#            use_this_image = multi_cloud_images[0].href
           end
+          dep_image_list << dep_image_names = mci.name.gsub(/ /,'_')
+          use_this_image = mci.href
 
           # Load Cloud Variables from all_clouds.json
           load_vars_for_cloud(cloud)

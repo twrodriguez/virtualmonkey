@@ -294,10 +294,17 @@ module VirtualMonkey
         set = select_set(set)
         if wait
           set.each do |s|
-            transaction {
-              a = launch_script(friendly_name, s, options)
-              a.wait_for_completed if wait
-            }
+            if wait.is_a?(Fixnum)
+              transaction {
+                a = launch_script(friendly_name, s, options)
+                a.wait_for_completed(wait)
+              }
+            else
+              transaction {
+                a = launch_script(friendly_name, s, options)
+                a.wait_for_completed
+              }
+            end
           end
         else
           set.each do |s|
