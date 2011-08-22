@@ -428,6 +428,13 @@ module VirtualMonkey
         end
       end
   
+      def set_variation_dnschoice(dns_choice)
+	 @deployment.set_input("sys_dns/choice", "#{dns_choice}")
+      end
+      
+      def set_variation_http_only
+        @deployment.set_input("web_apache/ssl_enable", "text:false")
+      end
   #    def create_master
   #     config_master_from_scratch(s_one)
   #    end
