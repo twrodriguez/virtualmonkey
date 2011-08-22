@@ -147,6 +147,19 @@ module VirtualMonkey
 #
  #    end
 
+      def check_monitoring_exec_apache_ps
+        probe(fe_servers, "ps ax | grep 'ruby .*/plugins/apache_ps -h ' | grep -v grep") do |result, status|
+          raise "Configuring apache_ps collectd exec plugin failed, no process running" if result.empty?
+          true
+        end
+      end
+
+      def check_monitoring_exec_haproxy
+        probe(fe_servers, "ps ax | grep 'ruby .*/plugins/haproxy -d .* -s /home/haproxy/status 10' | grep -v grep") do |result, status|
+          raise "Configuring haproxy collectd exec plugin failed, no process running" if result.empty?
+          true
+        end
+      end
 
       def run_reboot_operations
   # Duplicate code here because we need to wait between the master and the slave time

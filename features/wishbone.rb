@@ -43,6 +43,8 @@ end
 
 test "check_monitoring" do
   @runner.check_monitoring
+  @runner.check_monitoring_exec_apache_ps
+  @runner.check_monitoring_exec_haproxy
 end
 
 
