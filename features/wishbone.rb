@@ -29,12 +29,16 @@ before do
   @runner.launch_set(:app_servers)
   @runner.wait_for_all("operational")
    @runner.disable_fe_reconverge
-  sleep(30)
+  sleep(120)
 end
 
 #
 ## Unified Application on 8000
 #
+
+before "run_unified_application_checks" do
+  @runner.test_attach_all
+end
 
  test "run_unified_application_checks" do
   @runner.run_unified_application_checks(:fe_servers, 80)
@@ -49,19 +53,16 @@ end
 
 
 test "attach_all" do
-sleep(120)
   @runner.test_attach_all
   @runner.frontend_checks(80)
 end
 
 test "attach_request" do
-sleep(120)
   @runner.test_attach_request
   @runner.frontend_checks(80)
 end
 
-after "attach_all", "attach_request" do
-  sleep(120)
+after "attach_all", "attach_request", "run_unified_application_checks" do
   @runner.test_detach
 
 end

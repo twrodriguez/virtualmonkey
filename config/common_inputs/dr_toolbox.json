@@ -10,5 +10,6 @@
   "block_device/cron_backup_minute": "ignore:$ignore",
   "block_device/keep_daily": "text:2",
   "block_device/max_snapshots": "text:2",
-  "block_device/keep_yearly": "text:2"
+  "block_device/keep_yearly": "text:2",
+  "sys/swap_size": "text:2.0"
 }

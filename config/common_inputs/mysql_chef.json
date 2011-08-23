@@ -8,5 +8,6 @@
   "db_mysql/backup/aws_secret_access_key" : "cred:AWS_SECRET_ACCESS_KEY",
   "db_mysql/backup/rackspace_user" : "cred:RACKSPACE_USERNAME",
   "db_mysql/backup/rackspace_secret" : "cred:RACKSPACE_AUTH_KEY",
-  "rs_utils/private_ssh_key" : "key:publish-test:1"
+  "rs_utils/private_ssh_key" : "key:publish-test:1",
+  "sys/swap_size": "text:2.0" 
 }

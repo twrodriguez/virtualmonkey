@@ -6,8 +6,9 @@ end
 
 before do
   @runner.tag_all_servers("rs_agent_dev:package=5.7.13")
-  @runner.setup_dns("virtualmonkey_awsdns_new") # AWSDNS 
-  @runner.set_variation_dnschoice("text:Route53") # set variation choice
+  
+  @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+  @runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   @runner.set_variation_http_only
   
   @runner.set_variation_lineage
