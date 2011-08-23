@@ -195,13 +195,11 @@ module VirtualMonkey
       #
       call_str = stringify_call("transaction", [], nil, block.to_ruby)
       write_readable_log(call_str) unless option == :do_not_trace
+      real_trace_log = nil
       if @in_transaction.empty?
-        real_stack_objects = @stack_objects
-        real_iterating_stack = @iterating_stack
-        real_trace_log = VirtualMonkey::trace_log
-        VirtualMonkey::trace_log = []
-        @stack_objects = []
-        @iterating_stack = []
+        real_stack_objects, @stack_objects = @stack_objects, []
+        real_iterating_stack, @iterating_stack = @iterating_stack, []
+        real_trace_log, VirtualMonkey::trace_log = VirtualMonkey::trace_log, []
       end
 
       result = nil

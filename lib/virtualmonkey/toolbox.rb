@@ -161,6 +161,7 @@ module VirtualMonkey
               if my_instance.user_data.include?(ENV['RS_RN_URL'])
                 # Found myself, let's get servers, etc.
                 myself = McServer.find(my_instance.parent)
+                myself.settings
                 my_deploy = McDeployment.find(myself.deployment_href)
                 ENV['MONKEY_SELF_SERVER_HREF'] = myself.href
                 ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = my_deploy.href
@@ -396,8 +397,15 @@ module VirtualMonkey
         elsif api1_5?
           begin
             #TODO: Don't just take the first one, Datacenters are variations too (as are Hypervisors)
-            found = McDatacenter.find_all("#{cloud}").first 
-            dcs["#{cloud}"] = {"datacenter_href" => found.href}
+            found = McDatacenter.find_all("#{cloud}").first.href
+            if VirtualMonkey::my_api_self and ENV['I_AM_IN_MULTICLOUD']
+              if VirtualMonkey::my_api_self.cloud_id == cloud
+                if VirtualMonkey::my_api_self.current_instance.datacenter
+                  found = VirtualMonkey::my_api_self.current_instance.datacenter
+                end
+              end
+            end
+            dcs["#{cloud}"] = {"datacenter_href" => found}
           rescue
             puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
             dcs["#{cloud}"] = {}

@@ -139,19 +139,11 @@ class DeploymentMonk
       st_href = @server_templates[st_index].href
       mci_ary.each_with_index { |mci,order_index|
         if mci
-#          if order_index < @image_count
-            @mci_order[order_index][st_href] = mci
-#          else
-#            @mci_order.each_with_index { |hsh,i|
-#              next if hsh[st_href]
-#              @mci_order[i][st_href] = mci
-#              break
-#            }
-#          end
+          @mci_order[order_index] ||= {}
+          @mci_order[order_index][st_href] = mci
         end
       }
     }
-debugger
     
     dep_tempname = ""
     new_deploy = nil
@@ -169,15 +161,12 @@ debugger
         # Check the candidate MCI or Skip if the selected MCI doesn't support the cloud
         mci_supports_cloud = true
         @server_templates.each do |st|
-#          multi_cloud_images = mci_list(options, st)
-#          if multi_cloud_images[index]
-#            mci = multi_cloud_images[index]
           if @mci_order[index][st.href]
             mci = @mci_order[index][st.href]
           else
-#            mci = multi_cloud_images[0]
-            order_index = @mci_order.detect { |index,st_hash| v[st.href] }
-            mci = @mci_order[order_index][st.href]
+            pair = @mci_order.detect { |idx,st_hash| st_hash[st.href] && st_hash[st.href].supported_cloud_ids.include?(cloud.to_i) }
+            pair ||= @mci_order.detect { |idx,st_hash| st_hash[st.href] }
+            mci = @mci_order[pair.first][st.href]
           end
           mci_supports_cloud &&= mci.supported_cloud_ids.include?(cloud.to_i)
         end
@@ -205,17 +194,12 @@ debugger
         @server_templates.each do |st|
           nick_name_holder << st.nickname.gsub(/ /,'_')  ## place the nickname into the array
           #Select an MCI to use
-#          multi_cloud_images = mci_list(options, st)
-#          if multi_cloud_images[index]
           if @mci_order[index][st.href]
             mci = @mci_order[index][st.href]
-#            dep_image_list << multi_cloud_images[index]['name'].gsub(/ /,'_')
-#            dep_image_names = multi_cloud_images[index]['name'].gsub(/ /,'_')
-#            use_this_image = multi_cloud_images[index].href
           else
-            order_index = @mci_order.detect { |index,st_hash| v[st.href] }
-            mci = @mci_order[order_index][st.href]
-#            use_this_image = multi_cloud_images[0].href
+            pair = @mci_order.detect { |idx,st_hash| st_hash[st.href] && st_hash[st.href].supported_cloud_ids.include?(cloud.to_i) }
+            pair ||= @mci_order.detect { |idx,st_hash| st_hash[st.href] }
+            mci = @mci_order[pair.first][st.href]
           end
           dep_image_list << dep_image_names = mci.name.gsub(/ /,'_')
           use_this_image = mci.href

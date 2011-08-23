@@ -96,8 +96,8 @@ module VirtualMonkey
         sts.each { |st|
           table.each { |a|
             st_id = resource_id(st)
-            puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id]
-            @scripts_to_run[st_id] = {} unless @scripts_to_run[st_id]
+            @scripts_to_run[st_id] ||= {}
+            puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id][ a[0] ]
             @scripts_to_run[st_id][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
             raise "FATAL: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[st_id][ a[0] ]
           }
