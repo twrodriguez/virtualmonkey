@@ -13,7 +13,6 @@ before do
   @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
   @runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   @runner.set_variation_http_only
-  @runner.tag_all_servers("rs_agent_dev:package=5.7.13")
 # Mysql variations
   @runner.set_variation_lineage
   @runner.set_variation_container

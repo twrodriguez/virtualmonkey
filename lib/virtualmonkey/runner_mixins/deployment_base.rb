@@ -168,7 +168,7 @@ module VirtualMonkey
         the_name = get_tester_ip_addr
         @deployment.set_input("MASTER_DB_DNSNAME", the_name) 
         @deployment.set_input("DB_HOST_NAME", the_name) 
-        @deployment.set_input("db_mysql/fqdn", the_name)
+        @deployment.set_input("db/fqdn", the_name)
       end
   
       # Launch server(s) that match nickname_substr
@@ -428,7 +428,7 @@ module VirtualMonkey
             count = 0
             until response || count > 20 do
               begin
-                response = transaction { server.monitoring }
+                response =  server.monitoring 
               rescue
                 response = nil
                 count += 1
@@ -521,7 +521,13 @@ module VirtualMonkey
            servers[counter].settings
            servers[counter].reload
 	   print "tag added " + tag_to_set.to_s + " " + servers[counter].to_s+ "\n"
-	   Tag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+	    
+	   if servers[counter].multicloud
+            McTag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+           else
+            Tag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+           end
+
            servers[counter].tags(true)
 	}
        end

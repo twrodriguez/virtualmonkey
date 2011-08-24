@@ -26,12 +26,21 @@ module VirtualMonkey
                    [ 'do_restore', 'db::do_restore' ],
                    [ 'do_backup', 'db::do_backup' ],
                    [ 'do_restore', 'db::do_restore' ],
+                   [  'do_backup_schedule_enable', 'db::do_backup_schedule_enable'],
+                   ['do_backup_schedule_disable', 'db::do_backup_schedule_disable'],
+                   ['do_appservers_allow', 'db::do_appservers_allow'              ],
+                   ['do_appservers_deny', 'db::do_appservers_deny'],
+                   [ 'do_force_reset', 'db::do_force_reset'   ],
+                   ['setup_rule', 'sys_firewall::setup_rule'],
+                   ['do_list_rules', 'sys_firewall::do_list_rules'],
+                   [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ],
+                   [ 'do_reconverge_list_disable', 'sys::do_reconverge_list_disable' ],
                    [ 'do_force_reset', 'db::do_force_reset' ]
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
   
         st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
-        load_script_table(st,scripts)
+        load_script_table(st,scripts,st)
       end
 
       def import_unified_app_sqldump
