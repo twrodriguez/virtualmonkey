@@ -9,6 +9,6 @@
   "db_mysql/backup/rackspace_user" : "cred:RACKSPACE_USERNAME",
   "db_mysql/backup/rackspace_secret" : "cred:RACKSPACE_AUTH_KEY",
   "rs_utils/private_ssh_key" : "key:publish-test:1",
-  "sys/swap_size": "text:2.0" 
+  "sys/swap_size": "text:2.0", 
   "db/backup/lineage" : "text:app_test"
 }
