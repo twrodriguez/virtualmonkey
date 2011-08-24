@@ -5,7 +5,7 @@ clean_start do
 end
 
 before do
-  @runner.tag_all_servers("rs_agent_dev:package=5.7.13")
+#  @runner.tag_all_servers("rs_agent_dev:package=5.7.13")
   
   @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
   @runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
