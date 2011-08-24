@@ -55,12 +55,12 @@ module VirtualMonkey
   
       def set_variation_lineage
         @lineage = "testlineage#{resource_id(@deployment)}"
-        obj_behavior(@deployment, :set_input, "block_device/lineage", "text:#{@lineage}")
+        @deployment.set_input("block_device/lineage", "text:#{@lineage}")
       end
   
       def set_variation_container
         @container = "testlineage#{resource_id(@deployment)}"
-        obj_behavior(@deployment, :set_input, "block_device/storage_container", "text:#{@container}")
+        @deployment.set_input("block_device/storage_container", "text:#{@container}")
       end
   
       # Pick a storage_type depending on what cloud we're on.
@@ -82,6 +82,9 @@ module VirtualMonkey
         @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
    
         @deployment.set_input("block_device/storage_type", "text:#{@storage_type}")
+        @servers.each do |server|
+          server.set_inputs({"block_device/storage_type" => "text:#{@storage_type}"})
+        end
       end
   
       def test_s3
@@ -125,13 +128,12 @@ module VirtualMonkey
           true
         end
        # Needs test implemented for euca and cdc
-       #run_script("do_force_reset", s_one)
-       # sleep 400
-       #run_script("do_restore", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
-       # probe(s_one, "ls /mnt/storage") do |result, status|
-       #   raise "FATAL: no files found in the backup" if result == nil || result.empty?
-       #   true
-       # end
+       run_script("do_force_reset", s_one)
+       run_script("do_restore", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
+        probe(s_one, "ls /mnt/storage") do |result, status|
+          raise "FATAL: no files found in the backup" if result == nil || result.empty?
+          true
+        end
       end
 
       def test_ebs
@@ -139,20 +141,15 @@ module VirtualMonkey
         #sleep 10
        run_script("setup_block_device", s_one)
         probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=500")
-        sleep 100
        run_script("do_backup_volume", s_one)
         wait_for_snapshots
-        sleep 100
        run_script("do_force_reset", s_one)
-  # need to wait here for the volume status to settle (detaching)
-        sleep 400
        run_script("do_restore_volume", s_one)
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
         end
        run_script("do_force_reset", s_one)
-        sleep 400
        run_script("do_restore_volume", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
