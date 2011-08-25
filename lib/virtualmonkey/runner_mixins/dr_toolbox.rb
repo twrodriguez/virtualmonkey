@@ -56,11 +56,17 @@ module VirtualMonkey
       def set_variation_lineage
         @lineage = "testlineage#{resource_id(@deployment)}"
         @deployment.set_input("block_device/lineage", "text:#{@lineage}")
+        @servers.each do |server|
+          server.set_inputs({"block_device/lineage" => "text:#{@lineage}"})
+        end
       end
   
       def set_variation_container
         @container = "testlineage#{resource_id(@deployment)}"
         @deployment.set_input("block_device/storage_container", "text:#{@container}")
+        @servers.each do |server|
+          server.set_inputs({"block_device/storage_container" => "text:#{@container}"})
+        end
       end
   
       # Pick a storage_type depending on what cloud we're on.
