@@ -5,9 +5,9 @@ clean_start do
 end
 
 before do
-#  @runner.tag_all_servers("rs_agent_dev:package=5.7.13")
+  @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
   
-  @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+  @runner.setup_dns("virtualmonkey_awsdns_new") # dnsmadeeasy
   @runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   @runner.set_variation_http_only
   
@@ -31,11 +31,30 @@ test "default" do
 #  @runner.do_restore
 #  @runner.test_multicloud
 #  @runner.check_monitoring
-#  @runner.check_mysql_monitoring
-#  @runner.run_reboot_operations
-#  @runner.check_monitoring
-#  @runner.run_restore_with_timestamp_override
+  @runner.check_mysql_monitoring
+  @runner.run_reboot_operations
+  @runner.check_monitoring
+  @runner.run_restore_with_timestamp_override
 #  @runner.run_logger_audit
 #  @runner.stop_all(true)
 #  @runner.release_dns
+end
+
+
+test "multicloud" do
+  cid = VirtualMonkey::Toolbox::determine_cloud_id(@runner.servers.first)
+  # Rackspace
+  if cid == 232
+    @runner.test_cloud_files
+  # All other Clouds support both ROS and VOLUME
+  elsif [1,2,3,4,5].include?(cid)
+    @runner.test_ebs
+    @runner.test_s3
+  else
+    @runner.test_volume
+  end
+end
+
+after do
+  @runner.release_dns
 end
