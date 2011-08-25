@@ -8,7 +8,7 @@ before do
   @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
   @runner.set_variation_lineage
   @runner.set_variation_container
-  @runner.set_variation_storage_type("volume")
+  @runner.set_variation_storage_type()
   @runner.launch_all
   @runner.wait_for_all("operational")
 end
@@ -26,3 +26,9 @@ test "multicloud" do
     @runner.test_volume
   end
 end
+
+after do
+  @runner.cleanup_volumes
+  @runner.cleanup_snapshots
+end
+
