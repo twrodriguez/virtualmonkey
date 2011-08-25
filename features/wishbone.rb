@@ -13,6 +13,7 @@ before do
 #  @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
   @runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   @runner.set_variation_http_only
+  @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
 # Mysql variations
   @runner.set_variation_lineage
   @runner.set_variation_container
@@ -27,7 +28,7 @@ before do
   @runner.wait_for_set(:fe_servers, "operational")
   @runner.launch_set(:app_servers)
   @runner.wait_for_all("operational")
-   @runner.disable_fe_reconverge
+  @runner.disable_fe_reconverge
   sleep(120)
 end
 

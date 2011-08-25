@@ -168,6 +168,7 @@ module VirtualMonkey
         the_name = get_tester_ip_addr
         @deployment.set_input("MASTER_DB_DNSNAME", the_name) 
         @deployment.set_input("DB_HOST_NAME", the_name) 
+        @deployment.set_input("db_mysql/fqdn", the_name)
         @deployment.set_input("db/fqdn", the_name)
       end
   
