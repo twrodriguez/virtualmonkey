@@ -3,7 +3,8 @@ module VirtualMonkey
     class DrToolbox
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::DrToolbox
-      include VirtualMonkey::Mixin::Chef
+      #include VirtualMonkey::Mixin::Chef
+
 # once dr toolbox gets a terminate script, we can use the mixin for ebs..
 #    include VirtualMonkey::Mixin::EBS
       def dr_toolbox_lookup_scripts
