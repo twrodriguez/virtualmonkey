@@ -32,3 +32,16 @@ after do
   @runner.cleanup_snapshots
 end
 
+test "reboot_operations" do
+  @runner.run_reboot_operations
+end
+
+
+test "monitoring_checks" do
+  @runner.check_monitoring
+end
+
+test "timestamp_override" do
+  @runner.run_restore_with_timestamp_override
+end
+
