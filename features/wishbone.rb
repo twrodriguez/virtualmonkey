@@ -10,7 +10,7 @@ before do
 
 # TODO: variations to set
 # mysql fqdn
-#  @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+  @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
   @runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   @runner.set_variation_http_only
   @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
@@ -72,5 +72,6 @@ test "reboot_operations" do
   @runner.run_reboot_operations
 end
 
-
-
+after do
+  @runner.release_dns
+end
