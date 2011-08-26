@@ -435,7 +435,7 @@ module VirtualMonkey
             count = 0
             until response || count > 20 do
               begin
-                response = transaction { server.monitoring }
+                response = server.monitoring
               rescue
                 response = nil
                 count += 1

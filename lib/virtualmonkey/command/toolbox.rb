@@ -31,7 +31,7 @@ module VirtualMonkey
         opt :overwrite, "Refresh values by replacing existing data"
       end
 
-      VirtualMonkey::Toolbox::populate_security_groups(@@options[:add_cloud], @@options[:name], @@options[:overwrite])
+      VirtualMonkey::Toolbox::populate_security_groups(@@options[:add_cloud], @@options[:security_group_name], @@options[:overwrite])
       puts "Security Group file populated."
     end
 

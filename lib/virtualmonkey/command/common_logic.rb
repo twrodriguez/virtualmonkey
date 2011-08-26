@@ -7,7 +7,7 @@ module VirtualMonkey
       @@options[:prefix] = "" unless @@options[:prefix]
       @@options[:prefix] += config['prefix']
       @@options[:common_inputs] = config['common_inputs'].map { |cipath| File.join(@@ci_dir, cipath) }
-      @@options[:feature] = File.join(@@features_dir, config['feature'])
+      @@options[:feature] = load_features(config)
       @@options[:runner] ||= get_runner_class
       @@options[:terminate] = true if @@command =~ /troop|destroy/
       @@options[:clouds] = load_clouds(config) unless @@options[:clouds] and @@options[:clouds].length > 0
@@ -177,9 +177,30 @@ module VirtualMonkey
 
     # Encapsulates the logic for detecting what runner is used in a test case file
     def self.get_runner_class #returns class string
-      tc = VirtualMonkey::TestCase.new(@@options[:feature])
-      @@options[:allow_meta_monkey] = tc.options[:allow_meta_monkey]
-      return tc.options[:runner]
+      return @@options[:runner] if @@options[:runner]
+      features = [@@options[:feature]].flatten
+      test_cases = features.map { |feature| VirtualMonkey::TestCase.new(feature) }
+      unless test_cases.unanimous? { |tc| tc.options[:runner] }
+        raise ":runner options MUST match for multiple feature files"
+      end
+      unless test_cases.unanimous? { |tc| tc.options[:allow_meta_monkey] }
+        raise ":allow_meta_monkey options MUST match for multiple feature files"
+      end
+      return @@options[:runner] = test_cases.first.options[:runner]
+    end
+
+    def self.load_features(config)
+      features = [config['feature']].flatten.map { |feature| File.join(@@features_dir, feature) }
+      test_cases = features.map { |feature| VirtualMonkey::TestCase.new(feature) }
+      unless test_cases.unanimous? { |tc| tc.options[:runner] }
+        raise ":runner options MUST match for multiple feature files"
+      end
+      unless test_cases.unanimous? { |tc| tc.options[:allow_meta_monkey] }
+        raise ":allow_meta_monkey options MUST match for multiple feature files"
+      end
+      @@options[:allow_meta_monkey] = test_cases.first.options[:allow_meta_monkey]
+      @@options[:runner] = test_cases.first.options[:runner]
+      @@options[:feature] = features
     end
 
     ##################################
@@ -252,6 +273,7 @@ module VirtualMonkey
       end
 
       build_script_array(st_ary)
+      @@st_ary = st_ary
 
       @@troop_config[:common_inputs] = File.basename(@@common_inputs_file)
       @@troop_config[:feature] = File.basename(@@feature_file)
@@ -270,7 +292,7 @@ module VirtualMonkey
       contents =<<EOS
 set :runner, VirtualMonkey::Runner::#{@@camel_case_name}
 
-clean_start do
+hard_reset do
   stop_all
 end
 
@@ -346,7 +368,7 @@ EOS
         mixin_tpl += "        #{comment_string}\n"
         mixin_tpl += "        #{"#" * comment_string.length}\n"
         mixin_tpl += "        scripts = [\n"
-        script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{script}']" }
+        script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{Regexp.escape(script)}']" }
         mixin_tpl += "#{script_array.join(",\n")}\n"
         mixin_tpl += "                  ]\n"
         mixin_tpl += "        st_ref = @server_templates.detect { |st| st.rs_id.to_i == #{st_ref.rs_id.to_i} }\n"
@@ -370,7 +392,7 @@ EOS
       # functions create a library of dynamic exception handling for common
       # scenarios. Exception_handle methods should return true if they have
       # handled the exception, or return false otherwise.
-      def #{@@underscore_name}_exception_handle
+      def #{@@underscore_name}_exception_handle(e)
         if e.message =~ /INSERT YOUR ERROR HERE/
           puts "Got 'INSERT YOUR ERROR HERE'. Retrying..."
           sleep 30
@@ -397,8 +419,8 @@ EOS
       # [ "/path/to/log/file", "server_template_name_regex", "matching_regex" ]
       def #{@@underscore_name}_#{list}
         [
-          #["/var/log/messages", "#{st_ary.first.nickname}", "#{regex_ary[list].first}"],
-          #["/var/log/messages", "#{st_ary.last.nickname}", "#{regex_ary[list].last}"]
+          #["/var/log/messages", "#{@@st_ary.first.nickname}", "#{regex_ary[list].first}"],
+          #["/var/log/messages", "#{@@st_ary.last.nickname}", "#{regex_ary[list].last}"]
         ]
       end
 EOS

@@ -1,37 +1,64 @@
 module VirtualMonkey
   class TestCase
-    attr_accessor :options
+    attr_accessor :options, :file_stack
+    attr_reader :features
+
+    def mixin_feature(file, reset_before_feature = false)
+      file = File.join(VirtualMonkey::FEATURE_DIR, File.basename(file))
+      if @features.keys.include? file
+        puts "NOTE: Feature #{file} already mixed in. Skipping."
+        return @current_file
+      end
+      if @file_stack.include? file
+        puts "WARNING: Recursive mixin detected. Skipping."
+        return @current_file
+      end
+      @file_stack.push(file)
+      @current_file = file
+      ruby = IO.read(file)
+      eval(ruby)
+      @features[file] = reset_before_feature
+      @file_stack.pop
+      @current_file = @file_stack.last
+    end
 
     def initialize(file, options = {})
-      @options = {}
-      @before = {} 
-      @test = {}
-      @after = {}
+      @blocks = [:hard_reset, :soft_reset, :before, :test, :after].map_to_h { |s| {} }
+      @features = {}
+      @tests_to_resume, @feature_in_progress = nil, nil
+      @completed_features, @feature_to_run = nil, nil
       @options = options
-      @tests_to_resume = nil
       @options[:additional_logs] = []
       @options[:runner_options] = {}
       @runner = nil
+      @file_stack = [file]
+      @current_file = file
+      @main_feature = file
+      @features[file] = false
       ruby = IO.read(file)
       eval(ruby)
+      raise "Need a VirtualMonkey::Runner Class!" unless @options[:runner]
+      @file_stack.pop
+      @current_file = @file_stack.last
       self
     end
 
-    def get_keys
-      @test.keys
+    def get_keys(*features)
+      features = @features.keys if features.empty?
+      features.map { |feature| @blocks[:test][feature].keys }.flatten.uniq
     end
 
     def check_for_resume
       # Should we resume?
       test_states = VirtualMonkey::TEST_STATE_DIR
       state_dir = File.join(test_states, @options[:deployment])
-      @options[:resume_file] = File.join(state_dir, File.basename(@options[:file]))
+      @options[:resume_file] = File.join(state_dir, File.basename(main_feature))
       if File.directory?(state_dir)
         if File.exists?(@options[:resume_file])
           unless @options[:no_resume]
             $stdout.syswrite "Resuming previous testcase...\n\n"
             # WARNING: There is an issue if you try to run a deployment through more than one feature at a time
-            if File.mtime(@options[:resume_file]) < File.mtime(@options[:file])
+            if File.mtime(@options[:resume_file]) < File.mtime(file_name)
               $stdout.syswrite "WARNING: testcase has been changed since state file.\n"
               $stdout.syswrite "Scrapping previous testcase; Starting over...\n\n"
               File.delete(@options[:resume_file])
@@ -46,55 +73,87 @@ module VirtualMonkey
       end
       if File.exists?(@options[:resume_file])
         $stdout.syswrite "Confirmed resuming previous testcase, using paused tests...\n\n"
-        @tests_to_resume = YAML::load(IO.read(@options[:resume_file])).first["tests"]
+        my_yaml = YAML::load(IO.read(@options[:resume_file]))
+        @tests_to_resume = my_yaml.first["tests"]
+        @completed_features = my_yaml.first["completed_features"]
+        @features_to_run = @features.keys - @completed_features
+        @feature_in_progress = my_yaml.first["feature"]
       end
     end
 
     def run(*tests_to_run)
+      @features_to_run = @features.keys
       check_for_resume
-      # Create Runner, initialize VirtualMonkey::log files
-      @runner = @options[:runner].new(@options[:deployment], @options)
-      # Set up tests_to_run
-      tests_to_run = @tests_to_resume if @tests_to_resume
-      tests_to_run = @test.keys if tests_to_run.compact.empty?
-      # Add the tests to the tracelog
-      VirtualMonkey::trace_log.first["tests"] = tests_to_run
-      @runner.write_readable_log("running tests: #{tests_to_run.join(", ")}")
-      @runner.write_trace_log
-      # Before
-      if @options[:no_resume] and @clean_start
-        @runner.transaction(:do_not_trace) { @clean_start.call }
-      end
-      if @before[:all]
-        @runner.write_readable_log("============== BEFORE ALL ==============")
-        @before[:all].call
-      end
-      # Test
-      tests_to_run.each { |key|
-        if @before[key]
-          @runner.write_readable_log("============== BEFORE #{key} ==============")
-          @before[key].call
+      @features_to_run.unshift(@features_to_run.delete(@main_feature))
+      @features_to_run.each { |feature|
+        # Create Runner, initialize VirtualMonkey::log files
+        @runner = @options[:runner].new(@options[:deployment], @options)
+        # Set up tests_to_run
+        tests_to_run = @tests_to_resume if @tests_to_resume
+        tests_to_run.compact!
+        tests = @blocks[:test][feature].keys
+        tests = tests - (tests - tests_to_run) unless tests_to_run.empty?
+        # Add the tests to the tracelog
+        VirtualMonkey::trace_log.first["tests"] = tests_to_run
+        VirtualMonkey::trace_log.first["feature"] = feature
+        VirtualMonkey::trace_log.first["completed_features"] = @completed_features
+        @runner.write_readable_log("Completed features: #{@completed_features.join(", ")}")
+        @runner.write_readable_log("Running feature: #{feature}")
+        @runner.write_readable_log("Running tests: #{tests.join(", ")}")
+        @runner.write_trace_log
+        # Before
+        if @options[:no_resume] && feature == @main_feature 
+          @runner.transaction(:do_not_trace) { @blocks[:hard_reset][feature].call } if @blocks[:hard_reset][feature]
         end
-        if @test[key]
-          @runner.write_readable_log("============== #{key} ==============")
-          @test[key].call
+        if @features[feature]
+          if @features[feature] == :hard_reset
+            if @blocks[:hard_reset][feature]
+              @runner.transaction(:do_not_trace) { @blocks[:hard_reset][feature].call }
+            elsif @blocks[:soft_reset][feature]
+              @runner.transaction(:do_not_trace) { @blocks[:soft_reset][feature].call }
+            end
+          else
+            if @blocks[:soft_reset][feature]
+              @runner.transaction(:do_not_trace) { @blocks[:soft_reset][feature].call }
+            elsif @blocks[:hard_reset][feature]
+              @runner.transaction(:do_not_trace) { @blocks[:hard_reset][feature].call }
+            end
+          end
         end
-        if @after[key]
-          @runner.write_readable_log("============== AFTER #{key} ==============")
-          @after[key].call
+        if @blocks[:before][feature][:all]
+          str = "**  #{File.basename(feature)}: BEFORE ALL  **"
+          @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
+          @blocks[:before][feature][:all].call
         end
+        # Test
+        tests.each { |key|
+          [:before, :test, :after].each { |stage|
+            if @blocks[stage][feature][key]
+              str = "**  #{File.basename(feature)}: #{stage.to_s.upcase} #{key}  **"
+              @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
+              @blocks[stage][feature][key].call
+            end
+          }
+        }
+        # After
+        if @blocks[:after][feature][:all]
+          str = "**  #{File.basename(feature)}: AFTER ALL  **"
+          @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
+          @blocks[:after][feature][:all].call
+        end
+        # Successful run, delete the resume file
+        FileUtils.rm_rf @options[:resume_file]
+        @completed_features << feature
+        VirtualMonkey::trace_log = []
       }
-      # After
-      if @after[:all]
-        @runner.write_readable_log("============== AFTER ALL ==============")
-        @after[:all].call
-      end
-      # Successful run, delete the resume file
-      FileUtils.rm_rf @options[:resume_file]
-      # For being friendly to tests (multiple TestCase instances in one test)
     ensure
+      # For being friendly to tests (multiple TestCase instances in one test)
       VirtualMonkey::trace_log = []
     end
+
+    #
+    # API
+    #
 
     def set(var, *args, &block)
       if block
@@ -106,10 +165,13 @@ module VirtualMonkey
       when "Symbol"
         case var
         when :runner
-          if args.first.is_a?(Class)
+          if args.first.is_a?(Class) && args.first.to_s =~ /VirtualMonkey::Runner/
+            if @options[var] and @options[var] != args.first
+              raise "FATAL: Tried to set :runner to #{args.first} when already set to #{@options[var]}"
+            end
             @options[var] = args.first
           else
-            raise "Need a VirtualMonkey::Runner Class!"
+            raise "FATAL: Need a VirtualMonkey::Runner Class!"
           end
         when :logs
           args.each { |log| @options[:additional_logs] << log if log.is_a?(String) }
@@ -117,9 +179,12 @@ module VirtualMonkey
         when :runner_options
           if args.first.is_a?(Hash)
             @options[var] ||= {}
-            @options[var].deep_merge!(args.first)
+            args.each { |key,val|
+              puts "WARNING: overwriting runner_options '#{key}'" if @options[var][key]
+              @options[var][key] = val
+            }
           else
-            raise ":runner_options can only be set to a Hash!"
+            raise "FATAL: :runner_options can only be set to a Hash!"
           end
         when :allow_meta_monkey
           @options[var] = true
@@ -128,6 +193,7 @@ module VirtualMonkey
         end
       when "String"
         @options[:runner_options] ||= {}
+        puts "WARNING: overwriting runner_options '#{var}'" if @options[:runner_options][var]
         if args.length > 1
           @options[:runner_options][var] = args
         else
@@ -138,27 +204,50 @@ module VirtualMonkey
       end
     end
 
+    def hard_reset(&block)
+      puts "WARNING: overwriting hard_reset for feature '#{@current_file}'" if @blocks[:hard_reset][@current_file]
+      @blocks[:hard_reset][@current_file] = block
+    end
+
+    def soft_reset(&block)
+      puts "WARNING: overwriting soft_reset for feature '#{@current_file}'" if @blocks[:soft_reset][@current_file]
+      @blocks[:soft_reset][@current_file] = block
+    end
+
     def clean_start(&block)
-      @clean_start = block
+      hard_reset(&block)
     end
 
     def before(*args, &block)
+      @blocks[:before][@current_file] ||= {}
       if args.empty?
-        @before[:all] = block
+        puts "WARNING: overwriting universal before for feature '#{@current_file}'" if @blocks[:before][@current_file][:all]
+        @blocks[:before][@current_file][:all] = block
       else
-        args.each { |test| @before[test] = block if test.is_a?(String) }
+        args.each { |test|
+          puts "WARNING: overwriting before '#{test}' for feature '#{@current_file}'" if @blocks[:before][@current_file][test]
+          @blocks[:before][@current_file][test] = block if test.is_a?(String)
+        }
       end
     end
 
     def test(*args, &block)
-      args.each { |test| @test[test] = block if test.is_a?(String) }
+      args.each { |test|
+        puts "WARNING: overwriting test '#{test}' for feature '#{@current_file}'" if @blocks[:test][@current_file][test]
+        @blocks[:test][@current_file][test] = block if test.is_a?(String)
+      }
     end
 
     def after(*args, &block)
+      @blocks[:after][@current_file] ||= {}
       if args.empty?
-        @after[:all] = block
+        puts "WARNING: overwriting universal after for feature '#{@current_file}'" if @blocks[:after][@current_file][:all]
+        @blocks[:after][@current_file][:all] = block
       else
-        args.each { |test| @after[test] = block if test.is_a?(String) }
+        args.each { |test|
+          puts "WARNING: overwriting after '#{test}' for feature '#{@current_file}'" if @blocks[:after][@current_file][test]
+          @blocks[:after][@current_file][test] = block if test.is_a?(String)
+        }
       end
     end
 
