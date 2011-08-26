@@ -96,6 +96,7 @@ module VirtualMonkey
       end
   
       def test_ebs
+        run_script("do_reconverge_list_disable", s_one)
         run_script("setup_block_device", s_one)
         probe(s_one, "touch /mnt/storage/monkey_was_here")
         #sleep 100

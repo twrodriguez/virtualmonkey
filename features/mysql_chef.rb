@@ -5,8 +5,6 @@ clean_start do
 end
 
 before do
-  @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
-  
   @runner.setup_dns("virtualmonkey_awsdns_new") # AWSDNS 
   @runner.set_variation_dnschoice("text:Route53") # set variation choice
   @runner.set_variation_http_only
