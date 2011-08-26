@@ -29,8 +29,11 @@ module VirtualMonkey
         @@do_these.reject! { |d| d.nickname =~ /-cloud_#{cid}-/ }
       }
       unless @@options[:no_resume] or @@command =~ /destroy|audit/
-        temp = @@do_these.select do |d| 
-          File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(@@options[:feature])))
+        temp = @@do_these.select do |d|
+          files_to_check = @@options[:feature] + [GrinderMonk.combo_feature_name(@@options[:feature])]
+          files_to_check.any? { |feature|
+            File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(feature)))
+          }
         end 
         @@do_these = temp if temp.length > 0 
       end 

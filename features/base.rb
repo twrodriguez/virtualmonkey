@@ -1,6 +1,6 @@
 set :runner, VirtualMonkey::Runner::Simple
 
-clean_start do
+hard_reset do
   @runner.stop_all
 end
 

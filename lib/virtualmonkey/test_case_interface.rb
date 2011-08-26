@@ -211,10 +211,8 @@ module VirtualMonkey
             if real_trace_log == YAML::load(IO.read(@options[:resume_file]))
               @done_resuming = true
             end
-          else
-            if VirtualMonkey::trace_log == YAML::load(IO.read(@options[:resume_file]))
-              @done_resuming = true
-            end
+          elsif VirtualMonkey::trace_log == YAML::load(IO.read(@options[:resume_file]))
+            @done_resuming = true
           end
         end
 

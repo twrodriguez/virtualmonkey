@@ -51,8 +51,7 @@ if features.length > 1
   unless test_cases.unanimous? { |tc| tc.options[:allow_meta_monkey] }
     raise ":allow_meta_monkey options MUST match for multiple feature files"
   end
-  combo_feature = features.map { |feature| File.basename(feature, ".rb") }.join("_") + ".combo.rb"
-  combo_feature = File.join(VirtualMonkey::FEATURE_DIR, combo_feature)
+  combo_feature = GrinderMonk.combo_feature_name(features)
   File.open(combo_feature, "w") { |f|
     f.write(features.map { |feature| "mixin_feature '#{feature}', :hard_reset" }.join("\n"))
   }

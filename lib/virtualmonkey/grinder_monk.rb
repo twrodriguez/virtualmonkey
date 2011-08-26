@@ -81,6 +81,11 @@ end
 class GrinderMonk
   attr_accessor :jobs
   attr_accessor :options
+
+  def self.combo_feature_name(features)
+    File.join(VirtualMonkey::FEATURE_DIR, features.map { |feature| File.basename(feature, ".rb") }.join("_") + ".combo.rb")
+  end
+
   # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
   # * feature<~String> the feature filename 
@@ -130,8 +135,7 @@ class GrinderMonk
         dep_clone.slice!(0,deps_per_feature)
       }
     else
-      combo_feature = features.map { |feature| File.basename(feature, ".rb") }.join("_") + ".combo.rb"
-      combo_feature = File.join(VirtualMonkey::FEATURE_DIR, combo_feature)
+      combo_feature = GrinderMonk.combo_feature_name(features)
       File.open(combo_feature, "w") { |f|
         f.write(features.map { |feature| "mixin_feature '#{feature}', :hard_reset" }.join("\n"))
       }

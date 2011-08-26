@@ -26,7 +26,7 @@ module VirtualMonkey
       @blocks = [:hard_reset, :soft_reset, :before, :test, :after].map_to_h { |s| {} }
       @features = {}
       @tests_to_resume, @feature_in_progress = nil, nil
-      @completed_features, @feature_to_run = nil, nil
+      @completed_features, @features_to_run = [], []
       @options = options
       @options[:additional_logs] = []
       @options[:runner_options] = {}
@@ -52,19 +52,16 @@ module VirtualMonkey
       # Should we resume?
       test_states = VirtualMonkey::TEST_STATE_DIR
       state_dir = File.join(test_states, @options[:deployment])
-      @options[:resume_file] = File.join(state_dir, File.basename(main_feature))
+      @options[:resume_file] = File.join(state_dir, File.basename(@main_feature))
       if File.directory?(state_dir)
         if File.exists?(@options[:resume_file])
           unless @options[:no_resume]
-            $stdout.syswrite "Resuming previous testcase...\n\n"
-            # WARNING: There is an issue if you try to run a deployment through more than one feature at a time
-            if File.mtime(@options[:resume_file]) < File.mtime(file_name)
-              $stdout.syswrite "WARNING: testcase has been changed since state file.\n"
-              $stdout.syswrite "Scrapping previous testcase; Starting over...\n\n"
-              File.delete(@options[:resume_file])
+            puts "INFO: Resuming previous testcase..."
+            if File.mtime(@options[:resume_file]) < File.mtime(@main_feature)
+              puts "WARNING: testcase has been changed since state file." unless @main_feature =~ /combo\.rb$/
             end
           else
-            $stdout.syswrite "Scrapping previous testcase; Starting over...\n\n"
+            puts "INFO: Scrapping previous testcase; Starting over..."
             File.delete(@options[:resume_file])
           end
         end
@@ -72,10 +69,10 @@ module VirtualMonkey
         FileUtils.mkdir_p(state_dir)
       end
       if File.exists?(@options[:resume_file])
-        $stdout.syswrite "Confirmed resuming previous testcase, using paused tests...\n\n"
+        puts "INFO: Confirmed resuming previous testcase, using paused tests..."
         my_yaml = YAML::load(IO.read(@options[:resume_file]))
         @tests_to_resume = my_yaml.first["tests"]
-        @completed_features = my_yaml.first["completed_features"]
+        @completed_features = my_yaml.first["completed_features"] || @completed_features
         @features_to_run = @features.keys - @completed_features
         @feature_in_progress = my_yaml.first["feature"]
       end
@@ -84,7 +81,13 @@ module VirtualMonkey
     def run(*tests_to_run)
       @features_to_run = @features.keys
       check_for_resume
-      @features_to_run.unshift(@features_to_run.delete(@main_feature))
+      if @completed_features.include?(@main_feature)
+        if @feature_in_progress and @completed_features.include?(@feature_in_progress)
+          @features_to_run.unshift(@features_to_run.delete(@feature_in_progress))
+        end
+      else
+        @features_to_run.unshift(@features_to_run.delete(@main_feature))
+      end
       @features_to_run.each { |feature|
         # Create Runner, initialize VirtualMonkey::log files
         @runner = @options[:runner].new(@options[:deployment], @options)
@@ -120,7 +123,7 @@ module VirtualMonkey
             end
           end
         end
-        if @blocks[:before][feature][:all]
+        if @blocks[:before][feature] and @blocks[:before][feature][:all]
           str = "**  #{File.basename(feature)}: BEFORE ALL  **"
           @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
           @blocks[:before][feature][:all].call
@@ -128,7 +131,7 @@ module VirtualMonkey
         # Test
         tests.each { |key|
           [:before, :test, :after].each { |stage|
-            if @blocks[stage][feature][key]
+            if @blocks[stage][feature] and @blocks[stage][feature][key]
               str = "**  #{File.basename(feature)}: #{stage.to_s.upcase} #{key}  **"
               @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
               @blocks[stage][feature][key].call
@@ -136,7 +139,7 @@ module VirtualMonkey
           }
         }
         # After
-        if @blocks[:after][feature][:all]
+        if @blocks[:after][feature] and @blocks[:before][feature][:all]
           str = "**  #{File.basename(feature)}: AFTER ALL  **"
           @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
           @blocks[:after][feature][:all].call
@@ -232,6 +235,7 @@ module VirtualMonkey
     end
 
     def test(*args, &block)
+      @blocks[:test][@current_file] ||= {}
       args.each { |test|
         puts "WARNING: overwriting test '#{test}' for feature '#{@current_file}'" if @blocks[:test][@current_file][test]
         @blocks[:test][@current_file][test] = block if test.is_a?(String)
