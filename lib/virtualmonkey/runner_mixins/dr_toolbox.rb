@@ -27,6 +27,8 @@ module VirtualMonkey
         end
         snapshots = Ec2EbsSnapshot.find_by_cloud_id(@servers.first.cloud_id).select { |n| n.tags.include?({"name"=>"rs_backup:lineage=#{@lineage}"}) }
       end
+
+    
   
       # Returns the timestamp of the latest snapshot for testing OPT_DB_RESTORE_TIMESTAMP_OVERRIDE
       def find_snapshot_timestamp(provider=:ebs)
@@ -55,12 +57,18 @@ module VirtualMonkey
   
       def set_variation_lineage
         @lineage = "testlineage#{resource_id(@deployment)}"
-        obj_behavior(@deployment, :set_input, "block_device/lineage", "text:#{@lineage}")
+        @deployment.set_input("block_device/lineage", "text:#{@lineage}")
+        @servers.each do |server|
+          server.set_inputs({"block_device/lineage" => "text:#{@lineage}"})
+        end
       end
   
       def set_variation_container
         @container = "testlineage#{resource_id(@deployment)}"
-        obj_behavior(@deployment, :set_input, "block_device/storage_container", "text:#{@container}")
+        @deployment.set_input("block_device/storage_container", "text:#{@container}")
+        @servers.each do |server|
+          server.set_inputs({"block_device/storage_container" => "text:#{@container}"})
+        end
       end
   
       # Pick a storage_type depending on what cloud we're on.
@@ -71,17 +79,20 @@ module VirtualMonkey
         elsif cid == 232 # rackspace
           @storage_type = "ros"
         else
-          pick = rand(100000) % 2
-          if pick == 1
-            @storage_type = "ros"
-          else
+          #pick = rand(100000) % 2
+          #if pick == 1
+          #  @storage_type = "ros"
+          #else
             @storage_type = "volume"
-          end
+          #end
         end
         puts "STORAGE_TYPE: #{@storage_type}"
         @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
    
         @deployment.set_input("block_device/storage_type", "text:#{@storage_type}")
+        @servers.each do |server|
+          server.set_inputs({"block_device/storage_type" => "text:#{@storage_type}"})
+        end
       end
   
       def test_s3
@@ -113,7 +124,7 @@ module VirtualMonkey
         run_script("do_force_reset", s_one)
         sleep 10
         run_script("setup_block_device", s_one)
-        probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=500")
+        probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=100")
         sleep 10
         run_script("do_backup", s_one)
         sleep 10
@@ -125,34 +136,48 @@ module VirtualMonkey
           true
         end
        # Needs test implemented for euca and cdc
-       #run_script("do_force_reset", s_one)
-       # sleep 400
-       #run_script("do_restore", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
-       # probe(s_one, "ls /mnt/storage") do |result, status|
-       #   raise "FATAL: no files found in the backup" if result == nil || result.empty?
-       #   true
-       # end
+       run_script("do_force_reset", s_one)
+       run_script("do_restore", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
+        probe(s_one, "ls /mnt/storage") do |result, status|
+          raise "FATAL: no files found in the backup" if result == nil || result.empty?
+          true
+        end
+      end
+
+      def cleanup_snapshots
+        find_snapshots.each do |snap|
+          snap.destroy
+        end
+      end
+
+      def cleanup_volumes
+        @servers.each do |server|
+          run_script("do_force_reset", server)
+        end
       end
 
       def test_ebs
         #run_script("do_force_reset", s_one)
         #sleep 10
        run_script("setup_block_device", s_one)
-        probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=500")
-        sleep 100
+       probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=100")
        run_script("do_backup_volume", s_one)
-        wait_for_snapshots
-        sleep 100
+# EBS freight-train is buggy if you move too quickly through here
+       sleep 30
        run_script("do_force_reset", s_one)
-  # need to wait here for the volume status to settle (detaching)
-        sleep 400
+       sleep 30
+# Wait for snapshots all to have completed (necessary)
+       wait_for_snapshots
        run_script("do_restore_volume", s_one)
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
         end
+# sleep (be nice)
+       sleep 30
        run_script("do_force_reset", s_one)
-        sleep 400
+       sleep 30
+# ok, thanks for sleeping
        run_script("do_restore_volume", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?

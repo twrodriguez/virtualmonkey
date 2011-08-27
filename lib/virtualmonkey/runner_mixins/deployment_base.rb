@@ -169,6 +169,7 @@ module VirtualMonkey
         @deployment.set_input("MASTER_DB_DNSNAME", the_name) 
         @deployment.set_input("DB_HOST_NAME", the_name) 
         @deployment.set_input("db_mysql/fqdn", the_name)
+        @deployment.set_input("db/fqdn", the_name)
       end
   
       # Launch server(s) that match nickname_substr
@@ -523,17 +524,20 @@ module VirtualMonkey
       # parameter tag_to_set is a string
       # example pass in rs_agent_dev:package=5.7.11
       def tag_all_servers(tag_to_set)
+        servers.each_index { |counter|
+          servers[counter].settings
+          servers[counter].reload
+          puts "tag added " + tag_to_set.to_s + " " + servers[counter].to_s
 
-	 servers.each_index { |counter|
-           servers[counter].settings
-           servers[counter].reload
-	   print "tag added " + tag_to_set.to_s + " " + servers[counter].to_s+ "\n"
-	   Tag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
-           servers[counter].tags(true)
-	}
-       end
+          if servers[counter].multicloud
+            McTag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+          else
+            Tag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+          end
 
-
+          servers[counter].tags(true)
+        }
+      end
     end
   end
 end

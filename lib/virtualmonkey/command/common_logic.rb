@@ -160,6 +160,13 @@ module VirtualMonkey
         if runner.respond_to?(:release_container) and not @@options[:keep]
           runner.release_container
         end
+        # Cleanup volumes and snapshots for runners that support it.
+        if runner.respond_to?(:cleanup_volumes) and not @@options[:keep]
+          runner.cleanup_volumes
+        end
+        if runner.respond_to?(:cleanup_snapshots) and not @@options[:keep]
+          runner.cleanup_snapshots
+        end
       end 
 
       @@dm.destroy_all unless @@options[:keep]

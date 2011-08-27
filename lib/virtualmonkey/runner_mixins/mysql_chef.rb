@@ -21,24 +21,26 @@ module VirtualMonkey
       # lookup all the RightScripts that we will want to run
       def mysql_lookup_scripts
        scripts = [
-                   [ 'setup_block_device', 'db_mysql::setup_block_device' ],
-                   [ 'do_backup', 'db_mysql::do_backup' ],
-                   [ 'do_restore', 'db_mysql::do_restore' ],
-                   [ 'do_backup_s3', 'db_mysql::do_backup_s3' ],
-                   [ 'do_backup_ebs', 'db_mysql::do_backup_ebs' ],
-                   [ 'do_backup_cloud_files', 'db_mysql::do_backup_cloud_files' ],
-                   [ 'do_restore_s3', 'db_mysql::do_restore_s3' ],
-                   [ 'do_restore_ebs', 'db_mysql::do_restore_ebs' ],
-                   [ 'do_restore_cloud_files', 'db_mysql::do_restore_cloud_files' ],
-                   [ 'do_restore_cloud_files', 'db_mysql::do_restore_cloud_files' ],
+                   [ 'setup_block_device', 'db::setup_block_device' ],
+                   [ 'do_backup', 'db::do_backup' ],
+                   [ 'do_restore', 'db::do_restore' ],
+                   [ 'do_backup', 'db::do_backup' ],
+                   [ 'do_restore', 'db::do_restore' ],
+                   [  'do_backup_schedule_enable', 'db::do_backup_schedule_enable'],
+                   ['do_backup_schedule_disable', 'db::do_backup_schedule_disable'],
+                   ['do_appservers_allow', 'db::do_appservers_allow'              ],
+                   ['do_appservers_deny', 'db::do_appservers_deny'],
+                   [ 'do_force_reset', 'db::do_force_reset'   ],
+                   ['setup_rule', 'sys_firewall::setup_rule'],
+                   ['do_list_rules', 'sys_firewall::do_list_rules'],
                    [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ],
                    [ 'do_reconverge_list_disable', 'sys::do_reconverge_list_disable' ],
-                   [ 'do_force_reset', 'db_mysql::do_force_reset' ]
+                   [ 'do_force_reset', 'db::do_force_reset' ]
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
   
         st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
-        load_script_table(st,scripts)
+        load_script_table(st,scripts,st)
       end
 
       def import_unified_app_sqldump
@@ -52,33 +54,30 @@ module VirtualMonkey
       def set_variation_lineage()
         @lineage = "testlineage#{resource_id(@deployment)}"
   puts "Set variation LINEAGE: #{@lineage}"
-        obj_behavior(@deployment, :set_input, 'db_mysql/backup/lineage', "text:#{@lineage}")
+        obj_behavior(@deployment, :set_input, 'db/backup/lineage', "text:#{@lineage}")
       end
   
       def set_variation_container
         @container = "testlineage#{resource_id(@deployment)}"
   puts "Set variation CONTAINER: #{@container}"
-        obj_behavior(@deployment, :set_input, "db_mysql/backup/storage_container", "text:#{@container}")
+        obj_behavior(@deployment, :set_input, "block_device/storage_container", "text:#{@container}")
       end
   
       # Pick a storage_type depending on what cloud we're on.
-      def set_variation_storage_type
+      def set_variation_storage_type(type = nil)
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
         if cid == 232
           @storage_type = "ros"
         else
-          pick = rand(100000) % 2
-          if pick == 1
-            @storage_type = "ros"
-          else
-            @storage_type = "volume"
-          end
+          @storage_type = type
+          # randomly select 'ros' or 'volume' unless type specified`
+          @storage_type ||= (rand(100000) % 2 == 1) ? "ros" : "volume"
         end
   
         @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
         puts "STORAGE_TYPE: #{@storage_type}"
    
-        obj_behavior(@deployment, :set_input, "db_mysql/backup/storage_type", "text:#{@storage_type}")
+        obj_behavior(@deployment, :set_input, "block_device/storage_type", "text:#{@storage_type}")
       end
   
       def test_s3
@@ -97,16 +96,17 @@ module VirtualMonkey
       end
   
       def test_ebs
-       run_script("setup_block_device", s_one)
+        run_script("do_reconverge_list_disable", s_one)
+        run_script("setup_block_device", s_one)
         probe(s_one, "touch /mnt/storage/monkey_was_here")
-        sleep 100
-       run_script("do_backup_ebs", s_one)
+        #sleep 100
+        run_script("do_backup", s_one)
         wait_for_snapshots
-        sleep 100
-       run_script("do_force_reset", s_one)
-  # need to wait here for the volume status to settle (detaching)
-        sleep 400
-       run_script("do_restore_ebs", s_one)
+        #sleep 100
+        run_script("do_force_reset", s_one)
+        # need to wait here for the volume status to settle (detaching)
+        #sleep 400
+        run_script("do_restore", s_one)
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true

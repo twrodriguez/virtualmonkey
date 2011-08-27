@@ -5,10 +5,10 @@ hard_reset do
 end
 
 before do
-  @runner.tag_all_servers("rs_agent_dev:package=5.7.13")
+  @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
   @runner.set_variation_lineage
   @runner.set_variation_container
-  @runner.set_variation_storage_type("volume")
+  @runner.set_variation_storage_type()
   @runner.launch_all
   @runner.wait_for_all("operational")
 end
@@ -26,3 +26,22 @@ test "multicloud" do
     @runner.test_volume
   end
 end
+
+after do
+  @runner.cleanup_volumes
+  @runner.cleanup_snapshots
+end
+
+test "reboot_operations" do
+  @runner.run_reboot_operations
+end
+
+
+test "monitoring_checks" do
+  @runner.check_monitoring
+end
+
+test "timestamp_override" do
+  @runner.run_restore_with_timestamp_override
+end
+
