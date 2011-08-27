@@ -17,7 +17,7 @@ module VirtualMonkey
       end
 
       def disable_fe_reconverge
-        run_script_on_set('disable_reconverge', fe_servers)
+        run_script_on_set('do_reconverge_list_disable', fe_servers)
       end
 
       def detach_all
@@ -39,14 +39,14 @@ module VirtualMonkey
       end
 
       def enable_lb_reconverge
-        run_script_on_set('enable_reconverge', fe_servers)
+        run_script_on_set('do_reconverge_list_enable', fe_servers)
       end
 
       def php_chef_fe_lookup_scripts
         recipes = [
                     [ 'attach_all', 'lb_haproxy::do_attach_all' ],
-                    [ 'disable_reconverge', 'sys::do_reconverge_list_disable' ],
-                   [ 'enable_reconverge', 'sys::do_reconverge_list_enable' ]
+                    [ 'do_reconverge_list_disable', 'sys::do_reconverge_list_disable' ],
+                   [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ]
                   ]
         fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
         load_script_table(fe_st,recipes)

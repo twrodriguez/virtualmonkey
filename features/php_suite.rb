@@ -9,8 +9,8 @@ before do
 
 # TODO: variations to set
 # mysql fqdn
-  @runner.setup_dns("virtualmonkey_dyndns_new") # AWSDNS 
-  @runner.set_variation_dnschoice("text:DynDNS") # set variation choice
+ @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+@runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   @runner.set_variation_http_only
 
 # Mysql variations
@@ -22,12 +22,12 @@ before do
   @runner.launch_set(:mysql_servers)
   @runner.launch_set(:fe_servers)
   @runner.wait_for_set(:mysql_servers, "operational")
- # @runner.set_private_mysql_fqdn
- @runner.import_unified_app_sqldump
+  #@runner.set_private_mysql_fqdn
+  @runner.import_unified_app_sqldump
   @runner.wait_for_set(:fe_servers, "operational")
   @runner.launch_set(:app_servers)
   @runner.wait_for_all("operational")
-  @runner.disable_reconverge
+  @runner.disable_fe_reconverge
 end
 
 #
@@ -35,7 +35,7 @@ end
 #
 
 test "run_unified_application_checks" do
-sleep(360)
+  sleep(360)
   @runner.run_unified_application_checks(:fe_servers, 80)
 
 end
