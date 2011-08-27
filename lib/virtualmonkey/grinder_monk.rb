@@ -126,8 +126,8 @@ class GrinderMonk
     features = [features].flatten
     test_cases = features.map_to_h { |feature| VirtualMonkey::TestCase.new(feature, @options) }
     deployment_hsh = {}
-    if ENV['MONKEY_PARALLEL_FEATURES']
-      raise "Need more deployments than feature files" unless deployments.length > features.length
+    if ENV['MONKEY_PARALLEL_FEATURES'] or features.length < 2
+      raise "Need more deployments than feature files" unless deployments.length >= features.length
       dep_clone = deployments.dup
       deps_per_feature = (deployments.length.to_f / features.length.to_f).floor
       deployment_hsh = features.map_to_h { |f|

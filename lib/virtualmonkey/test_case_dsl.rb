@@ -23,6 +23,7 @@ module VirtualMonkey
     end
 
     def initialize(file, options = {})
+      file = File.join(VirtualMonkey::FEATURE_DIR, File.basename(file))
       @blocks = [:hard_reset, :soft_reset, :before, :test, :after].map_to_h { |s| {} }
       @features = {}
       @tests_to_resume, @feature_in_progress = nil, nil
@@ -45,6 +46,9 @@ module VirtualMonkey
 
     def get_keys(*features)
       features = @features.keys if features.empty?
+      features.delete(features.detect { |feature| feature =~ /\.combo\.rb$/ })
+      features = @features.keys if features.empty?
+      features.delete(features.detect { |feature| feature =~ /\.combo\.rb$/ })
       features.map { |feature| @blocks[:test][feature].keys }.flatten.uniq
     end
 
@@ -58,7 +62,7 @@ module VirtualMonkey
           unless @options[:no_resume]
             puts "INFO: Resuming previous testcase..."
             if File.mtime(@options[:resume_file]) < File.mtime(@main_feature)
-              puts "WARNING: testcase has been changed since state file." unless @main_feature =~ /combo\.rb$/
+              puts "WARNING: testcase has been changed since state file." unless @main_feature =~ /\.combo\.rb$/
             end
           else
             puts "INFO: Scrapping previous testcase; Starting over..."
@@ -79,6 +83,11 @@ module VirtualMonkey
     end
 
     def run(*tests_to_run)
+      def print_to_readable_log(feature, stage, test_name)
+        str = "**  #{File.basename(feature)}: #{stage.to_s.upcase.gsub(/_|-/, ' ')} #{test_name}  **"
+        @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
+      end
+
       @features_to_run = @features.keys
       check_for_resume
       if @completed_features.include?(@main_feature)
@@ -105,43 +114,55 @@ module VirtualMonkey
         @runner.write_readable_log("Running tests: #{tests.join(", ")}")
         @runner.write_trace_log
         # Before
-        if @options[:no_resume] && feature == @main_feature 
-          @runner.transaction(:do_not_trace) { @blocks[:hard_reset][feature].call } if @blocks[:hard_reset][feature]
+        if @options[:no_resume] && feature == @main_feature
+          if @blocks[:hard_reset][feature]
+            print_to_readable_log(feature, :hard_reset, nil)
+            @runner.transaction(:do_not_trace) { @blocks[:hard_reset][feature].call }
+          end
         end
         if @features[feature]
           if @features[feature] == :hard_reset
             if @blocks[:hard_reset][feature]
+              print_to_readable_log(feature, :hard_reset, nil)
               @runner.transaction(:do_not_trace) { @blocks[:hard_reset][feature].call }
             elsif @blocks[:soft_reset][feature]
+              print_to_readable_log(feature, :soft_reset, nil)
               @runner.transaction(:do_not_trace) { @blocks[:soft_reset][feature].call }
             end
           else
             if @blocks[:soft_reset][feature]
+              print_to_readable_log(feature, :soft_reset, nil)
               @runner.transaction(:do_not_trace) { @blocks[:soft_reset][feature].call }
             elsif @blocks[:hard_reset][feature]
+              print_to_readable_log(feature, :hard_reset, nil)
               @runner.transaction(:do_not_trace) { @blocks[:hard_reset][feature].call }
             end
           end
         end
+        if @blocks[:before][feature] and @blocks[:before][feature][:once]
+          unless VirtualMonkey::trace_log.first["run_once"]
+            print_to_readable_log(feature, :before_all, :run_once)
+            @runner.transaction(:do_not_trace) { @blocks[:before][feature][:once].call }
+            VirtualMonkey::trace_log.first["run_once"] = true
+            @runner.write_trace_log
+          end
+        end
         if @blocks[:before][feature] and @blocks[:before][feature][:all]
-          str = "**  #{File.basename(feature)}: BEFORE ALL  **"
-          @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
+          print_to_readable_log(feature, :before, :all)
           @blocks[:before][feature][:all].call
         end
         # Test
         tests.each { |key|
           [:before, :test, :after].each { |stage|
             if @blocks[stage][feature] and @blocks[stage][feature][key]
-              str = "**  #{File.basename(feature)}: #{stage.to_s.upcase} #{key}  **"
-              @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
+              print_to_readable_log(feature, stage, key)
               @blocks[stage][feature][key].call
             end
           }
         }
         # After
         if @blocks[:after][feature] and @blocks[:before][feature][:all]
-          str = "**  #{File.basename(feature)}: AFTER ALL  **"
-          @runner.write_readable_log("#{'*' * str.length}\n#{str}\n#{'*' * str.length}")
+          print_to_readable_log(feature, :after, :all)
           @blocks[:after][feature][:all].call
         end
         # Successful run, delete the resume file
@@ -226,6 +247,9 @@ module VirtualMonkey
       if args.empty?
         puts "WARNING: overwriting universal before for feature '#{@current_file}'" if @blocks[:before][@current_file][:all]
         @blocks[:before][@current_file][:all] = block
+      elsif args.length == 1 && args.first == :once
+        puts "WARNING: overwriting run_once before for feature '#{@current_file}'" if @blocks[:before][@current_file][:once]
+        @blocks[:before][@current_file][:once] = block
       else
         args.each { |test|
           puts "WARNING: overwriting before '#{test}' for feature '#{@current_file}'" if @blocks[:before][@current_file][test]
