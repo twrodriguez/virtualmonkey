@@ -3,7 +3,7 @@
   "server_template_ids":[
     "104181"
   ],
-  "feature":"base.rb",
+  "feature":"base_linux.rb",
   "cloud_variables":"all_clouds.json",
   "prefix":"TROOP-chef-base",
   "common_inputs":"none.json"

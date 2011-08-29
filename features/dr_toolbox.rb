@@ -5,7 +5,7 @@ hard_reset do
 end
 
 before do
-  @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
+#  @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
   @runner.set_variation_lineage
   @runner.set_variation_container
   @runner.set_variation_storage_type()
