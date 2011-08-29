@@ -48,7 +48,7 @@ class VariationEngine
           server.max_spot_price = @instance_vars64[new_type] if @options[:spot]
         elsif server.cloud_id.to_i > 10
           if @options[:href] && @options[:href].match(/clouds\/[0-9]+/)[0].split(/\//).last.to_i == server.cloud_id.to_i
-            new_type = McInstanceType.find(@options[:href]).shuffle.first
+            new_type = McInstanceType.find(@options[:href])
           else
             new_type = McInstanceType.find_all(server.cloud_id).shuffle.first
           end
