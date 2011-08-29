@@ -143,11 +143,11 @@ module VirtualMonkey
       end
 
       def enable_db_reconverge
-        run_script_on_set('enable_reconverge', mysql_servers)
+        run_script_on_set('do_reconverge_list_enable', mysql_servers)
       end
 
       def disable_db_reconverge
-        run_script_on_set('disable_reconverge', mysql_servers)
+        run_script_on_set('do_reconverge_list_disable', mysql_servers)
       end
 
 
