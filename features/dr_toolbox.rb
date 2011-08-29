@@ -9,6 +9,7 @@ before do
   @runner.set_variation_lineage
   @runner.set_variation_container
   @runner.set_variation_storage_type()
+  @runner.set_variation_mount_point
   @runner.launch_all
   @runner.wait_for_all("operational")
 end
@@ -30,6 +31,22 @@ end
 after do
   @runner.cleanup_volumes
   @runner.cleanup_snapshots
+end
+
+before 'mount_point' do
+  @runner.set_variation_mount_point('/mnt/monkey_test')
+end
+
+test 'mount_point' do
+  transaction do
+    @runner.test_volume
+  end
+end
+
+after 'mount_point' do
+  @runner.cleanup_volumes
+  @runner.cleanup_snapshots
+  @runner.set_variation_mount_point
 end
 
 test "reboot_operations" do
