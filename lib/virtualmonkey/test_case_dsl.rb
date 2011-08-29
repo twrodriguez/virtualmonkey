@@ -46,11 +46,10 @@ module VirtualMonkey
     end
 
     def get_keys(*features)
-      #TODO TEST THIS!!!!
       features = @features.keys if features.empty?
       features.map { |feature|
         tests = []
-        STAGES.each { |stage| tests += @blocks[stage][feature].keys if @blocks[stage][feature].is_a?(Array) }
+        STAGES.each { |stage| tests += @blocks[stage][feature].keys if @blocks[stage][feature].is_a?(Hash) }
         tests.select { |test| test.is_a? String }
       }.flatten.compact.uniq
     end
