@@ -94,6 +94,15 @@ module VirtualMonkey
           server.set_inputs({"block_device/storage_type" => "text:#{@storage_type}"})
         end
       end
+
+      def set_variation_mount_point(mount_point = '/mnt/storage')
+        @mount_point = mount_point
+
+        @deployment.set_input('block_device/mount_dir', "text:#{@mount_point}")
+        @servers.each do |server|
+          server.set_inputs({'block_device/mount_dir' => "text:#{@mount_point}"})
+        end
+      end
   
       def test_s3
        run_script("do_force_reset", s_one)
@@ -124,21 +133,21 @@ module VirtualMonkey
         run_script("do_force_reset", s_one)
         sleep 10
         run_script("setup_block_device", s_one)
-        probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=100")
+        probe(s_one, "dd if=/dev/urandom of=#{@mount_point}/monkey_was_here bs=4M count=100")
         sleep 10
         run_script("do_backup", s_one)
         sleep 10
         run_script("do_force_reset", s_one)
         sleep 10
         run_script("do_restore", s_one)
-        probe(s_one, "ls /mnt/storage") do |result, status|
+        probe(s_one, "ls #{@mount_point}") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
         end
        # Needs test implemented for euca and cdc
        run_script("do_force_reset", s_one)
        run_script("do_restore", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
-        probe(s_one, "ls /mnt/storage") do |result, status|
+        probe(s_one, "ls #{@mount_point}") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
         end
