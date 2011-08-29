@@ -1,0 +1,13 @@
+{
+  "ADMIN_PASSWORD" : "text:Fyhgenxhw1",
+  "APP_VOLUME_SIZE" : "text:5",
+  "DB_CONNECTION_STRING" : "textServer=localhost;Database=DotNetNuke;User ID=sqluser;Password=Ynfhgyt32s;Trusted_Connection=False ",
+  "DB_LOGIN_NAME" : "text:sqluser",
+  "DB_LOGIN_PASSWORD" : "text:Ynfhgyt32s",
+  "DB_NAME" : "test:DotNetNuke",
+  "LOG_VOLUME_SIZE" : "text:5",
+  "OPT_APP_VOLUME_LETTER" : "text:d",
+  "OPT_LOG_VOLUME_LETTER" : "text:e",
+  "SVN_DB_PATH" : "text:https://dotnetnuke.svn.codeplex.com/svn/Trunk/Website/App_Data/",
+  "SVN_PATH" : "text:https://dotnetnuke.svn.codeplex.com/svn/Trunk/Website/"
+}
