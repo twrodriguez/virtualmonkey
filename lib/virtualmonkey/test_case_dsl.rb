@@ -50,7 +50,7 @@ module VirtualMonkey
       features = @features.keys if features.empty?
       features.map { |feature|
         tests = []
-        STAGES.each { |stage| tests += @blocks[stage][feature].keys if @blocks[stage][feature] }
+        STAGES.each { |stage| tests += @blocks[stage][feature].keys if @blocks[stage][feature].is_a?(Array) }
         tests.select { |test| test.is_a? String }
       }.flatten.compact.uniq
     end
