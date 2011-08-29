@@ -2,6 +2,7 @@ module VirtualMonkey
   class TestCase
     attr_accessor :options, :file_stack
     attr_reader :features
+    STAGES = [:hard_reset, :soft_reset, :before, :test, :after]
 
     def mixin_feature(file, reset_before_feature = false)
       file = File.join(VirtualMonkey::FEATURE_DIR, File.basename(file))
@@ -24,7 +25,7 @@ module VirtualMonkey
 
     def initialize(file, options = {})
       file = File.join(VirtualMonkey::FEATURE_DIR, File.basename(file))
-      @blocks = [:hard_reset, :soft_reset, :before, :test, :after].map_to_h { |s| {} }
+      @blocks = STAGES.map_to_h { |s| {} }
       @features = {}
       @tests_to_resume, @feature_in_progress = nil, nil
       @completed_features, @features_to_run = [], []
@@ -45,11 +46,13 @@ module VirtualMonkey
     end
 
     def get_keys(*features)
+      #TODO TEST THIS!!!!
       features = @features.keys if features.empty?
-      features.delete(features.detect { |feature| feature =~ /\.combo\.rb$/ })
-      features = @features.keys if features.empty?
-      features.delete(features.detect { |feature| feature =~ /\.combo\.rb$/ })
-      features.map { |feature| @blocks[:test][feature].keys }.flatten.uniq
+      features.map { |feature|
+        tests = []
+        STAGES.each { |stage| tests += @blocks[stage][feature].keys if @blocks[stage][feature] }
+        tests.select { |test| test.is_a? String }
+      }.flatten.compact.uniq
     end
 
     def check_for_resume
@@ -103,7 +106,7 @@ module VirtualMonkey
         # Set up tests_to_run
         tests_to_run = @tests_to_resume if @tests_to_resume
         tests_to_run.compact!
-        tests = @blocks[:test][feature].keys
+        tests = get_keys(feature)
         tests = tests - (tests - tests_to_run) unless tests_to_run.empty?
         # Add the tests to the tracelog
         VirtualMonkey::trace_log.first["tests"] = tests_to_run
