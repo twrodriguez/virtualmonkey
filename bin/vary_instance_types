@@ -9,6 +9,7 @@ options = Trollop::options do
   opt :tag, "Tag of the DeploymentSet that you want to vary the sizes on", :type => :string, :required => true
   opt :spot, "Use spot instances", :default => false
   opt :micro_mayhem, "Set everything to Micros", :default => false
+  opt :href, "API 1.5 only: Set all instances to a specific InstanceType href", :type => :string
 end
 
 class VariationEngine
@@ -46,7 +47,11 @@ class VariationEngine
           server.instance_type = new_type
           server.max_spot_price = @instance_vars64[new_type] if @options[:spot]
         elsif server.cloud_id.to_i > 10
-          new_type = McInstanceType.find_all(server.cloud_id).shuffle.first
+          if @options[:href] && @options[:href].match(/clouds\/[0-9]+/)[0].split(/\//).last.to_i == server.cloud_id.to_i
+            new_type = McInstanceType.find(@options[:href]).shuffle.first
+          else
+            new_type = McInstanceType.find_all(server.cloud_id).shuffle.first
+          end
           server.next_instance.instance_type = new_type.href
         end
         server.pricing = "spot" if @options[:spot]
