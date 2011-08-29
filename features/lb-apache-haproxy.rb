@@ -1,6 +1,10 @@
 set :runner, VirtualMonkey::Runner::FeApp
-before do
+
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_master_db_dnsname
 end
 

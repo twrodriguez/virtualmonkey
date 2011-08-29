@@ -1,7 +1,10 @@
 set :runner, VirtualMonkey::Runner::Mysql
 
-before do
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_variation_lineage
   @runner.set_variation_stripe_count(1)
   @runner.setup_dns("virtualmonkey_awsdns") # AWSDNS

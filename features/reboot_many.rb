@@ -1,6 +1,10 @@
-  set :runner, VirtualMonkey::Runner::Simple
-before do
+set :runner, VirtualMonkey::Runner::Simple
+
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.launch_all
 end
 
