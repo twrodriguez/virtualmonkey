@@ -36,3 +36,6 @@ sleep(120)
   @runner.run_unified_application_checks(:fe_servers, 80)
 end
 
+after do
+  @runner.release_dns
+end

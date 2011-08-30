@@ -22,12 +22,14 @@ before do
   @runner.launch_set(:mysql_servers)
   @runner.launch_set(:fe_servers)
   @runner.wait_for_set(:mysql_servers, "operational")
-  #@runner.set_private_mysql_fqdn
+  @runner.set_private_mysql_fqdn
   @runner.import_unified_app_sqldump
   @runner.wait_for_set(:fe_servers, "operational")
   @runner.launch_set(:app_servers)
   @runner.wait_for_all("operational")
   @runner.disable_fe_reconverge
+  @runner.test_attach_all
+
 end
 
 #
@@ -40,3 +42,6 @@ test "run_unified_application_checks" do
 
 end
 
+after do
+  @runner.release_dns
+end
