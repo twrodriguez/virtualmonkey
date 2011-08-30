@@ -369,7 +369,7 @@ module VirtualMonkey
       def run_reboot_checks
         # one simple check we can do is the backup.  Backup can fail if anything is amiss
         @servers.each do |server|
-         run_script("do_backup", server)
+          run_script("do_backup", server)
         end
       end
   
