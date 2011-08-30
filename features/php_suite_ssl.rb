@@ -11,6 +11,9 @@ before do
 # mysql fqdn
 
  # sets ssl inputs at deployment level
+
+  @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+  @runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   @runner.set_variation_ssl
   @runner.set_variation_ssl_chain
   @runner.set_variation_ssl_passphrase

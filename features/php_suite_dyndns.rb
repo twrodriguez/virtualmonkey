@@ -37,3 +37,6 @@ sleep(360)
 
 end
 
+after do
+  @runner.release_dns
+end
