@@ -8,6 +8,7 @@ end
 
 test "default" do
   @runner.check_monitoring
+  @runner.run_script_on_all("IIS monkey tests")
   @runner.run_script_on_all("IIS Download application code")
   @runner.run_script_on_all("IIS Add connection string")
   @runner.run_script_on_all("IIS Switch default website")

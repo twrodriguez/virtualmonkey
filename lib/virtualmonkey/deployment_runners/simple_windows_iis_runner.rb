@@ -27,6 +27,7 @@ module VirtualMonkey
 #        load_script('DB SQLS Create login check', RightScript.new('href' => "/api/acct/29082/right_scripts/430024"))
         load_script('SYS install MSDeploy2.0 check', RightScript.new('href' => "/api/acct//29082/right_scripts/430037"))
         load_script('IIS Restart web server check', RightScript.new('href' => "/api/acct//29082/right_scripts/430040"))
+        load_script('IIS monkey tests', RightScript.new('href' => "/api/acct//29082/right_scripts/430759"))
       end
     end
   end
