@@ -16,12 +16,18 @@ module VirtualMonkey
        # reboot app_server and wait for operational
        # then do the reboot checks
 
-          obj_behavior(fe_servers.first, :reboot, true)
-          obj_behavior(fe_servers.first, :wait_for_state, "operational")
-	
-          obj_behavior(app_servers.first, :reboot, true)
-          obj_behavior(app_servers.first, :wait_for_state, "operational")
-        
+         transaction { fe_servers[0].reboot( true)}
+         transaction { fe_servers[0].wait_for_state( "operational")}
+         
+         transaction { fe_servers[1].reboot( true)}
+         transaction { fe_servers[1].wait_for_state( "operational")}
+         
+         transaction {app_servers[0].reboot( true) }
+         transaction {app_servers[0].wait_for_state( "operational") }
+         
+         transaction {app_servers[1].reboot( true) }
+         transaction {app_servers[1].wait_for_state( "operational") }
+        #end
        wait_for_all("operational")
        run_reboot_checks
       end
