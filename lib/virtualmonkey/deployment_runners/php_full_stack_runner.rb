@@ -16,6 +16,10 @@ module VirtualMonkey
        # reboot app_server and wait for operational
        # then do the reboot checks
 
+          
+         transaction { mysql_servers.first.reboot( true)}
+         transaction {mysql_servers.first.wait_for_state( "operational") }
+         
          transaction { fe_servers[0].reboot( true)}
          transaction { fe_servers[0].wait_for_state( "operational")}
          

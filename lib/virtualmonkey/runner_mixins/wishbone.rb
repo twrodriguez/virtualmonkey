@@ -63,8 +63,8 @@ module VirtualMonkey
   # Duplicate code here because we need to wait between the master and the slave time
         #reboot_all(true) # serially_reboot = true
        # @servers.each do |s|
- #        transaction { mysql_servers.first.reboot( true)}
-  #       transaction {mysql_servers.first.wait_for_state( "operational") }
+         transaction { mysql_servers.first.reboot( true)}
+         transaction {mysql_servers.first.wait_for_state( "operational") }
          
          transaction { fe_servers[0].reboot( true)}
          transaction { fe_servers[0].wait_for_state( "operational")}
