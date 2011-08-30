@@ -10,7 +10,7 @@ before do
 end
 
 test "default" do
-# @runner.check_monitoring
+ @runner.check_monitoring
 # @runner.set_variation_swap_size("2.0") # string  x GB of swap size
 #  @runner.test_run_swap_space ## test to see if the swap space works
   @runner.reboot_all
