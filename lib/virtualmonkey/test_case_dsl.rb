@@ -163,7 +163,7 @@ module VirtualMonkey
           }
         }
         # After
-        if @blocks[:after][feature] and @blocks[:before][feature][:all]
+        if @blocks[:after][feature] and @blocks[:after][feature][:all]
           print_to_readable_log(feature, :after, :all)
           @blocks[:after][feature][:all].call
         end
