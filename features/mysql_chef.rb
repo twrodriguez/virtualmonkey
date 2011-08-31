@@ -1,43 +1,44 @@
 set :runner, VirtualMonkey::Runner::MysqlChef
 
 hard_reset do
-  @runner.stop_all
+  stop_all
 end
 
 before do
-  @runner.set_variation_lineage
-  @runner.set_variation_container
-  @runner.launch_all
-  @runner.wait_for_all("operational")
-  @runner.disable_db_reconverge
+  set_variation_lineage
+  set_variation_container
+  launch_all
+  wait_for_all("operational")
+  disable_db_reconverge
 end
 
-test "test_primary_backup" do
-  @runner.test_primary_backup
+test "primary_backup" do
+  test_primary_backup
 end
 
-after 'test_primary_backup' do
-  @runner.do_force_reset
+test "secondary_backup_s3" do
+  test_secondary_backup("S3")
 end
 
-test "test_secondary_backup_s3" do
-  @runner.test_secondary_backup("S3")
-end
-
-after 'test_secondary_backup_s3' do
-  @runner.do_force_reset
-end
- 
 test "test_secondary_backup_cloudfiles" do
-  @runner.test_secondary_backup("CloudFiles")
+  test_secondary_backup("CloudFiles")
+end
+
+after 'primary_backup', 'secondary_backup_s3', 'secondary_backup_cloudfiles', 'reboot' do
+  do_force_reset
+end
+
+before 'reboot' do
+  do_force_reset
+  run_script("setup_block_device", s_one)
 end
 
 test "reboot" do
-  @runner.check_mysql_monitoring
-  @runner.run_reboot_operations
-  @runner.check_monitoring
-  @runner.check_mysql_monitoring
-  @runner.run_restore_with_timestamp_override
+  check_mysql_monitoring
+  run_reboot_operations
+  check_monitoring
+  check_mysql_monitoring
+  run_restore_with_timestamp_override
 end
 
 # TODO: cleanup snapshots, primary and secondary containers

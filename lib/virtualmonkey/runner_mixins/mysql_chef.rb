@@ -238,9 +238,10 @@ module VirtualMonkey
                           {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-show_databases"}
                         ]
         @servers.each do |server|
-  #mysql commands to generate data for collectd to return
-          50.times do |ii|
-            query = <<EOS
+          transaction {
+            #mysql commands to generate data for collectd to return
+            50.times do |ii|
+              query = <<EOS
 show databases; 
 create database test#{ii};
 use test#{ii};
@@ -255,25 +256,26 @@ show status;
 grant select on test.* to root;
 alter table test#{ii} rename to test2#{ii};
 EOS
-            run_query(query, server)
-          end
-          mysql_plugins.each do |plugin|
-            monitor = obj_behavior(server, :get_sketchy_data, { 'start' => -60,
-                                                                'end' => -20,
-                                                                'plugin_name' => plugin['plugin_name'],
-                                                                'plugin_type' => plugin['plugin_type']})
-            value = monitor['data']['value']
-            raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} data" unless value.length > 0
-            # Need to check for that there is at least one non 0 value returned.
-            for nn in 0...value.length
-              if value[nn] > 0
-                break
-
-              end
+              run_query(query, server)
             end
-            raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} time" unless nn < value.length
-            puts "Monitoring is OK for #{plugin['plugin_name']}-#{plugin['plugin_type']}"
-          end
+            mysql_plugins.each do |plugin|
+              monitor = server.get_sketchy_data({ 'start' => -60,
+                                                  'end' => -20,
+                                                  'plugin_name' => plugin['plugin_name'],
+                                                  'plugin_type' => plugin['plugin_type']})
+              value = monitor['data']['value']
+              raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} data" unless value.length > 0
+              # Need to check for that there is at least one non 0 value returned.
+              for nn in 0...value.length
+                if value[nn] > 0
+                  break
+
+                end
+              end
+              raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} time" unless nn < value.length
+              puts "Monitoring is OK for #{plugin['plugin_name']}-#{plugin['plugin_type']}"
+            end
+          }
         end
       end
   
