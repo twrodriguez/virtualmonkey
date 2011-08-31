@@ -17,8 +17,8 @@ module VirtualMonkey
        # then do the reboot checks
 
           
-         transaction { mysql_servers.first.reboot( true)}
-         transaction {mysql_servers.first.wait_for_state( "operational") }
+  #       transaction { mysql_servers.first.reboot( true)}
+   #      transaction {mysql_servers.first.wait_for_state( "operational") }
          
          transaction { fe_servers[0].reboot( true)}
          transaction { fe_servers[0].wait_for_state( "operational")}
@@ -38,7 +38,7 @@ module VirtualMonkey
   
       def run_reboot_checks
        run_unified_application_checks(fe_servers, 443)
-       #run_unified_application_checks(app_servers, 80)
+       run_unified_application_checks(fe_servers, 80)
       end
 
     end
