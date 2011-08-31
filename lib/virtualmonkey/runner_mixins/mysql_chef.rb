@@ -220,8 +220,9 @@ module VirtualMonkey
                         ]
         @servers.each do |server|
   #mysql commands to generate data for collectd to return
-          query = 100.times { |i| i }.map do |ii|
-            temp =<<EOS
+          query = []
+          100.times do |ii|
+            query << <<EOS
 show databases;
 create database test#{ii};
 use test#{ii};
