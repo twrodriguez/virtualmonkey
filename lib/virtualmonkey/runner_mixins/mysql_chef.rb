@@ -63,49 +63,12 @@ module VirtualMonkey
         obj_behavior(@deployment, :set_input, "block_device/storage_container", "text:#{@container}")
       end
   
-      # Pick a storage_type depending on what cloud we're on.
-      def set_variation_storage_type(type = nil)
-        cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
-        if cid == 232
-          @storage_type = "ros"
-        else
-          @storage_type = type
-          # randomly select 'ros' or 'volume' unless type specified`
-          @storage_type ||= (rand(100000) % 2 == 1) ? "ros" : "volume"
-        end
-  
-        @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
-        puts "STORAGE_TYPE: #{@storage_type}"
-   
-        obj_behavior(@deployment, :set_input, "block_device/storage_type", "text:#{@storage_type}")
-      end
-  
-      def test_s3
-       run_script("setup_block_device", s_one)
-        probe(s_one, "touch /mnt/storage/monkey_was_here")
-        sleep 10
-       run_script("do_backup_s3", s_one)
-        sleep 10
-       run_script("do_force_reset", s_one)
-        sleep 10
-       run_script("do_restore_s3", s_one)
-        probe(s_one, "ls /mnt/storage") do |result, status|
-          raise "FATAL: no files found in the backup" if result == nil || result.empty?
-          true
-        end
-      end
-  
-      def test_ebs
-        run_script("do_reconverge_list_disable", s_one)
+      def test_primary_backup
         run_script("setup_block_device", s_one)
         probe(s_one, "touch /mnt/storage/monkey_was_here")
-        #sleep 100
         run_script("do_backup", s_one)
         wait_for_snapshots
-        #sleep 100
         run_script("do_force_reset", s_one)
-        # need to wait here for the volume status to settle (detaching)
-        #sleep 400
         run_script("do_restore", s_one)
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
@@ -113,32 +76,12 @@ module VirtualMonkey
         end
       end
   
-      def test_cloud_files
-       run_script("setup_block_device", s_one)
-        probe(s_one, "touch /mnt/storage/monkey_was_here")
-        sleep 10
-       run_script("do_backup_cloud_files", s_one)
-        sleep 10
-       run_script("do_force_reset", s_one)
-        sleep 10
-       run_script("do_restore_cloud_files", s_one)
-        probe(s_one, "ls /mnt/storage") do |result, status|
-          raise "FATAL: no files found in the backup" if result == nil || result.empty?
-          true
-        end
-      end
-  
-      # pick the right set of tests depending on what cloud we're on
-      def test_multicloud
+      def test_secondary_backup
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
         if cid == 232
-          test_cloud_files
+          #TODO
         else
-          if @storage_type == "ros"
-            test_s3
-          elsif @storage_type == "volume"
-            test_ebs
-          end
+          #TODO
         end
       end
 
@@ -150,45 +93,6 @@ module VirtualMonkey
         run_script_on_set('do_reconverge_list_disable', mysql_servers)
       end
 
-
-      # creates a MySQL enabled EBS stripe on the server
-      # * server<~Server> the server to create stripe on
-  #XXX stripe is created during boot - this is not needed
-  #    def create_stripe(server)
-  #    end
-  
-      # creates a MySQL enabled EBS stripe on the server and uses the dumpfile to restore the DB
-  #    def create_stripe_from_dumpfile(server)
-  #    end
-  
-      # Performs steps necessary to bootstrap a MySQL Master server from a pristine state using a dumpfile.
-      # * server<~Server> the server to use as MASTER
-  #    def config_master_from_scratch_from_dumpfile(server)
-  #     create_stripe_from_dumpfile(server)
-  #      probe(server, "service mysqld start") # TODO Check that it started?
-  #TODO the service name depends on the OS
-  #      server.spot_check_command("service mysql start")
-  #     run_query("create database mynewtest", server)
-  #     set_master_dns(server)
-  #      # This sleep is to wait for DNS to settle - must sleep
-  #      sleep 120
-  #     run_script("backup", server)
-  #    end
-  
-      # Performs steps necessary to bootstrap a MySQL Master server from a pristine state.
-      # * server<~Server> the server to use as MASTER
-  #    def config_master_from_scratch(server)
-  #     create_stripe(server)
-  #      probe(server, "service mysqld start") # TODO Check that it started?
-  #TODO the service name depends on the OS
-  #      server.spot_check_command("service mysql start")
-  #     run_query("create database mynewtest", server)
-  #     set_master_dns(server)
-  #      # This sleep is to wait for DNS to settle - must sleep
-  #      sleep 120
-  #     run_script("backup", server)
-  #    end
-  
       # Runs a mysql query on specified server.
       # * query<~String> a SQL query string to execute
       # * server<~Server> the server to run the query on 
@@ -196,12 +100,6 @@ module VirtualMonkey
         query_command = "echo -e \"#{query}\"| mysql"
         probe(server, query_command, &block)
       end
-  
-      # Sets DNS record for the Master server to point at server
-      # * server<~Server> the server to use as MASTER
-  #    def set_master_dns(server)
-  #     run_script('master_init', server)
-  #    end
   
       # Use the termination script to stop all the servers (this cleans up the volumes)
       def stop_all(wait=true)
@@ -229,8 +127,6 @@ module VirtualMonkey
       def do_backup
         puts "BACKUP"
         run_script("do_backup", s_one)
-        puts "BAD BAD SLEEPING TIL SNAPSHOT IS COMPLETE"
-        sleep 30
       end
   
       def do_restore
@@ -268,92 +164,8 @@ module VirtualMonkey
             dir.destroy
           end
         end
-      end
-  
-  
-  #    def promote_server(server)
-  #     run_script("promote", server)
-  #    eu
-  
-  #    def slave_init_server(server)
-  #     run_script("slave_init", server)
-  #    end
-  
-  #    def create_migration_script
-  #      options = { "DB_EBS_PREFIX" => "text:regmysql",
-  #              "DB_EBS_SIZE_MULTIPLIER" => "text:1",
-  #              "EBS_STRIPE_COUNT" => "text:#{@stripe_count}" }
-  #     run_script('create_migrate_script', s_one, options)
-  #    end
-  
-      # These are mysql specific checks (used by mysql_runner and lamp_runner)
-      def run_checks
-  puts "RUN_CHECKS"
-        # check that mysql tmpdir is custom setup on all servers
-  #      query = "show variables like 'tmpdir'"
-  #      query_command = "echo -e \"#{query}\"| mysql"
-  #      probe(@servers, query_command) { |result,st| result.include?("/mnt/mysqltmp") }
-  #      @servers.each do |server|
-  #        server.spot_check(query_command) { |result| raise "Failure: tmpdir was unset#{result}" unless result.include?("/mnt/mysqltmp") }
-  #      end
-  
-  #      # check that mysql cron script exits success
-  #      @servers.each do |server|
-  #        chk1 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
-  #
-  #        chk2 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
-  #
-  #        raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2) 
-  #      end
-  
-        # check that logrotate has mysqlslow in it
-  #      probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql") { |out,st| out =~ /mysqlslow/ and st == 0 }
-  #      probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql-server") { |out,st| out =~ /mysqlslow/ and st == 0 }
-  #      @servers.each do |server|
-  #        res = server.spot_check_command("logrotate --force -v /etc/logrotate.d/mysql-server")
-  #        raise "LOGROTATE FAILURE, exited with non-zero status" if res[:status] != 0
-  #        raise "DID NOT FIND mysqlslow.log in the log rotation!" if res[:output] !~ /mysqlslow/
-  #      end
-  puts "RUN_CHECK DONE"
-      end
-  
-  
-  #    # check that mysql can handle 5000 concurrent connections (file limits, etc.)
-  #    def run_mysqlslap_check
-  #        probe(@servers, "mysqlslap  --concurrency=5000 --iterations=10 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --csv=/tmp/mysqlslap_q1000_innodb.csv --engine=innodb --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=mixed --number-of-queries=1000 --user=root") { |out,st| st == 0 }
-  #      @servers.each do |server|
-  #        result = server.spot_check_command("mysqlslap  --concurrency=5000 --iterations=10 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --csv=/tmp/mysqlslap_q1000_innodb.csv --engine=innodb --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=mixed --number-of-queries=1000 --user=root")
-  #        raise "FATAL: mysqlslap check failed" unless result[:output].empty?
-  #      end
-  #    end
-  
-  #    def init_slave_from_slave_backup
-  #     config_master_from_scratch(s_one)
-  #     run_script("freeze_backups", s_one)
-  #     wait_for_snapshots
-  #     slave_init_server(s_two)
-  #     run_script("backup", s_two)
-  #      obj_behavior(s_two, :relaunch)
-  #      s_one['dns-name'] = nil
-  #      obj_behavior(s_two, :wait_for_operational_with_dns)
-  #     wait_for_snapshots
-  #      #sleep 300
-  #     slave_init_server(s_two)
-  #    end
-  
-  #    def run_promotion_operations
-  #     config_master_from_scratch(s_one)
-  #      obj_behavior(s_one, :relaunch)
-  #      s_one.dns_name = nil
-  #     wait_for_snapshots
-  # need to wait for ebs snapshot, otherwise this could easily fail
-  #     restore_server(s_two)
-  #      obj_behavior(s_one, :wait_for_operational_with_dns)
-  #     wait_for_snapshots
-  #     slave_init_server(s_one)
-  #     promote_server(s_one)
-  #    end
-  #
+      end  
+
       def run_reboot_operations
         # set up a database to test after we reboot
         @engines = ['myisam', 'innodb']
@@ -446,19 +258,13 @@ module VirtualMonkey
       end
   
       def set_variation_dnschoice(dns_choice)
-	 @deployment.set_input("sys_dns/choice", "#{dns_choice}")
+	      @deployment.set_input("sys_dns/choice", "#{dns_choice}")
       end
       
       def set_variation_http_only
         @deployment.set_input("web_apache/ssl_enable", "text:false")
       end
-  #    def create_master
-  #     config_master_from_scratch(s_one)
-  #    end
-  
-  #    def create_master_from_dumpfile
-  #     config_master_from_scratch_from_dumpfile(s_one)
-  #    end
+
   
     end
   end
