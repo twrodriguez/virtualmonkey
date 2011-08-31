@@ -117,7 +117,7 @@ module VirtualMonkey
                     Object.new().methods - Object.new().private_methods -
                     VirtualMonkey::TestCaseInterface.instance_methods -
                     VirtualMonkey::TestCaseInterface.private_instance_methods
-      behavior_methods = all_methods.select { |m| m !~ /(^set)|(exception_handle)|(^__.*__$)|(resource_id)|(^__behavior)/i }
+      behavior_methods = all_methods.select { |m| m !~ /(exception_handle)|(^__.*__$)|(resource_id)|(^__behavior)/i }
       # SKIP this if we've already done the alias_method dance
       return if self.respond_to?("__behavior_#{behavior_methods.first}".to_sym)
 
@@ -128,6 +128,13 @@ module VirtualMonkey
     end
     
     def function_wrapper(sym, behave_sym, *args, &block)
+      if sym.to_s =~ /^set/
+        call_str = stringify_call(sym, args) unless block
+        call_str = stringify_call(sym, args, nil, block.to_ruby) if block
+        write_readable_log(call_str)
+        return __send__(behave_sym, *args, &block)
+      end
+
       @retry_loop << 0
       execution_stack_trace(sym, args) unless block
       execution_stack_trace(sym, args, nil, block.to_ruby) if block

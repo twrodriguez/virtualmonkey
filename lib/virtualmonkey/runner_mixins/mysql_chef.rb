@@ -407,46 +407,46 @@ module VirtualMonkey
                           {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-show_databases"}
                         ]
         @servers.each do |server|
-          unless server.multicloud
   #mysql commands to generate data for collectd to return
-            for ii in 1...100
-  #TODO: have to select db with every call.  figure a better way to do this and get rid of fast and ugly
-  # cut and past hack.
-             run_query("show databases", server)
-             run_query("create database test#{ii}", server)
-             run_query("use test#{ii}; create table test#{ii}(test text)", server)
-             run_query("use test#{ii};show tables", server)
-             run_query("use test#{ii};insert into test#{ii} values ('1')", server)
-             run_query("use test#{ii};update test#{ii} set test='2'", server)
-             run_query("use test#{ii};select * from test#{ii}", server)
-             run_query("use test#{ii};delete from test#{ii}", server)
-             run_query("show variables", server)
-             run_query("show status", server)
-             run_query("use test#{ii};grant select on test.* to root", server)
-             run_query("use test#{ii};alter table test#{ii} rename to test2#{ii}", server)
-            end
-            mysql_plugins.each do |plugin|
-              monitor = obj_behavior(server, :get_sketchy_data, { 'start' => -60,
-                                                                  'end' => -20,
-                                                                  'plugin_name' => plugin['plugin_name'],
-                                                                  'plugin_type' => plugin['plugin_type']})
-              value = monitor['data']['value']
-              raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} data" unless value.length > 0
-              # Need to check for that there is at least one non 0 value returned.
-              for nn in 0...value.length
-                if value[nn] > 0
-                  break
-                end
+          query = 100.times { |i| i }.map do |ii|
+            temp =<<EOS
+show databases;
+create database test#{ii};
+use test#{ii};
+create table test#{ii}(test text);
+show tables;
+insert into test#{ii} values ('1');
+update test#{ii} set test='2';
+select * from test#{ii};
+delete from test#{ii};
+show variables;
+show status;
+grant select on test.* to root;
+alter table test#{ii} rename to test2#{ii};
+EOS
+          end
+          run_query(query.join("\n"), server)
+          mysql_plugins.each do |plugin|
+            monitor = obj_behavior(server, :get_sketchy_data, { 'start' => -60,
+                                                                'end' => -20,
+                                                                'plugin_name' => plugin['plugin_name'],
+                                                                'plugin_type' => plugin['plugin_type']})
+            value = monitor['data']['value']
+            raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} data" unless value.length > 0
+            # Need to check for that there is at least one non 0 value returned.
+            for nn in 0...value.length
+              if value[nn] > 0
+                break
               end
-              raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} time" unless nn < value.length
-              puts "Monitoring is OK for #{plugin['plugin_name']}-#{plugin['plugin_type']}"
             end
+            raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} time" unless nn < value.length
+            puts "Monitoring is OK for #{plugin['plugin_name']}-#{plugin['plugin_type']}"
           end
         end
       end
   
       def set_variation_dnschoice(dns_choice)
-	 @deployment.set_input("sys_dns/choice", "#{dns_choice}")
+        @deployment.set_input("sys_dns/choice", "#{dns_choice}")
       end
       
       def set_variation_http_only
