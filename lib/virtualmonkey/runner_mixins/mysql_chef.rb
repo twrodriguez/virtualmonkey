@@ -220,9 +220,8 @@ module VirtualMonkey
                         ]
         @servers.each do |server|
   #mysql commands to generate data for collectd to return
-          query = []
-          100.times do |ii|
-            query << <<EOS
+          50.times do |ii|
+            query = <<EOS
 show databases;
 create database test#{ii};
 use test#{ii};
@@ -237,8 +236,8 @@ show status;
 grant select on test.* to root;
 alter table test#{ii} rename to test2#{ii};
 EOS
+            run_query(query, server)
           end
-          run_query(query.join("\n"), server)
           mysql_plugins.each do |plugin|
             monitor = obj_behavior(server, :get_sketchy_data, { 'start' => -60,
                                                                 'end' => -20,
