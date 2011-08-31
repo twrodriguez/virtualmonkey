@@ -38,7 +38,9 @@ test "reboot" do
   run_reboot_operations
   check_monitoring
   check_mysql_monitoring
-  run_restore_with_timestamp_override
 end
 
-# TODO: cleanup snapshots, primary and secondary containers
+after do
+  cleanup_volumes
+  cleanup_snapshots
+end

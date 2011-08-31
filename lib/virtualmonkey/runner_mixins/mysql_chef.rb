@@ -26,13 +26,13 @@ module VirtualMonkey
                    [ 'do_restore', 'db::do_restore' ],
                    [ 'do_backup', 'db::do_backup' ],
                    [ 'do_restore', 'db::do_restore' ],
-                   [  'do_backup_schedule_enable', 'db::do_backup_schedule_enable'],
-                   ['do_backup_schedule_disable', 'db::do_backup_schedule_disable'],
-                   ['do_appservers_allow', 'db::do_appservers_allow'              ],
-                   ['do_appservers_deny', 'db::do_appservers_deny'],
-                   [ 'do_force_reset', 'db::do_force_reset'   ],
-                   ['setup_rule', 'sys_firewall::setup_rule'],
-                   ['do_list_rules', 'sys_firewall::do_list_rules'],
+                   [ 'do_backup_schedule_enable', 'db::do_backup_schedule_enable' ],
+                   [ 'do_backup_schedule_disable', 'db::do_backup_schedule_disable' ],
+                   [ 'do_appservers_allow', 'db::do_appservers_allow' ],
+                   [ 'do_appservers_deny', 'db::do_appservers_deny' ],
+                   [ 'do_force_reset', 'db::do_force_reset' ],
+                   [ 'setup_rule', 'sys_firewall::setup_rule' ],
+                   [ 'do_list_rules', 'sys_firewall::do_list_rules' ],
                    [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ],
                    [ 'do_reconverge_list_disable', 'sys::do_reconverge_list_disable' ],
                    [ 'do_force_reset', 'db::do_force_reset' ]
@@ -42,6 +42,70 @@ module VirtualMonkey
         st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
         load_script_table(st,scripts,st)
       end
+
+      # Find all snapshots associated with this deployment's lineage
+      def find_snapshots
+        s = @servers.first
+        unless @lineage
+          kind_params = s.parameters
+          @lineage = kind_params['db/backup/lineage'].gsub(/text:/, "")
+        end
+        if s.cloud_id.to_i < 10
+          snapshots = Ec2EbsSnapshot.find_by_cloud_id(s.cloud_id).select { |n| n.tags(true).include?("rs_backup:lineage=#{@lineage}") }
+        elsif s.cloud_id.to_i == 232
+          snapshot = [] # Ignore Rackspace, there are no snapshots
+        else
+          snapshots = McVolumeSnapshot.find_all(s.cloud_id).select { |n| n.tags(true).include?("rs_backup:lineage=#{@lineage}") }
+        end
+        snapshots
+      end
+
+      def find_snapshot_timestamp(server, provider = :volume)
+        case provider
+        when :volume
+          if server.cloud_id.to_i != 232
+            last_snap = find_snapshots.last
+            last_snap.tags(true).detect { |t| t =~ /timestamp=(\d+)$/ }
+            timestamp = $1
+          else #Rackspace uses cloudfiles object store
+            cloud_files = Fog::Storage.new(:provider => 'Rackspace')
+            if dir = cloud_files.directories.detect { |d| d.key == @container }
+              dir.files.first.key =~ /-([0-9]+\/[0-9]+)/
+              timestamp = $1
+            end
+          end
+        when "S3"
+          s3 = Fog::Storage.new(:provider => 'AWS')
+          if dir = s3.directories.detect { |d| d.key == @secondary_container }
+            dir.files.first.key =~ /-([0-9]+\/[0-9]+)/
+            timestamp = $1
+          end
+        when "CloudFiles"
+          cloud_files = Fog::Storage.new(:provider => 'Rackspace')
+          if dir = cloud_files.directories.detect { |d| d.key == @secondary_container }
+            dir.files.first.key =~ /-([0-9]+\/[0-9]+)/
+            timestamp = $1
+          end
+        else
+          raise "FATAL: Provider #{provider.to_s} not supported."
+        end
+        return timestamp
+      end
+
+      def cleanup_snapshots
+        find_snapshots.each do |snap|
+          snap.destroy
+        end
+      end
+
+      def cleanup_volumes
+        @servers.each do |server|
+          unless ["stopped", "pending", "inactive"].include?(server.state)
+            run_script("do_force_reset", server)
+          end
+        end
+      end
+
 
       def import_unified_app_sqldump
         load_script('import_dump', RightScript.new('href' => '/api/acct/2901/right_scripts/187123'))
@@ -54,13 +118,19 @@ module VirtualMonkey
       def set_variation_lineage()
         @lineage = "testlineage#{resource_id(@deployment)}"
         puts "Set variation LINEAGE: #{@lineage}"
-        @deployment.set_input( 'db/backup/lineage', "text:#{@lineage}")
+        @deployment.set_input('db/backup/lineage', "text:#{@lineage}")
+        @servers.each do |server|
+          server.set_inputs({"db/backup/lineage" => "text:#{@lineage}"})
+        end
       end
   
       def set_variation_container
         @container = "testlineage#{resource_id(@deployment)}"
         puts "Set variation CONTAINER: #{@container}"
         @deployment.set_input("block_device/storage_container", "text:#{@container}")
+        @servers.each do |server|
+          server.set_inputs({"block_device/storage_container" => "text:#{@container}"})
+        end
       end
   
       def test_primary_backup
@@ -74,15 +144,28 @@ module VirtualMonkey
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
         end
+        run_script("do_force_reset", s_one)
+        run_script("do_restore", s_one, {"db/backup/timestamp_override" =>
+                                         "text:#{find_snapshot_timestamp(s_one)}" })
+        probe(s_one, "ls /mnt/storage") do |result, status|
+          raise "FATAL: no files found in the backup" if result == nil || result.empty?
+          true
+        end
       end
   
       def set_secondary_backup_inputs(location="S3")
-        container = "test_secondary#{resource_id(@deployment)}"
-        puts "Set secondary backup CONTAINER: #{container}"
-        @deployment.set_input( "db/backup/secondary_container", "text:#{container}")
+        @secondary_container = "test_secondary#{resource_id(@deployment)}"
+        puts "Set secondary backup CONTAINER: #{@secondary_container}"
+        @deployment.set_input("db/backup/secondary_container", "text:#{@secondary_container}")
+        @servers.each do |server|
+          server.set_inputs({"db/backup/secondary_container" => "text:#{@secondary_container}"})
+        end
         location ||= "CloudFiles"
         puts "Set secondary backup LOCATION: #{location}"
         @deployment.set_input( "db/backup/secondary_location", "text:#{location}")
+        @servers.each do |server|
+          server.set_inputs({"db/backup/secondary_location" => "text:#{location}"})
+        end
       end
   
       def test_secondary_backup(location="S3")
@@ -97,6 +180,13 @@ module VirtualMonkey
           wait_for_snapshots
           run_script("do_force_reset", s_one)
           run_script("do_restore", s_one)
+          probe(s_one, "ls /mnt/storage") do |result, status|
+            raise "FATAL: no files found in the backup" if result == nil || result.empty?
+            true
+          end
+          run_script("do_force_reset", s_one)
+          run_script("do_restore", s_one, {"db/backup/timestamp_override" =>
+                                           "text:#{find_snapshot_timestamp(s_one,location)}" })
           probe(s_one, "ls /mnt/storage") do |result, status|
             raise "FATAL: no files found in the backup" if result == nil || result.empty?
             true
