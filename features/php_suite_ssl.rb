@@ -7,9 +7,6 @@ end
 before do
 # PHP/FE variations
 
-# TODO: variations to set
-# mysql fqdn
-
  # sets ssl inputs at deployment level
 
   @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
@@ -21,7 +18,6 @@ before do
 # Mysql variations
   @runner.set_variation_lineage
   @runner.set_variation_container
-  @runner.set_variation_storage_type
 
 # launching
   @runner.launch_set(:mysql_servers)
