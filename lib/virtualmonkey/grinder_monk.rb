@@ -146,7 +146,7 @@ class GrinderMonk
     deployment_hsh.each { |feature,deploy_ary|
       total_keys = test_cases[feature].get_keys
       total_keys = total_keys - (total_keys - set) unless set.nil? || set.empty?
-      if ENV['FULL_TEST_PERMUTATION']
+      if ENV['MONKEY_FULL_TEST_PERMUTATION']
         deployment_tests = [total_keys] * deploy_ary.length
       else
         keys_per_dep = (total_keys.length.to_f / deploy_ary.length.to_f).ceil
