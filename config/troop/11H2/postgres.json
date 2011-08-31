@@ -1,7 +1,7 @@
 {
   "prefix":"PGSQL_TROOP",
 
-  "common_inputs":"postgres.json",
+  "common_inputs":["postgres.json","chef_swap.json"],
   "server_template_ids":[
     "98744",
     "98744",

@@ -1,7 +1,7 @@
 {
   "prefix":"JENKINS_TROOP",
 
-  "common_inputs":["jenkins.json","dr_toolbox.json"],
+  "common_inputs":["jenkins.json","dr_toolbox.json","chef_swap.json"],
   "server_template_ids":[
     "108414"
   ],

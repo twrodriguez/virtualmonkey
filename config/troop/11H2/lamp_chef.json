@@ -2,7 +2,7 @@
   "feature":"lamp_chef.rb",
   "cloud_variables":"all_clouds.json",
 
-  "common_inputs":"lamp_chef.json",
+  "common_inputs":["lamp_chef.json","chef_swap.json"],
   "prefix":"MONKEY_LAMP_TESTING",
   "server_template_ids":[
     "106233"

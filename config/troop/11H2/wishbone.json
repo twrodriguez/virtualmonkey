@@ -8,6 +8,6 @@
     "27958",
     "107666"
   ],
-  "common_inputs":"wishbone.json",
+  "common_inputs":["wishbone.json","chef_swap.json"],
   "prefix":"WISHBONE_TROOP"
 }

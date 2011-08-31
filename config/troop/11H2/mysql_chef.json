@@ -1,6 +1,6 @@
 {
   "prefix":"MYSQL_51_CHEF_TROOP",
-  "common_inputs":"mysql_chef.json",
+  "common_inputs":["mysql_chef.json","chef_swap.json"],
   "server_template_ids":[
    "107666" 
   ],

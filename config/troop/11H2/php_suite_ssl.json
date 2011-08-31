@@ -1,7 +1,7 @@
 {
   "feature":"php_suite_ssl.rb",
   "cloud_variables":"all_clouds.json",
-  "common_inputs":["php_suite.json", "php_suite_ssl.json"],
+  "common_inputs":["php_suite.json", "php_suite_ssl.json", "chef_swap.json"],
   "prefix":"PHP_SSL",
   "server_template_ids":[
     "27958",
