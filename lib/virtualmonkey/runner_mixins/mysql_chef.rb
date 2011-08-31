@@ -192,9 +192,9 @@ module VirtualMonkey
       # Runs a mysql query on specified server.
       # * query<~String> a SQL query string to execute
       # * server<~Server> the server to run the query on 
-      def run_query(query, server)
+      def run_query(query, server, &block)
         query_command = "echo -e \"#{query}\"| mysql"
-        probe(server, query_command)
+        probe(server, query_command, &block)
       end
   
       # Sets DNS record for the Master server to point at server
@@ -214,7 +214,7 @@ module VirtualMonkey
   
       # uses SharedDns to find an available set of DNS records and sets them on the deployment
       def setup_dns(domain)
-  # TODO should we just use the ID instead of the full href?
+        # TODO should we just use the ID instead of the full href?
         owner=@deployment.href
         @dns = SharedDns.new(domain)
         raise "Unable to reserve DNS" unless @dns.reserve_dns(owner)
@@ -222,25 +222,25 @@ module VirtualMonkey
       end
      
       def setup_block_device
-  puts "SETUP_BLOCK_DEVICE"
-       run_script("setup_block_device", s_one)
+        puts "SETUP_BLOCK_DEVICE"
+        run_script("setup_block_device", s_one)
       end
   
       def do_backup
-  puts "BACKUP"
-       run_script("do_backup", s_one)
-  puts "BAD BAD SLEEPING TIL SNAPSHOT IS COMPLETE"
+        puts "BACKUP"
+        run_script("do_backup", s_one)
+        puts "BAD BAD SLEEPING TIL SNAPSHOT IS COMPLETE"
         sleep 30
       end
   
       def do_restore
-  puts "RESTORE"
-       run_script("do_restore", s_one)
+        puts "RESTORE"
+        run_script("do_restore", s_one)
       end
   
       def do_force_reset
-  puts "RESET"
-       run_script("do_force_reset", s_one)
+        puts "RESET"
+        run_script("do_force_reset", s_one)
       end
   
       # releases records back into the shared DNS pool
@@ -355,21 +355,38 @@ module VirtualMonkey
   #    end
   #
       def run_reboot_operations
-  # Duplicate code here because we need to wait between the master and the slave time
+        # set up a database to test after we reboot
+        @engines = ['myisam', 'innodb']
+        @servers.each do |server|
+          run_query("create database monkey_database", server)
+          @engines.each do |engine|
+            run_query("use monkey_database; create table monkey_table_#{engine} (monkey_column text) engine = #{engine}; insert into monkey_table_#{engine} values ('Hello monkey!')", server)
+          end
+        end
+        # Duplicate code here because we need to wait between the master and the slave time
         #reboot_all(true) # serially_reboot = true
         @servers.each do |s|
           obj_behavior(s, :reboot, true)
           obj_behavior(s, :wait_for_state, "operational")
         end
-       wait_for_all("operational")
-       run_reboot_checks
+        wait_for_all("operational")
+        run_reboot_checks
       end
   
       # This is where we perform multiple checks on the deployment after a reboot.
       def run_reboot_checks
+        # test that the data we created is still there after the reboot
+        @servers.each do |server|
+          @engines.each do |engine|
+            run_query("use monkey_database; select monkey_column from monkey_table_#{engine}", server) do |result, status|
+              raise "Database reboot failed, data is missing: #{result}" unless result =~ /Hello monkey!/
+              true
+            end
+          end
+        end
         # one simple check we can do is the backup.  Backup can fail if anything is amiss
         @servers.each do |server|
-         run_script("do_backup", server)
+          run_script("do_backup", server)
         end
       end
   

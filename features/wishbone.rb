@@ -1,9 +1,8 @@
 set :runner, VirtualMonkey::Runner::Wishbone
 
 hard_reset do
-@runner.stop_all
+  @runner.stop_all
 end
-
 
 before do
 # PHP/FE variations
@@ -41,7 +40,7 @@ before "run_unified_application_checks" do
   @runner.test_attach_all
 end
 
- test "run_unified_application_checks" do
+test "run_unified_application_checks" do
   @runner.run_unified_application_checks(:fe_servers, 80)
 end
 
