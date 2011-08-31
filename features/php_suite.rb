@@ -37,7 +37,6 @@ end
 #
 
 test "run_unified_application_checks" do
-  sleep(360)
   @runner.run_unified_application_checks(:fe_servers, 80)
 
 end

@@ -324,16 +324,16 @@ class DeploymentMonk
       # Set inputs at the Deployment level
       # If deployment has the string "-cloud_#-", then collect inputs from cloud_vars
       if d.cloud_id and load_vars_for_cloud(d.cloud_id)
-        set_inputs(d, c_inputs.deep_merge(@variables_for_cloud[d.cloud_id.to_s]['parameters']))
+        d.set_inputs(c_inputs.deep_merge(@variables_for_cloud[d.cloud_id.to_s]['parameters']))
       else
-        set_inputs(d, c_inputs)
+        d.set_inputs(c_inputs)
       end
 
       # Set inputs at the Server level
       d.servers.each { |s|
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s).to_s
         cv_inputs = (load_vars_for_cloud(cid) ? @variables_for_cloud[cid]['parameters'] : {})
-        set_inputs(s, c_inputs.deep_merge(cv_inputs))
+        s.set_inputs(c_inputs.deep_merge(cv_inputs))
       }
     end
   end

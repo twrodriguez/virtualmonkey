@@ -115,11 +115,14 @@ module VirtualMonkey
       end
 
       def set_variation_ssl_chain
-        fe_servers.first.set_info_tags({'ssl_chain' => 'true'})
-        ssl_chain_server.set_inputs({"web_apache/ssl_certificate_chain" => "cred:virtual_monkey_certificate_chain"})
+        s = fe_servers.first
+	s.set_info_tags({'ssl_chain' => 'true'})
+        s.set_inputs({"web_apache/ssl_certificate_chain" => "cred:virtual_monkey_certificate_chain"})
       end
 
       def set_variation_ssl_passphrase
+        fe_servers.first.settings
+        fe_servers[1].settings
         fe_servers.first.set_info_tags({'ssl_passphrase' => 'true'})
         inputs = {"web_apache/ssl_enable" => "text:true",
                   "web_apache/ssl_key" => "cred:virtual_monkey_key_withpass",

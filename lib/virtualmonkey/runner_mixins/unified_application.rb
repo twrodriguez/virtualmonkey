@@ -10,7 +10,7 @@ module VirtualMonkey
           puts cmd
           `#{cmd}`
         }
-        set_in_agreement = response_set.unanimous? { |response| response =~ /#{expected_string}/ }
+        set_in_agreement = response_set.unanimous? { |response| response.include?("#{expected_string}") }
 #        set_in_agreement = response_set.all? { |response| response =~ /#{expected_string}/ }
 #        set_in_agreement ||= !(response_set.any? { |response| response =~ /#{expected_string}/ })
         puts response_set.pretty_inspect unless set_in_agreement
