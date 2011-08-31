@@ -53,14 +53,14 @@ module VirtualMonkey
       # * kind<~String> can be "chef" or nil
       def set_variation_lineage()
         @lineage = "testlineage#{resource_id(@deployment)}"
-  puts "Set variation LINEAGE: #{@lineage}"
-        obj_behavior(@deployment, :set_input, 'db/backup/lineage', "text:#{@lineage}")
+        puts "Set variation LINEAGE: #{@lineage}"
+        @deployment.set_input( 'db/backup/lineage', "text:#{@lineage}")
       end
   
       def set_variation_container
         @container = "testlineage#{resource_id(@deployment)}"
-  puts "Set variation CONTAINER: #{@container}"
-        obj_behavior(@deployment, :set_input, "block_device/storage_container", "text:#{@container}")
+        puts "Set variation CONTAINER: #{@container}"
+        @deployment.set_input("block_device/storage_container", "text:#{@container}")
       end
   
       def test_primary_backup
@@ -76,12 +76,31 @@ module VirtualMonkey
         end
       end
   
-      def test_secondary_backup
+      def set_secondary_backup_inputs(location="S3")
+        container = "test_secondary#{resource_id(@deployment)}"
+        puts "Set secondary backup CONTAINER: #{container}"
+        @deployment.set_input( "db/backup/secondary_container", "text:#{container}")
+        location ||= "CloudFiles"
+        puts "Set secondary backup LOCATION: #{location}"
+        @deployment.set_input( "db/backup/secondary_location", "text:#{location}")
+      end
+  
+      def test_secondary_backup(location="S3")
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
-        if cid == 232
-          #TODO
+        if cid == 232 && provider == "cloudfiles"
+          puts "Skipping secondary backup to cloudfiles on Rax -- this is already used for primary backup."
         else
-          #TODO
+          set_secondary_backup_inputs(location)
+          run_script("setup_block_device", s_one)
+          probe(s_one, "touch /mnt/storage/monkey_was_here")
+          run_script("do_secondary_backup", s_one)
+          wait_for_snapshots
+          run_script("do_force_reset", s_one)
+          run_script("do_restore", s_one)
+          probe(s_one, "ls /mnt/storage") do |result, status|
+            raise "FATAL: no files found in the backup" if result == nil || result.empty?
+            true
+          end
         end
       end
 
@@ -103,7 +122,7 @@ module VirtualMonkey
   
       # Use the termination script to stop all the servers (this cleans up the volumes)
       def stop_all(wait=true)
-        @servers.each { |s| obj_behavior(s, :stop) }
+        @servers.each { |s| s.stop }
   
        wait_for_all("stopped") if wait
         # unset dns in our local cached copy..
@@ -178,8 +197,8 @@ module VirtualMonkey
         # Duplicate code here because we need to wait between the master and the slave time
         #reboot_all(true) # serially_reboot = true
         @servers.each do |s|
-          obj_behavior(s, :reboot, true)
-          obj_behavior(s, :wait_for_state, "operational")
+          s.reboot(true)
+          s.wait_for_state("operational")
         end
         wait_for_all("operational")
         run_reboot_checks
@@ -222,7 +241,7 @@ module VirtualMonkey
   #mysql commands to generate data for collectd to return
           50.times do |ii|
             query = <<EOS
-show databases;
+show databases; 
 create database test#{ii};
 use test#{ii};
 create table test#{ii}(test text);
@@ -249,6 +268,7 @@ EOS
             for nn in 0...value.length
               if value[nn] > 0
                 break
+
               end
             end
             raise "No #{plugin['plugin_name']}-#{plugin['plugin_type']} time" unless nn < value.length

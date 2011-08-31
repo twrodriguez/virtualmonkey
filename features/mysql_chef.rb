@@ -16,19 +16,21 @@ test "test_primary_backup" do
   @runner.test_primary_backup
 end
 
-# add do_force_reset after 
+after 'test_primary_backup' do
+  @runner.do_force_reset
+end
 
-# test "test_secondary_backup_s3" do
-#   @runner.test_secondary_backup("s3")
-# end
+test "test_secondary_backup_s3" do
+  @runner.test_secondary_backup("S3")
+end
 
-# add do_force_reset after 
+after 'test_secondary_backup_s3' do
+  @runner.do_force_reset
+end
  
-# If in Rax this test should be a noop
-# test "test_secondary_backup_cloudfiles" do
-#   @runner.test_secondary_backup("cloudfiles")
-# end
-
+test "test_secondary_backup_cloudfiles" do
+  @runner.test_secondary_backup("CloudFiles")
+end
 
 test "reboot" do
   @runner.check_mysql_monitoring
@@ -38,6 +40,4 @@ test "reboot" do
   @runner.run_restore_with_timestamp_override
 end
 
-after do
-  @runner.release_dns
-end
+# TODO: cleanup snapshots, primary and secondary containers
