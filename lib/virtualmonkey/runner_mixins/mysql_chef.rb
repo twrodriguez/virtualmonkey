@@ -24,8 +24,8 @@ module VirtualMonkey
                    [ 'setup_block_device', 'db::setup_block_device' ],
                    [ 'do_backup', 'db::do_backup' ],
                    [ 'do_restore', 'db::do_restore' ],
-                   [ 'do_backup', 'db::do_backup' ],
-                   [ 'do_restore', 'db::do_restore' ],
+                   [ 'do_secondary_backup', 'db::do_secondary_backup' ],
+                   [ 'do_secondary_restore', 'db::do_secondary_restore' ],
                    [ 'do_backup_schedule_enable', 'db::do_backup_schedule_enable' ],
                    [ 'do_backup_schedule_disable', 'db::do_backup_schedule_disable' ],
                    [ 'do_appservers_allow', 'db::do_appservers_allow' ],
@@ -51,7 +51,7 @@ module VirtualMonkey
           @lineage = kind_params['db/backup/lineage'].gsub(/text:/, "")
         end
         if s.cloud_id.to_i < 10
-          snapshots = Ec2EbsSnapshot.find_by_cloud_id(s.cloud_id).select { |n| n.tags(true).include?("rs_backup:lineage=#{@lineage}") }
+          snapshots = Ec2EbsSnapshot.find_by_cloud_id(s.cloud_id).select { |n| n.tags.include?("rs_backup:lineage=#{@lineage}") }
         elsif s.cloud_id.to_i == 232
           snapshot = [] # Ignore Rackspace, there are no snapshots
         else
@@ -185,8 +185,8 @@ module VirtualMonkey
             true
           end
           run_script("do_force_reset", s_one)
-          run_script("do_restore", s_one, {"db/backup/timestamp_override" =>
-                                           "text:#{find_snapshot_timestamp(s_one,location)}" })
+          run_script("do_secondary_restore", s_one, { "db/backup/timestamp_override" =>
+                                                      "text:#{find_snapshot_timestamp(s_one,location)}" })
           probe(s_one, "ls /mnt/storage") do |result, status|
             raise "FATAL: no files found in the backup" if result == nil || result.empty?
             true

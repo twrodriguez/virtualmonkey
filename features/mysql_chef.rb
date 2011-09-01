@@ -20,7 +20,7 @@ test "secondary_backup_s3" do
   test_secondary_backup("S3")
 end
 
-test "test_secondary_backup_cloudfiles" do
+test "secondary_backup_cloudfiles" do
   test_secondary_backup("CloudFiles")
 end
 
