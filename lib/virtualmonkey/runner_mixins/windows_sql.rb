@@ -20,7 +20,7 @@ module VirtualMonkey
                    [ 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes', 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes' ],
                    [ 'DB SQLS Repair log files', 'DB SQLS Repair log files' ],
                  ]
-        st = ServerTemplate.find(112763)
+        st = ServerTemplate.find(s_one.server_template_href)
         load_script_table(st,scripts)
         load_script('sql_db_check', RightScript.new('href' => "/api/acct/2901/right_scripts/335104"))
         load_script('load_db', RightScript.new('href' => "/api/acct/2901/right_scripts/331394"))
@@ -29,6 +29,43 @@ module VirtualMonkey
         load_script('log_repair_before', RightScript.new('href' => "/api/acct/2901/right_scripts/381785"))
         load_script('log_repair_after', RightScript.new('href' => "/api/acct/2901/right_scripts/382117"))
         load_script('new_name_check', RightScript.new('href' => "/api/acct/2901/right_scripts/382185"))
+      end
+
+      def set_test_lineage
+        @lineage = "monkey_ms_sql_testlineage#{resource_id(@deployment)}"
+        @deployment.set_input("DB_LINEAGE_NAME", "text:#{@lineage}")
+        s_one.set_inputs({"DB_LINEAGE_NAME" => "text:#{@lineage}"})
+      end
+
+      # Find all snapshots associated with this deployment's lineage
+      def find_snapshots
+        s = @servers.first
+        unless @lineage
+          kind_params = s.parameters
+          @lineage = kind_params['DB_LINEAGE_NAME'].gsub(/text:/, "")
+        end
+        if s.cloud_id.to_i < 10
+          snapshots = Ec2EbsSnapshot.find_by_tags("rs_backup:lineage=#{@lineage}")
+        elsif s.cloud_id.to_i == 232
+          snapshot = [] # Ignore Rackspace, there are no snapshots
+        else
+          snapshots = McVolumeSnapshot.find_by_tags("rs_backup:lineage=#{@lineage}").select { |vs| vs.cloud.split(/\//).last.to_i == s.cloud_id.to_i }
+        end
+        snapshots
+      end
+
+      def cleanup_volumes
+        @servers.each do |server|
+          unless ["stopped", "pending", "inactive", "decommissioning"].include?(server.state)
+            run_script('DB SQLS DISABLE SERVER - snapshot, detach and delete volumes', server)
+          end
+        end
+      end
+
+      def cleanup_snapshots
+        find_snapshots.each do |snap|
+          snap.destroy
+        end 
       end
 
     end

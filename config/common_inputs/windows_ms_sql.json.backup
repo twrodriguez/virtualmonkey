@@ -1,0 +1,6 @@
+{
+  "ADMIN_PASSWORD" : "text:miramar",
+  "DB_LINEAGE_NAME" : "text:monkey_ms_sql",
+  "DISABLE_SAFETY" : "text:off",
+  "SIZE_VOLUME_GB" : "text:2"
+}

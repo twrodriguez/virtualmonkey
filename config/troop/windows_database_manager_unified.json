@@ -1,0 +1,9 @@
+{
+  "feature":"windows_ms_sql_unified.rb",
+  "cloud_variables":"aws_clouds.json",
+  "common_inputs":"windows_ms_sql.json",
+  "prefix":"MD_MS_SQL_TROOP",
+  "server_template_ids":[
+    "104629"
+  ]
+}
