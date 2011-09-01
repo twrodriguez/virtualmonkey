@@ -8,6 +8,9 @@ module VirtualMonkey
         @lineage = "monkey_ms_sql_testlineage#{resource_id(@deployment)}"
         @deployment.set_input("DB_LINEAGE_NAME", "text:#{@lineage}")
         s_one.set_inputs({"DB_LINEAGE_NAME" => "text:#{@lineage}"})
+        @prefix = "#{resource_id(@deployment)}"
+        @deployment.set_input("OPT_FILE_PREFIX", "text:#{@prefix}")
+        s_one.set_inputs({"OPT_FILE_PREFIX" => "text:#{@prefix}"})
       end
       
       def vitaly_windows_sqls_toolbox_lookup_scripts
