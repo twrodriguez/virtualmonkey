@@ -51,11 +51,13 @@ module VirtualMonkey
           @lineage = kind_params['db/backup/lineage'].gsub(/text:/, "")
         end
         if s.cloud_id.to_i < 10
-          snapshots = Ec2EbsSnapshot.find_by_cloud_id(s.cloud_id).select { |n| n.tags.include?("rs_backup:lineage=#{@lineage}") }
+#          snapshots = Ec2EbsSnapshot.find_by_cloud_id(s.cloud_id).select { |n| n.tags.include?("rs_backup:lineage=#{@lineage}") }
+          snapshots = Ec2EbsSnapshot.find_by_tags("rs_backup:lineage=#{@lineage}")
         elsif s.cloud_id.to_i == 232
           snapshot = [] # Ignore Rackspace, there are no snapshots
         else
-          snapshots = McVolumeSnapshot.find_all(s.cloud_id).select { |n| n.tags(true).include?("rs_backup:lineage=#{@lineage}") }
+#          snapshots = McVolumeSnapshot.find_all(s.cloud_id).select { |n| n.tags(true).include?("rs_backup:lineage=#{@lineage}") }
+          snapshots = McVolumeSnapshot.find_by_tags("rs_backup:lineage=#{@lineage}").select { |vs| vs.cloud.split(/\//).last.to_i == s.cloud_id.to_i }
         end
         snapshots
       end
