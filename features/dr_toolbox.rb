@@ -71,7 +71,7 @@ end
 
 test 'mount_point' do
   transaction do
-    test_volume
+    test_backup
   end
 end
 
