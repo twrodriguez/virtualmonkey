@@ -84,17 +84,23 @@ module VirtualMonkey
         @@remaining_jobs = @@gm.jobs.dup
 
         watch = EM.add_periodic_timer(10) {
-          @@gm.watch_and_report
-          if @@gm.all_done?
-            watch.cancel
-          end
-          
-          if @@options[:terminate] and not (@@options[:list_trainer] or @@options[:qa])
-            @@remaining_jobs.each do |job|
-              if job.status == 0
-                destroy_job_logic(job)
+          begin
+            @@gm.watch_and_report
+            if @@gm.all_done?
+              watch.cancel
+            end
+            
+            if @@options[:terminate] and not (@@options[:list_trainer] or @@options[:qa])
+              @@remaining_jobs.each do |job|
+                if job.status == 0
+                  destroy_job_logic(job)
+                end
               end
             end
+          rescue Interrupt
+            exit(1)
+          rescue Exception => e
+            puts "WARNING: Got #{e.message} from #{e.backtrace.first}"
           end
         }
         if @@options[:list_trainer] or @@options[:qa]
@@ -143,33 +149,42 @@ module VirtualMonkey
       @@do_these.each do |deploy|
         runner = @@options[:runner].new(deploy.nickname)
         runner.stop_all(false)
-        state_dir = File.join(@@global_state_dir, deploy.nickname)
-        if File.directory?(state_dir)
-          puts "Deleting state files for #{deploy.nickname}..."
-          Dir.new(state_dir).each do |state_file|
-            if File.extname(state_file) =~ /((rb)|(feature))/
-              File.delete(File.join(state_dir, state_file))
+        complete = false
+        begin
+          state_dir = File.join(@@global_state_dir, deploy.nickname)
+          if File.directory?(state_dir)
+            puts "Deleting state files for #{deploy.nickname}..."
+            Dir.new(state_dir).each do |state_file|
+              if File.extname(state_file) =~ /((rb)|(feature))/
+                File.delete(File.join(state_dir, state_file))
+              end 
             end 
+            FileUtils.rm_rf(state_dir)
           end 
-          FileUtils.rm_rf(state_dir)
-        end 
-        #Release DNS logic
-        if runner.respond_to?(:release_dns) and not @@options[:keep]
-          release_all_dns_domains(deploy.href)
-        end
-        if runner.respond_to?(:release_container) and not @@options[:keep]
-          runner.release_container
-        end
-        # Cleanup volumes and snapshots for runners that support it.
-        if runner.respond_to?(:set_variation_lineage) and not @@options[:keep]
-          runner.set_variation_lineage
-        end
-        if runner.respond_to?(:cleanup_volumes) and not @@options[:keep]
-          runner.cleanup_volumes
-        end
-        if runner.respond_to?(:cleanup_snapshots) and not @@options[:keep]
-          runner.cleanup_snapshots
-        end
+          #Release DNS logic
+          if runner.respond_to?(:release_dns) and not @@options[:keep]
+            release_all_dns_domains(deploy.href)
+          end
+          if runner.respond_to?(:release_container) and not @@options[:keep]
+            runner.release_container
+          end
+          # Cleanup volumes and snapshots for runners that support it.
+          if runner.respond_to?(:set_variation_lineage) and not @@options[:keep]
+            runner.set_variation_lineage
+          end
+          if runner.respond_to?(:cleanup_volumes) and not @@options[:keep]
+            runner.cleanup_volumes
+          end
+          if runner.respond_to?(:cleanup_snapshots) and not @@options[:keep]
+            runner.cleanup_snapshots
+          end
+          complete = true
+        rescue Interrupt
+          exit(1)
+        rescue Exception => e
+          puts "WARNING: Got #{e.message} from #{e.backtrace.first}"
+          sleep 5
+        end while not complete
       end 
 
       @@dm.destroy_all unless @@options[:keep]

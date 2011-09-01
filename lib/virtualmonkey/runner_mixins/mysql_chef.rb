@@ -100,7 +100,7 @@ module VirtualMonkey
 
       def cleanup_volumes
         @servers.each do |server|
-          unless ["stopped", "pending", "inactive"].include?(server.state)
+          unless ["stopped", "pending", "inactive", "decommissioning"].include?(server.state)
             run_script("do_force_reset", server)
           end
         end

@@ -18,23 +18,23 @@ end
 #
 
 before "volume_backup", "s3_backup", "cloudfiles_backup" do
-  do_force_reset
+  run_script("do_force_reset", s_one)
 end
 
 test "volume_backup" do
-  test_volume_backup
+  test_backup
 end
 
 test "s3_backup" do
-  test_ros_backup("S3")
+  test_backup("S3")
 end
 
 test "cloudfiles_backup" do
-  test_ros_backup("CloudFiles")
+  test_backup("CloudFiles")
 end
 
 after "volume_backup", "s3_backup", "cloudfiles_backup" do
-  do_force_reset
+  run_script("do_force_reset", s_one)
 end
 
 #
@@ -42,7 +42,7 @@ end
 #
 
 before "continuous_volume_backup", "continuous_s3_backup", "continuous_cloudfiles_backup" do
-  do_force_reset
+  run_script("do_force_reset", s_one)
 end
 
 test "continuous_volume_backup" do
@@ -58,7 +58,7 @@ test "continuous_cloudfiles_backup" do
 end
 
 after "continuous_volume_backup", "continuous_s3_backup", "continuous_cloudfiles_backup" do
-  do_force_reset
+  run_script("do_force_reset", s_one)
 end
 
 #
