@@ -9,6 +9,7 @@ before do
   set_variation_lineage
   set_variation_container
   set_variation_mount_point
+  set_variation_storage_type
   launch_all
   wait_for_all("operational")
 end
