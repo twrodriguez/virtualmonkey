@@ -169,7 +169,7 @@ module VirtualMonkey
   
       def test_secondary_backup(location="S3")
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
-        if cid == 232 && provider == "cloudfiles"
+        if cid == 232 && location == "CloudFiles"
           puts "Skipping secondary backup to cloudfiles on Rax -- this is already used for primary backup."
         else
           set_secondary_backup_inputs(location)
