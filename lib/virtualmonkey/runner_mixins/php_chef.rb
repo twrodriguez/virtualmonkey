@@ -5,16 +5,19 @@ module VirtualMonkey
       def set_mysql_fqdn
         the_name = mysql_servers.first.dns_name
         @deployment.set_input("db_mysql/fqdn", "text:#{the_name}")
+        @deployment.set_input("db/fqdn", "text:#{the_name}")
       end
 
       def set_private_mysql_fqdn
         the_name = mysql_servers.first.private_ip 
         the_name = mysql_servers.first.dns_name unless the_name
         @deployment.set_input("db_mysql/fqdn", "text:#{the_name}")
+        @deployment.set_input("db/fqdn", "text:#{the_name}")
+        @servers.each { |s| s.set_input("db/fqdn", "text:#{the_name}") }
       end
 
       def disable_fe_reconverge
-        run_script_on_set('disable_reconverge', fe_servers)
+        run_script_on_set('do_reconverge_list_disable', fe_servers)
       end
 
       def detach_all
@@ -36,14 +39,14 @@ module VirtualMonkey
       end
 
       def enable_lb_reconverge
-        run_script_on_set('enable_reconverge', fe_servers)
+        run_script_on_set('do_reconverge_list_enable', fe_servers)
       end
 
       def php_chef_fe_lookup_scripts
         recipes = [
                     [ 'attach_all', 'lb_haproxy::do_attach_all' ],
-                    [ 'disable_reconverge', 'sys::do_reconverge_list_disable' ],
-                   [ 'enable_reconverge', 'sys::do_reconverge_list_enable' ]
+                    [ 'do_reconverge_list_disable', 'sys::do_reconverge_list_disable' ],
+                   [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ]
                   ]
         fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
         load_script_table(fe_st,recipes)
@@ -112,11 +115,14 @@ module VirtualMonkey
       end
 
       def set_variation_ssl_chain
-        fe_servers.first.set_info_tags({'ssl_chain' => 'true'})
-        ssl_chain_server.set_inputs({"web_apache/ssl_certificate_chain" => "cred:virtual_monkey_certificate_chain"})
+        s = fe_servers.first
+	s.set_info_tags({'ssl_chain' => 'true'})
+        s.set_inputs({"web_apache/ssl_certificate_chain" => "cred:virtual_monkey_certificate_chain"})
       end
 
       def set_variation_ssl_passphrase
+        fe_servers.first.settings
+        fe_servers[1].settings
         fe_servers.first.set_info_tags({'ssl_passphrase' => 'true'})
         inputs = {"web_apache/ssl_enable" => "text:true",
                   "web_apache/ssl_key" => "cred:virtual_monkey_key_withpass",

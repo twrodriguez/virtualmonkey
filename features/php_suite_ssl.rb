@@ -1,16 +1,16 @@
 set :runner, VirtualMonkey::Runner::PhpChef
 
-clean_start do
+hard_reset do
   @runner.stop_all
 end
 
 before do
 # PHP/FE variations
 
-# TODO: variations to set
-# mysql fqdn
-
  # sets ssl inputs at deployment level
+
+  @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+  @runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   @runner.set_variation_ssl
   @runner.set_variation_ssl_chain
   @runner.set_variation_ssl_passphrase
@@ -18,7 +18,6 @@ before do
 # Mysql variations
   @runner.set_variation_lineage
   @runner.set_variation_container
-  @runner.set_variation_storage_type
 
 # launching
   @runner.launch_set(:mysql_servers)

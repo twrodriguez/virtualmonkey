@@ -117,17 +117,24 @@ module VirtualMonkey
                     Object.new().methods - Object.new().private_methods -
                     VirtualMonkey::TestCaseInterface.instance_methods -
                     VirtualMonkey::TestCaseInterface.private_instance_methods
-      behavior_methods = all_methods.select { |m| m !~ /(^set)|(exception_handle)|(^__.*__$)|(resource_id)|(^__behavior)/i }
+      behavior_methods = all_methods.select { |m| m !~ /(exception_handle)|(^__.*__$)|(resource_id)|(^__behavior)/i }
       # SKIP this if we've already done the alias_method dance
       return if self.respond_to?("__behavior_#{behavior_methods.first}".to_sym)
 
       behavior_methods.each do |m|
         new_m = "__behavior_#{m}"
-        self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{new_m}, *args, &block); end")
+        self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{m},:#{new_m}, *args, &block); end")
       end
     end
     
-    def function_wrapper(sym, *args, &block)
+    def function_wrapper(sym, behave_sym, *args, &block)
+      if sym.to_s =~ /^set/
+        call_str = stringify_call(sym, args) unless block
+        call_str = stringify_call(sym, args, nil, block.to_ruby) if block
+        write_readable_log(call_str)
+        return __send__(behave_sym, *args, &block)
+      end
+
       @retry_loop << 0
       execution_stack_trace(sym, args) unless block
       execution_stack_trace(sym, args, nil, block.to_ruby) if block
@@ -136,7 +143,7 @@ module VirtualMonkey
         #pre-command
         populate_settings if @deployment
         #command
-        result = __send__(sym, *args, &block)
+        result = __send__(behave_sym, *args, &block)
         #post-command
         continue_test
       rescue VirtualMonkey::TestCaseInterface::Retry
@@ -195,13 +202,11 @@ module VirtualMonkey
       #
       call_str = stringify_call("transaction", [], nil, block.to_ruby)
       write_readable_log(call_str) unless option == :do_not_trace
+      real_trace_log = nil
       if @in_transaction.empty?
-        real_stack_objects = @stack_objects
-        real_iterating_stack = @iterating_stack
-        real_trace_log = VirtualMonkey::trace_log
-        VirtualMonkey::trace_log = []
-        @stack_objects = []
-        @iterating_stack = []
+        real_stack_objects, @stack_objects = @stack_objects, []
+        real_iterating_stack, @iterating_stack = @iterating_stack, []
+        real_trace_log, VirtualMonkey::trace_log = VirtualMonkey::trace_log, []
       end
 
       result = nil
@@ -213,10 +218,8 @@ module VirtualMonkey
             if real_trace_log == YAML::load(IO.read(@options[:resume_file]))
               @done_resuming = true
             end
-          else
-            if VirtualMonkey::trace_log == YAML::load(IO.read(@options[:resume_file]))
-              @done_resuming = true
-            end
+          elsif VirtualMonkey::trace_log == YAML::load(IO.read(@options[:resume_file]))
+            @done_resuming = true
           end
         end
 
@@ -248,9 +251,6 @@ module VirtualMonkey
       result
     end
 
-    def untraced_fn(&block)
-    end
-
     def write_readable_log(data)
       data_ary = data.split("\n")
       data_ary.each_index do |i|
@@ -260,7 +260,7 @@ module VirtualMonkey
     end
 
     def write_trace_log(call=nil)
-      return nil if @in_transaction.empty?
+      return nil unless @in_transaction.empty?
       add_to_trace_log(call) if call.is_a?(String)
       if @done_resuming and @options[:resume_file]
         File.open(@options[:resume_file], "w") { |f| f.write( VirtualMonkey::trace_log.to_yaml ) }

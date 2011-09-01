@@ -25,3 +25,4 @@ virtualmonkey.gemspec
 config/cloud_variables/*
 test_states/
 config/cloud_variables/backup/
+features/*.combo.rb

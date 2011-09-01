@@ -1,12 +1,17 @@
 set :runner, VirtualMonkey::Runner::Mysql
-before do
+
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_variation_lineage
   @runner.set_variation_stripe_count(1)
   @runner.setup_dns("virtualmonkey_shared_resources") # DNSMadeEasy
   @runner.launch_all
   @runner.wait_for_all("operational")
 end
+
 test "default" do
   @runner.init_slave_from_slave_backup
   @runner.run_checks

@@ -1,7 +1,10 @@
 set :runner, VirtualMonkey::Runner::Lamp
 
-before do
+hard_reset do
   @runner.stop_all
+end
+
+before do
 
 
   @runner.launch_all

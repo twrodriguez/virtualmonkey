@@ -96,8 +96,8 @@ module VirtualMonkey
         sts.each { |st|
           table.each { |a|
             st_id = resource_id(st)
-            puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id]
-            @scripts_to_run[st_id] = {} unless @scripts_to_run[st_id]
+            @scripts_to_run[st_id] ||= {}
+            puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id][ a[0] ]
             @scripts_to_run[st_id][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
             raise "FATAL: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[st_id][ a[0] ]
           }
@@ -169,6 +169,7 @@ module VirtualMonkey
         @deployment.set_input("MASTER_DB_DNSNAME", the_name) 
         @deployment.set_input("DB_HOST_NAME", the_name) 
         @deployment.set_input("db_mysql/fqdn", the_name)
+        @deployment.set_input("db/fqdn", the_name)
       end
   
       # Launch server(s) that match nickname_substr
@@ -294,10 +295,17 @@ module VirtualMonkey
         set = select_set(set)
         if wait
           set.each do |s|
-            transaction {
-              a = launch_script(friendly_name, s, options)
-              a.wait_for_completed if wait
-            }
+            if wait.is_a?(Fixnum)
+              transaction {
+                a = launch_script(friendly_name, s, options)
+                a.wait_for_completed(wait)
+              }
+            else
+              transaction {
+                a = launch_script(friendly_name, s, options)
+                a.wait_for_completed
+              }
+            end
           end
         else
           set.each do |s|
@@ -428,7 +436,7 @@ module VirtualMonkey
             count = 0
             until response || count > 20 do
               begin
-                response = transaction { server.monitoring }
+                response = server.monitoring
               rescue
                 response = nil
                 count += 1
@@ -511,6 +519,24 @@ module VirtualMonkey
       def run_simple_check(server)
         test_mail_config(server)
         test_syslog_config(server)
+      end
+
+      # parameter tag_to_set is a string
+      # example pass in rs_agent_dev:package=5.7.11
+      def tag_all_servers(tag_to_set)
+        servers.each_index { |counter|
+          servers[counter].settings
+          servers[counter].reload
+          puts "tag added " + tag_to_set.to_s + " " + servers[counter].to_s
+
+          if servers[counter].multicloud
+            McTag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+          else
+            Tag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+          end
+
+          servers[counter].tags(true)
+        }
       end
     end
   end

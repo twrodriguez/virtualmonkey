@@ -1,0 +1,13 @@
+{
+  "cloud_variables":"all_clouds.json", 
+  "feature":"wishbone.rb",
+  "server_template_ids":[
+    "120077",
+    "120077",
+    "27958",
+    "27958",
+    "107666"
+  ],
+  "common_inputs":["wishbone.json","chef_swap.json"],
+  "prefix":"WISHBONE_TROOP"
+}

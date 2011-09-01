@@ -1,6 +1,10 @@
 set :runner, VirtualMonkey::Runner::Nginx
-before do
+
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.launch_all
   @runner.wait_for_all("operational")
 end

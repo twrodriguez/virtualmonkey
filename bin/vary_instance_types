@@ -5,18 +5,29 @@ require 'rest_connection'
 require 'trollop'
 require 'highline/import'
 
+EC2InstanceVars32 = { "m1.small" => "0.095", "c1.medium" => "0.19" }
+EC2InstanceVars64 = { "m1.large" => "0.38",
+                      "m1.xlarge" => "0.76",
+                      "m2.xlarge" => "0.57",
+                      "m2.2xlarge" => "1.34",
+                      "m2.4xlarge" => "2.68",
+                      "c1.xlarge" => "0.76" }
+
 options = Trollop::options do
+  text "32-bit EC2 Instance Sizes: #{EC2InstanceVars32.keys.join(", ")}\n64-bit EC2 Instance Sizes: #{EC2InstanceVars64.keys.join(", ")}"
   opt :tag, "Tag of the DeploymentSet that you want to vary the sizes on", :type => :string, :required => true
   opt :spot, "Use spot instances", :default => false
   opt :micro_mayhem, "Set everything to Micros", :default => false
+  opt :href, "API 1.5 only: Set all instances to a specific InstanceType href", :type => :string
+  opt :name, "API 1.0 only: Set all instances to a specific AWS instance size", :type => :string
 end
 
 class VariationEngine
 
   def initialize(options)
     @options = options
-    @instance_vars32 = { "m1.small" => "0.095", "c1.medium" => "0.19" }
-    @instance_vars64 = { "m1.large" => "0.38", "m1.xlarge" => "0.76", "m2.xlarge" => "0.57", "m2.2xlarge" => "1.34", "m2.4xlarge" => "2.68", "c1.xlarge" => "0.76" }
+    @instance_vars32 = EC2InstanceVars32
+    @instance_vars64 = EC2InstanceVars64
     if options[:micro_mayhem]
       @instance_vars32 = { "t1.micro" => "0.02" } 
       @instance_vars64 = { "t1.micro" => "0.02" }
@@ -36,17 +47,29 @@ class VariationEngine
         server.settings
         server.parameters
         if server.ec2_instance_type =~ /((small)|(medium))/
-          small_counter += 1
-          new_type = @instance_vars32.keys[small_counter % @instance_vars32.size]
+          if @options[:name] && @instance_vars32.keys.include?(@options[:name])
+            new_type = @options[:name]
+          else
+            small_counter += 1
+            new_type = @instance_vars32.keys[small_counter % @instance_vars32.size]
+          end
           server.instance_type = new_type
           server.max_spot_price = @instance_vars32[new_type] if @options[:spot]
         elsif server.ec2_instance_type =~ /large/
-          large_counter += 1
-          new_type = @instance_vars64.keys[large_counter % @instance_vars64.size]
+          if @options[:name] && @instance_vars64.keys.include?(@options[:name])
+            new_type = @options[:name]
+          else
+            large_counter += 1
+            new_type = @instance_vars64.keys[large_counter % @instance_vars64.size]
+          end
           server.instance_type = new_type
           server.max_spot_price = @instance_vars64[new_type] if @options[:spot]
         elsif server.cloud_id.to_i > 10
-          new_type = McInstanceType.find_all(server.cloud_id).shuffle.first
+          if @options[:href] && @options[:href].match(/clouds\/[0-9]+/)[0].split(/\//).last.to_i == server.cloud_id.to_i
+            new_type = McInstanceType.find(@options[:href])
+          else
+            new_type = McInstanceType.find_all(server.cloud_id).shuffle.first
+          end
           server.next_instance.instance_type = new_type.href
         end
         server.pricing = "spot" if @options[:spot]

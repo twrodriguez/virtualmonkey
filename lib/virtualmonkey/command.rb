@@ -24,8 +24,6 @@ while some_not_included and retry_loop < (files.size ** 2) do
 end
 
 module VirtualMonkey
-  VERSION = "2.1"
-
   module Command
     AvailableCommands = {
       :api_check                  => "Verify API version connectivity",

@@ -18,8 +18,13 @@ class SharedDns
     set_these.each do |key,val|
       deployment.set_input(key, val.to_s)
       deployment.servers.each { |s|
-        st = ServerTemplate.find(s.server_template_href)
-        s.set_input(key, "text:") unless st.nickname =~ /virtual *monkey/i
+        if s.multicloud
+          st = McServerTemplate.find(s.server_template_href)
+          s.set_input(key, "text:") unless st.name =~ /virtual *monkey/i
+        else
+          st = ServerTemplate.find(s.server_template_href)
+          s.set_input(key, "text:") unless st.nickname =~ /virtual *monkey/i
+        end
       }
     end
   end

@@ -7,6 +7,8 @@ require 'parse_tree_extensions'
 require 'ruby2ruby'
 
 module VirtualMonkey
+  VERSION = "2.1"
+
   ROOTDIR = File.expand_path(File.join(File.dirname(__FILE__), ".."))
   CONFIG_DIR = File.join(ROOTDIR, "config")
   TEST_STATE_DIR = File.join(ROOTDIR, "test_states")

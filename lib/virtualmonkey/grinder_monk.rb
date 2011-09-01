@@ -70,7 +70,8 @@ class GrinderJob
                       :environment    => {"AWS_ACCESS_KEY_ID" => Fog.credentials[:aws_access_key_id],
                                           "AWS_SECRET_ACCESS_KEY" => Fog.credentials[:aws_secret_access_key],
                                           "REST_CONNECTION_LOG" => @rest_log,
-                                          "MONKEY_NO_DEBUG" => "true"},
+                                          "MONKEY_NO_DEBUG" => "true",
+                                          "MONKEY_LOG_BASE_DIR" => File.dirname(@rest_log)},
                       :stdout_handler => :on_read_stdout,
                       :stderr_handler => :on_read_stderr,
                       :exit_handler   => :on_exit)
@@ -80,6 +81,11 @@ end
 class GrinderMonk
   attr_accessor :jobs
   attr_accessor :options
+
+  def self.combo_feature_name(features)
+    File.join(VirtualMonkey::FEATURE_DIR, features.map { |feature| File.basename(feature, ".rb") }.join("_") + ".combo.rb")
+  end
+
   # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
   # * feature<~String> the feature filename 
@@ -116,27 +122,48 @@ class GrinderMonk
   # runs a feature on an array of deployments
   # * deployments<~Array> array of strings containing the nicknames of the deployments
   # * feature_name<~String> the feature filename 
-  def run_tests(deployments,cmd,set=[])
-    test_case = VirtualMonkey::TestCase.new(@options[:feature], @options)
-    total_keys = test_case.get_keys
-    total_keys = total_keys - (total_keys - set) unless set.nil? || set.empty?
-    if ENV['FULL_TEST_PERMUTATION']
-      deployment_tests = [total_keys] * deployments.length
-    else
-      keys_per_dep = (total_keys.length.to_f / deployments.length.to_f).ceil
-
-      deployment_tests = []
-      (keys_per_dep * deployments.length).times { |i|
-        di = i % deployments.length
-        deployment_tests[di] ||= []
-        deployment_tests[di] << total_keys[i % total_keys.length]
+  def run_tests(deployments,features,set=[])
+    features = [features].flatten
+    test_cases = features.map_to_h { |feature| VirtualMonkey::TestCase.new(feature, @options) }
+    deployment_hsh = {}
+    if ENV['MONKEY_PARALLEL_FEATURES'] or features.length < 2
+      raise "Need more deployments than feature files" unless deployments.length >= features.length
+      dep_clone = deployments.dup
+      deps_per_feature = (deployments.length.to_f / features.length.to_f).floor
+      deployment_hsh = features.map_to_h { |f|
+        dep_clone = dep_clone.shuffle
+        dep_clone.slice!(0,deps_per_feature)
       }
+    else
+      combo_feature = GrinderMonk.combo_feature_name(features)
+      File.open(combo_feature, "w") { |f|
+        f.write(features.map { |feature| "mixin_feature '#{feature}', :hard_reset" }.join("\n"))
+      }
+      test_cases[combo_feature] = VirtualMonkey::TestCase.new(combo_feature, @options)
+      deployment_hsh = { combo_feature => deployments }
     end
 
-    deployment_tests.map! { |ary| ary.shuffle } unless ENV['MONKEY_STRICT_TEST_ORDERING']
+    deployment_hsh.each { |feature,deploy_ary|
+      total_keys = test_cases[feature].get_keys
+      total_keys = total_keys - (total_keys - set) unless set.nil? || set.empty?
+      if ENV['MONKEY_FULL_TEST_PERMUTATION']
+        deployment_tests = [total_keys] * deploy_ary.length
+      else
+        keys_per_dep = (total_keys.length.to_f / deploy_ary.length.to_f).ceil
 
-    deployments.each_with_index { |d,i| 
-      run_test(d, cmd, deployment_tests[i], test_case.options[:additional_logs])
+        deployment_tests = []
+        (keys_per_dep * deploy_ary.length).times { |i|
+          di = i % deploy_ary.length
+          deployment_tests[di] ||= []
+          deployment_tests[di] << total_keys[i % total_keys.length]
+        }
+      end
+
+      deployment_tests.map! { |ary| ary.shuffle } unless ENV['MONKEY_STRICT_TEST_ORDERING']
+
+      deploy_ary.each_with_index { |d,i| 
+        run_test(d, feature, deployment_tests[i], test_cases[feature].options[:additional_logs])
+      }
     }
   end
 

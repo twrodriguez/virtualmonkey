@@ -22,7 +22,7 @@ module VirtualMonkey
         deploy_name = ask("What is the name of this model deployment?")
         deployments = Deployment[/#{deploy_name}/i]
         if deployments.length > 9
-          say("Sorry, '#{deploy_name}' is too vague.")
+          say("Sorry, '#{deploy_name}' is too vague. (Matched more than 9 deployments)")
         elsif deployments.length == 1
           deployment = deployments.first
           accepted = true
@@ -48,28 +48,55 @@ module VirtualMonkey
       
 
       # Extract Inputs from Deployment
+      common_inputs = {}
       if VirtualMonkey::Toolbox::api1_5?
-        mc_deployment = McDeployment[deployment.rs_id.to_i].first
+        mc_deployment = McDeployment.find(deployment.rs_id.to_i)
         mc_deployment.show
-        common_inputs = {}
         mc_deployment.inputs.each { |hsh|
           common_inputs[hsh["name"]] = hsh["value"] unless hsh["value"] == "text:"
         }
-
-      #TODO: ServerTemplate inputs (incoming 1.5 API)
-
-#        server_inputs = {}
-#        deployment.servers_no_reload.each { |s|
-#          if s.multicloud && s.current_instance
-#            s.current_instance.inputs.each { |hsh|
-#              # Do something?
-#            }
-#          end
-#        }
-        write_common_inputs_file(common_inputs)
-      else
-        write_common_inputs_file()
+        #TODO: ServerTemplate inputs (incoming 1.5 API)
       end
+
+      # Extract Common Inputs from Servers
+      server_inputs = {}
+      @@individual_server_inputs = {} #TODO
+      deployment.servers_no_reload.each { |s|
+        if s.multicloud && s.current_instance
+          s.current_instance.inputs.each { |hsh|
+            if server_inputs[hsh["name"]]
+              if server_inputs[hsh["name"]] != hsh["value"]
+                server_inputs[hsh["name"]] = "text:"
+              end
+            else
+              server_inputs[hsh["name"]] = hsh["value"]
+            end
+          }
+        elsif s.current_instance_href
+          s.reload_as_current
+          s.settings
+          s.parameters.each { |input_name,input_value|
+            if server_inputs[input_name]
+              if server_inputs[input_name] != input_value
+                server_inputs[input_name] = "text:"
+              end
+            else
+              server_inputs[input_name] = input_value
+            end
+          }
+          s.reload_as_next
+        end
+      }
+      server_inputs.reject! { |name,value| value == "text:" }
+      common_inputs.deep_merge! server_inputs # Server inputs always overwrite deployment inputs
+
+      common_inputs.reject! { |name,value| value == "text:" }
+      if common_inputs.empty?
+        write_common_inputs_file()
+      else
+        write_common_inputs_file(common_inputs)
+      end
+
 
       # Create files
       write_feature_file()

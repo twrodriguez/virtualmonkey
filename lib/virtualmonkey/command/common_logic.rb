@@ -7,7 +7,7 @@ module VirtualMonkey
       @@options[:prefix] = "" unless @@options[:prefix]
       @@options[:prefix] += config['prefix']
       @@options[:common_inputs] = config['common_inputs'].map { |cipath| File.join(@@ci_dir, cipath) }
-      @@options[:feature] = File.join(@@features_dir, config['feature'])
+      @@options[:feature] = load_features(config)
       @@options[:runner] ||= get_runner_class
       @@options[:terminate] = true if @@command =~ /troop|destroy/
       @@options[:clouds] = load_clouds(config) unless @@options[:clouds] and @@options[:clouds].length > 0
@@ -29,8 +29,11 @@ module VirtualMonkey
         @@do_these.reject! { |d| d.nickname =~ /-cloud_#{cid}-/ }
       }
       unless @@options[:no_resume] or @@command =~ /destroy|audit/
-        temp = @@do_these.select do |d| 
-          File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(@@options[:feature])))
+        temp = @@do_these.select do |d|
+          files_to_check = @@options[:feature] + [GrinderMonk.combo_feature_name(@@options[:feature])]
+          files_to_check.any? { |feature|
+            File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(feature)))
+          }
         end 
         @@do_these = temp if temp.length > 0 
       end 
@@ -157,6 +160,16 @@ module VirtualMonkey
         if runner.respond_to?(:release_container) and not @@options[:keep]
           runner.release_container
         end
+        # Cleanup volumes and snapshots for runners that support it.
+        if runner.respond_to?(:set_variation_lineage) and not @@options[:keep]
+          runner.set_variation_lineage
+        end
+        if runner.respond_to?(:cleanup_volumes) and not @@options[:keep]
+          runner.cleanup_volumes
+        end
+        if runner.respond_to?(:cleanup_snapshots) and not @@options[:keep]
+          runner.cleanup_snapshots
+        end
       end 
 
       @@dm.destroy_all unless @@options[:keep]
@@ -177,9 +190,30 @@ module VirtualMonkey
 
     # Encapsulates the logic for detecting what runner is used in a test case file
     def self.get_runner_class #returns class string
-      tc = VirtualMonkey::TestCase.new(@@options[:feature])
-      @@options[:allow_meta_monkey] = tc.options[:allow_meta_monkey]
-      return tc.options[:runner]
+      return @@options[:runner] if @@options[:runner]
+      features = [@@options[:feature]].flatten
+      test_cases = features.map { |feature| VirtualMonkey::TestCase.new(feature) }
+      unless test_cases.unanimous? { |tc| tc.options[:runner] }
+        raise ":runner options MUST match for multiple feature files"
+      end
+      unless test_cases.unanimous? { |tc| tc.options[:allow_meta_monkey] }
+        raise ":allow_meta_monkey options MUST match for multiple feature files"
+      end
+      return @@options[:runner] = test_cases.first.options[:runner]
+    end
+
+    def self.load_features(config)
+      features = [config['feature']].flatten.map { |feature| File.join(@@features_dir, feature) }
+      test_cases = features.map { |feature| VirtualMonkey::TestCase.new(feature) }
+      unless test_cases.unanimous? { |tc| tc.options[:runner] }
+        raise ":runner options MUST match for multiple feature files"
+      end
+      unless test_cases.unanimous? { |tc| tc.options[:allow_meta_monkey] }
+        raise ":allow_meta_monkey options MUST match for multiple feature files"
+      end
+      @@options[:allow_meta_monkey] = test_cases.first.options[:allow_meta_monkey]
+      @@options[:runner] = test_cases.first.options[:runner]
+      @@options[:feature] = features
     end
 
     ##################################
@@ -252,6 +286,7 @@ module VirtualMonkey
       end
 
       build_script_array(st_ary)
+      @@st_ary = st_ary
 
       @@troop_config[:common_inputs] = File.basename(@@common_inputs_file)
       @@troop_config[:feature] = File.basename(@@feature_file)
@@ -270,7 +305,7 @@ module VirtualMonkey
       contents =<<EOS
 set :runner, VirtualMonkey::Runner::#{@@camel_case_name}
 
-clean_start do
+hard_reset do
   stop_all
 end
 
@@ -346,7 +381,7 @@ EOS
         mixin_tpl += "        #{comment_string}\n"
         mixin_tpl += "        #{"#" * comment_string.length}\n"
         mixin_tpl += "        scripts = [\n"
-        script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{script}']" }
+        script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{Regexp.escape(script)}']" }
         mixin_tpl += "#{script_array.join(",\n")}\n"
         mixin_tpl += "                  ]\n"
         mixin_tpl += "        st_ref = @server_templates.detect { |st| st.rs_id.to_i == #{st_ref.rs_id.to_i} }\n"
@@ -370,7 +405,7 @@ EOS
       # functions create a library of dynamic exception handling for common
       # scenarios. Exception_handle methods should return true if they have
       # handled the exception, or return false otherwise.
-      def #{@@underscore_name}_exception_handle
+      def #{@@underscore_name}_exception_handle(e)
         if e.message =~ /INSERT YOUR ERROR HERE/
           puts "Got 'INSERT YOUR ERROR HERE'. Retrying..."
           sleep 30
@@ -397,8 +432,8 @@ EOS
       # [ "/path/to/log/file", "server_template_name_regex", "matching_regex" ]
       def #{@@underscore_name}_#{list}
         [
-          #["/var/log/messages", "#{st_ary.first.nickname}", "#{regex_ary[list].first}"],
-          #["/var/log/messages", "#{st_ary.last.nickname}", "#{regex_ary[list].last}"]
+          #["/var/log/messages", "#{@@st_ary.first.nickname}", "#{regex_ary[list].first}"],
+          #["/var/log/messages", "#{@@st_ary.last.nickname}", "#{regex_ary[list].last}"]
         ]
       end
 EOS

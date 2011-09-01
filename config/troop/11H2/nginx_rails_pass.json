@@ -8,6 +8,6 @@
     "108410"
   ],
   "cloud_variables":"aws_us_east.json",
-  "common_inputs": [ "rails.json", "devtools.json"],
+  "common_inputs": [ "rails.json", "devtools.json", "chef_swap.json"],
   "prefix":"TROOP_NGNXPASSRAIL"
 }

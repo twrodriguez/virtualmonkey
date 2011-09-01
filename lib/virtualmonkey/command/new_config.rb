@@ -26,6 +26,7 @@ module VirtualMonkey
       list_of_clouds = ask("Enter a comma-separated list of cloud_ids to use").split(",")
       @@troop_config[:clouds] = list_of_clouds.map { |c| c.to_i }
 
+      # TODO: Multiple common_inputs files
       @@troop_config[:common_inputs] =
         choose do |menu|
           menu.prompt = "Which common_inputs config file?"
@@ -33,6 +34,7 @@ module VirtualMonkey
           menu.choices(*common_inputs_glob)
         end
 
+      # TODO: Multiple feature files
       @@troop_config[:feature] = 
         choose do |menu|
           menu.prompt = "Which feature file?"
