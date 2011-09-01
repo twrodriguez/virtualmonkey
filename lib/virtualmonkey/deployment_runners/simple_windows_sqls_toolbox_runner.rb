@@ -3,7 +3,13 @@ module VirtualMonkey
     class SimpleWindowsSqlsToolbox
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::SimpleWindows
-  
+      
+      def set_test_lineage
+        @lineage = "monkey_ms_sql_testlineage#{resource_id(@deployment)}"
+        @deployment.set_input("DB_LINEAGE_NAME", "text:#{@lineage}")
+        s_one.set_inputs({"DB_LINEAGE_NAME" => "text:#{@lineage}"})
+      end
+      
       def vitaly_windows_sqls_toolbox_lookup_scripts
        scripts = [
                    [ 'EBS Create data and log volumes v1', 'EBS Create data and log volumes v1' ],

@@ -1,0 +1,16 @@
+{
+  "ADMIN_PASSWORD" : "text:Change_me1",
+  "BACKUP_DIR" : "text:C:\",
+  "BACKUP_FILE_NAME" : "text:20110830015140_DotNetNuke.bak",
+  "BACKUP_VOLUME_LETTER" : "text:F",
+  "BACKUP_VOLUME_SIZE" : "text:3",
+  "DATA_VOLUME_SIZE" : "text:3",
+  "DB_LOGIN_NAME" : "text:DotNetNuke",
+  "DB_LOGIN_PASSWORD" : "text:Change_me1",
+  "DB_NAME" : "text:DotNetNuke",
+  "LOCAL_PATH" : "text:C:\",
+  "LOGS_VOLUME_SIZE" : "text:3",
+  "OPT_BACKUP_S3_BUCKET" : "text:Windows3tier",
+  "OPT_RESTORE_NORECOVERY" : "text:False",
+  "OPT_USE_PUBLIC_IP" : "text:False",
+}
