@@ -157,6 +157,7 @@ module VirtualMonkey
 
       def test_continuous_backups_cloud_files
         set_variation_storage_type("ros")
+        run_script("setup_block_device", s_one)
         # Setup Backups for every minute
         opts = {"block_device/cron_backup_hour" => "text:*",
                 "block_device/cron_backup_minute" => "text:*"}
@@ -186,6 +187,7 @@ module VirtualMonkey
   
       def test_continuous_backups_s3
         set_variation_storage_type("ros")
+        run_script("setup_block_device", s_one)
         # Setup Backups for every minute
         opts = {"block_device/cron_backup_hour" => "text:*",
                 "block_device/cron_backup_minute" => "text:*"}
@@ -216,6 +218,7 @@ module VirtualMonkey
       def test_continuous_backups_volume
         return true if s_one.cloud_id.to_i == 232 # Rackspace can't do volumes
         set_variation_storage_type(:volume)
+        run_script("setup_block_device", s_one)
         # Setup Backups for every minute
         opts = {"block_device/cron_backup_hour" => "text:*",
                 "block_device/cron_backup_minute" => "text:*"}
