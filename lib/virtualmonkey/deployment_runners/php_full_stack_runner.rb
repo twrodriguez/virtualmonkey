@@ -37,7 +37,7 @@ module VirtualMonkey
       end
   
       def run_reboot_checks
-       run_unified_application_checks(fe_servers, 443)
+#       run_unified_application_checks(fe_servers, 443)
        run_unified_application_checks(fe_servers, 80)
       end
 
