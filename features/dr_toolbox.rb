@@ -1,54 +1,91 @@
 set :runner, VirtualMonkey::Runner::DrToolbox
 
 hard_reset do
-  @runner.stop_all
+  stop_all
 end
 
 before do
-#  @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
-  @runner.set_variation_lineage
-  @runner.set_variation_container
-  @runner.set_variation_storage_type()
-  @runner.set_variation_mount_point
-  @runner.launch_all
-  @runner.wait_for_all("operational")
+#  tag_all_servers("rs_agent_dev:package=5.7.14")
+  set_variation_lineage
+  set_variation_container
+  set_variation_mount_point
+  launch_all
+  wait_for_all("operational")
 end
 
-test "multicloud" do
-  cid = VirtualMonkey::Toolbox::determine_cloud_id(@runner.servers.first)
-  # Rackspace
-  if cid == 232
-    @runner.test_cloud_files
-  # All other Clouds support both ROS and VOLUME
-  elsif [1,2,3,4,5].include?(cid)
-    @runner.test_ebs
-    @runner.test_s3
-  else
-    @runner.test_volume
-  end
+#
+# Backup, Restore, Restore + Timestamp Override
+#
+
+before "volume_backup", "s3_backup", "cloudfiles_backup" do
+  do_force_reset
 end
 
-after do
-  @runner.cleanup_volumes
-  @runner.cleanup_snapshots
+test "volume_backup" do
+  test_volume_backup
 end
+
+test "s3_backup" do
+  test_ros_backup("S3")
+end
+
+test "cloudfiles_backup" do
+  test_ros_backup("CloudFiles")
+end
+
+after "volume_backup", "s3_backup", "cloudfiles_backup" do
+  do_force_reset
+end
+
+#
+# Continuous Backups
+#
+
+before "continuous_volume_backup", "continuous_s3_backup", "continuous_cloudfiles_backup" do
+  do_force_reset
+end
+
+test "continuous_volume_backup" do
+  test_continuous_backups_volume
+end
+
+test "continuous_s3_backup" do
+  test_continuous_backups_s3
+end
+
+test "continuous_cloudfiles_backup" do
+  test_continuous_backups_cloud_files
+end
+
+after "continuous_volume_backup", "continuous_s3_backup", "continuous_cloudfiles_backup" do
+  do_force_reset
+end
+
+#
+# Mount Point
+#
 
 before 'mount_point' do
-  @runner.set_variation_mount_point('/mnt/monkey_test')
+  set_variation_mount_point('/mnt/monkey_test')
 end
 
 test 'mount_point' do
   transaction do
-    @runner.test_volume
+    test_volume
   end
 end
 
 after 'mount_point' do
-  @runner.cleanup_volumes
-  @runner.cleanup_snapshots
-  @runner.set_variation_mount_point
+  cleanup_volumes
+  cleanup_snapshots
+  set_variation_mount_point
 end
 
 test "monitoring_checks" do
-  @runner.check_monitoring
+  check_monitoring
+end
+
+after do
+  cleanup_volumes
+  cleanup_snapshots
 end

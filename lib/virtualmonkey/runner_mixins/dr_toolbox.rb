@@ -17,35 +17,47 @@ module VirtualMonkey
         end
         raise "FATAL: timed out waiting for all snapshots in lineage #{@lineage} to complete" if timeout == 0
       end
-  
+
       # Find all snapshots associated with this deployment's lineage
       def find_snapshots
+        s = @servers.first
         unless @lineage
-          s = @servers.first
           kind_params = s.parameters
-          @lineage = kind_params['DB_LINEAGE_NAME'].gsub(/text:/, "")
+          @lineage = kind_params['db/backup/lineage'].gsub(/text:/, "")
         end
-        snapshots = Ec2EbsSnapshot.find_by_cloud_id(@servers.first.cloud_id).select { |n| n.tags.include?({"name"=>"rs_backup:lineage=#{@lineage}"}) }
+        if s.cloud_id.to_i < 10
+          snapshots = Ec2EbsSnapshot.find_by_cloud_id(s.cloud_id).select { |n| n.tags.include?("rs_backup:lineage=#{@lineage}") }
+        elsif s.cloud_id.to_i == 232
+          snapshot = [] # Ignore Rackspace, there are no snapshots
+        else
+          snapshots = McVolumeSnapshot.find_all(s.cloud_id).select { |n| n.tags(true).include?("rs_backup:lineage=#{@lineage}") }
+        end
+        snapshots
       end
 
-    
-  
-      # Returns the timestamp of the latest snapshot for testing OPT_DB_RESTORE_TIMESTAMP_OVERRIDE
-      def find_snapshot_timestamp(provider=:ebs)
+      def find_snapshot_timestamp(server, provider = :volume)
         case provider
-        when :ebs
-          last_snap =find_snapshots.last
-          last_snap.tags.detect { |t| t["name"] =~ /timestamp=(\d+)$/ }
-          timestamp = $1
-        when :s3
+        when :volume
+          if server.cloud_id.to_i != 232
+            last_snap = find_snapshots.last
+            last_snap.tags(true).detect { |t| t =~ /timestamp=(\d+)$/ }
+            timestamp = $1
+          else #Rackspace uses cloudfiles object store
+            cloud_files = Fog::Storage.new(:provider => 'Rackspace')
+            if dir = cloud_files.directories.detect { |d| d.key == @container }
+              dir.files.first.key =~ /-([0-9]+\/[0-9]+)/
+              timestamp = $1
+            end
+          end
+        when "S3"
           s3 = Fog::Storage.new(:provider => 'AWS')
-          if dir = s3.directories.detect { |d| d.key == @container }
+          if dir = s3.directories.detect { |d| d.key == @secondary_container }
             dir.files.first.key =~ /-([0-9]+\/[0-9]+)/
             timestamp = $1
           end
-        when :cloud_files
+        when "CloudFiles"
           cloud_files = Fog::Storage.new(:provider => 'Rackspace')
-          if dir = cloud_files.directories.detect { |d| d.key == @container }
+          if dir = cloud_files.directories.detect { |d| d.key == @secondary_container }
             dir.files.first.key =~ /-([0-9]+\/[0-9]+)/
             timestamp = $1
           end
@@ -70,7 +82,7 @@ module VirtualMonkey
           server.set_inputs({"block_device/storage_container" => "text:#{@container}"})
         end
       end
-  
+=begin  
       # Pick a storage_type depending on what cloud we're on.
       def set_variation_storage_type(storage=nil)
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
@@ -94,7 +106,7 @@ module VirtualMonkey
           server.set_inputs({"block_device/storage_type" => "text:#{@storage_type}"})
         end
       end
-
+=end
       def set_variation_mount_point(mount_point = '/mnt/storage')
         @mount_point = mount_point
 
@@ -104,25 +116,38 @@ module VirtualMonkey
         end
       end
   
-      def test_s3
-       run_script("do_force_reset", s_one)
-        sleep 10
-       run_script("setup_block_device", s_one)
-        sleep 10
-        probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=200")
-        sleep 10
-       run_script("do_backup_s3", s_one)
-        sleep 10
-       run_script("do_force_reset", s_one)
-        sleep 10
-       run_script("do_restore_s3", s_one)
+      def test_volume_backup
+        run_script("setup_block_device", s_one)
+        probe(s_one, "touch /mnt/storage/monkey_was_here")
+        run_script("do_backup", s_one)
+        wait_for_snapshots
+        run_script("do_force_reset", s_one)
+        run_script("do_restore", s_one)
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
         end
-       run_script("do_force_reset", s_one)
+      end
+
+      def test_s3
+        run_script("do_force_reset", s_one)
         sleep 10
-       run_script("do_restore_s3", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:s3)}" })
+        run_script("setup_block_device", s_one)
+        sleep 10
+        probe(s_one, "dd if=/dev/urandom of=/mnt/storage/monkey_was_here bs=4M count=200")
+        sleep 10
+        run_script("do_backup_s3", s_one)
+        sleep 10
+        run_script("do_force_reset", s_one)
+        sleep 10
+        run_script("do_restore_s3", s_one)
+        probe(s_one, "ls /mnt/storage") do |result, status|
+          raise "FATAL: no files found in the backup" if result == nil || result.empty?
+          true
+        end
+        run_script("do_force_reset", s_one)
+        sleep 10
+        run_script("do_restore_s3", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:s3)}" })
         probe(s_one, "ls /mnt/storage") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
@@ -144,9 +169,10 @@ module VirtualMonkey
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
         end
-       # Needs test implemented for euca and cdc
-       run_script("do_force_reset", s_one)
-       run_script("do_restore", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
+        # Needs test implemented for euca and cdc
+        run_script("do_force_reset", s_one)
+        
+        run_script("do_restore", s_one, {"block_device/timestamp_override" => "text:#{find_snapshot_timestamp(:ebs)}" })
         probe(s_one, "ls #{@mount_point}") do |result, status|
           raise "FATAL: no files found in the backup" if result == nil || result.empty?
           true
@@ -161,7 +187,9 @@ module VirtualMonkey
 
       def cleanup_volumes
         @servers.each do |server|
-          run_script("do_force_reset", server)
+          unless ["stopped", "pending", "inactive"].include?(server.state)
+            run_script("do_force_reset", server)
+          end
         end
       end
 
@@ -224,19 +252,6 @@ module VirtualMonkey
         
       end
   
-      def test_continuous_backups
-        cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
-        if cid == 232
-          test_continuous_backups_cloud_files
-        else
-          if @storage_type == "ros"
-            test_continuous_backups_s3
-          elsif @storage_type == "volume"
-            test_continuous_backups_ebs
-          end
-        end
-      end
-  
       def test_continuous_backups_cloud_files
         # Setup Backups for every minute
         opts = {"block_device/cron_backup_hour" => "text:*",
@@ -293,7 +308,7 @@ module VirtualMonkey
         raise "FATAL: Failed Continuous Backup Disable Test" unless dir.files.length == count
       end
   
-      def test_continuous_backups_ebs
+      def test_continuous_backups_volume
         # Setup Backups for every minute
         opts = {"block_device/cron_backup_hour" => "text:*",
                 "block_device/cron_backup_minute" => "text:*"}

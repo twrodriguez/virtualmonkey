@@ -106,7 +106,6 @@ module VirtualMonkey
         end
       end
 
-
       def import_unified_app_sqldump
         load_script('import_dump', RightScript.new('href' => '/api/acct/2901/right_scripts/187123'))
         raise "Did not find script: import_dump" unless script_to_run?('import_dump')

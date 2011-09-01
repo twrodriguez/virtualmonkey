@@ -161,6 +161,9 @@ module VirtualMonkey
           runner.release_container
         end
         # Cleanup volumes and snapshots for runners that support it.
+        if runner.respond_to?(:set_variation_lineage) and not @@options[:keep]
+          runner.set_variation_lineage
+        end
         if runner.respond_to?(:cleanup_volumes) and not @@options[:keep]
           runner.cleanup_volumes
         end
