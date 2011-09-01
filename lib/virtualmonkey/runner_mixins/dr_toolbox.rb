@@ -157,94 +157,79 @@ module VirtualMonkey
         end
       end
 
-      def test_continuous_backups_cloud_files
-        set_variation_storage_type("ros")
-        run_script("setup_block_device", s_one)
-        # Setup Backups for every minute
-        opts = {"block_device/cron_backup_hour" => "text:*",
-                "block_device/cron_backup_minute" => "text:*"}
-        run_script("setup_continuous_backups_cloud_files", s_one, opts)
-        cloud_files = Fog::Storage.new(:provider => 'Rackspace')
-        # Wait for directory to be created
-        sleep 120
-        retries = 0
-        until dir = cloud_files.directories.detect { |d| d.key == @container }
-          retries += 1
-          raise "FATAL: Retry count exceeded 10; Failed Continuous Backup Enable Test" unless retries < 10
-          sleep 30
+      def test_continuous_backups(type = :volume)
+        return true if s_one.cloud_id.to_i == 232 and type == :volume # Rackspace can't do volumes
+        if type == :volume
+          set_variation_storage_type(:volume)
+        else
+          set_variation_storage_type("ros")
+          if type == "S3"
+            fog_store = Fog::Storage.new(:provider => 'AWS')
+          elsif type == "CloudFiles"
+            fog_store = Fog::Storage.new(:provider => 'Rackspace')
+          else
+            raise "FATAL: Bad ObjectStore value!"
+          end
         end
-        # get file count
-        count = dir.files.length
-        sleep 120
-        dir.files.reload
-        raise "FATAL: Failed Continuous Backup Enable Test" unless dir.files.length > count
-        # Disable cron job
-        run_script("do_disable_continuous_backups_cloud_files", s_one)
-        sleep 120
-        count = dir.files.length
-        sleep 120
-        dir.files.reload
-        raise "FATAL: Failed Continuous Backup Disable Test" unless dir.files.length == count
-      end
-  
-      def test_continuous_backups_s3
-        set_variation_storage_type("ros")
+        provider = type.to_s.underscore
         run_script("setup_block_device", s_one)
-        # Setup Backups for every minute
+
+        # Setup Backups for every 5 minutes
+        total_sleep_time = 0
+        every_n_minutes = 5
+        tick = every_n_minutes * 60 # Number of seconds between cron jobs
         opts = {"block_device/cron_backup_hour" => "text:*",
-                "block_device/cron_backup_minute" => "text:*"}
-        run_script("setup_continuous_backups_s3", s_one, opts)
-        cloud_files = Fog::Storage.new(:provider => 'AWS')
-        # Wait for directory to be created
-        sleep 120
-        retries = 0
-        until dir = cloud_files.directories.detect { |d| d.key == @container }
-          retries += 1
-          raise "FATAL: Retry count exceeded 10; Failed Continuous Backup Enable Test" unless retries < 10
-          sleep 30
-        end
-        # get file count
-        count = dir.files.length
-        sleep 120
-        dir.files.reload
-        raise "FATAL: Failed Continuous Backup Enable Test" unless dir.files.length > count
-        # Disable cron job
-        run_script("do_disable_continuous_backups_s3", s_one)
-        sleep 120
-        count = dir.files.length
-        sleep 120
-        dir.files.reload
-        raise "FATAL: Failed Continuous Backup Disable Test" unless dir.files.length == count
-      end
-  
-      def test_continuous_backups_volume
-        return true if s_one.cloud_id.to_i == 232 # Rackspace can't do volumes
-        set_variation_storage_type(:volume)
-        run_script("setup_block_device", s_one)
-        # Setup Backups for every minute
-        opts = {"block_device/cron_backup_hour" => "text:*",
-                "block_device/cron_backup_minute" => "text:*"}
-        run_script("setup_continuous_backups_volume", s_one, opts)
+                "block_device/cron_backup_minute" => "text:*/#{every_n_minutes}"}
+        run_script("setup_continuous_backups_#{provider}", s_one, opts)
+
         # Wait for snapshots to be created
-        sleep 300
+        sleep(total_sleep_time += tick)
         retries = 0
-        snapshots = find_snapshots
-        until snapshots.length > 0
-          retries += 1
-          raise "FATAL: Retry count exceeded 5; Failed Continuous Backup Enable Test" unless retries < 5
-          sleep 100
+        if type == :volume
           snapshots = find_snapshots
+          until snapshots.length > 0
+            retries += 1
+            raise "FATAL: Retry count exceeded 6; Failed Continuous Backup Enable Test" unless retries < 6
+            sleep(tick / 3)
+            total_sleep_time += (tick / 3)
+            snapshots = find_snapshots
+          end
+        else
+          until dir = fog_store.directories.detect { |d| d.key == @container }
+            retries += 1
+            raise "FATAL: Retry count exceeded 6; Failed Continuous Backup Enable Test" unless retries < 6
+            sleep(tick / 3)
+            total_sleep_time += (tick / 3)
+          end
         end
+
         # get file count
-        count = snapshots.length
-        sleep 200
-        raise "FATAL: Failed Continuous Backup Enable Test" unless find_snapshots.length > count
+        if type == :volume
+          count = snapshots.length
+          sleep(tick)
+          total_sleep_time += tick
+          raise "FATAL: Failed Continuous Backup Enable Test" unless find_snapshots.length > count
+        else
+          count = dir.files.length
+          sleep(tick)
+          total_sleep_time += tick
+          dir.files.reload
+          raise "FATAL: Failed Continuous Backup Enable Test" unless dir.files.length > count
+        end
+
         # Disable cron job
-        run_script("do_disable_continuous_backups_volume", s_one)
-        sleep 200
-        count =find_snapshots.length
-        sleep 200
-        raise "FATAL: Failed Continuous Backup Disable Test" unless find_snapshots.length == count
+        run_script("do_disable_continuous_backups_#{provider}", s_one)
+        sleep(((total_sleep_time - tick)**2)/60)
+        if type == :volume
+          count = find_snapshots.length
+          sleep(total_sleep_time - tick)
+          raise "FATAL: Failed Continuous Backup Disable Test" unless find_snapshots.length == count
+        else
+          count = dir.files.length
+          sleep(total_sleep_time - tick)
+          dir.files.reload
+          raise "FATAL: Failed Continuous Backup Disable Test" unless dir.files.length == count
+        end
       end
   
       def release_container

@@ -46,15 +46,15 @@ before "continuous_volume_backup", "continuous_s3_backup", "continuous_cloudfile
 end
 
 test "continuous_volume_backup" do
-  test_continuous_backups_volume
+  test_continuous_backups
 end
 
 test "continuous_s3_backup" do
-  test_continuous_backups_s3
+  test_continuous_backups("S3")
 end
 
 test "continuous_cloudfiles_backup" do
-  test_continuous_backups_cloud_files
+  test_continuous_backups("CloudFiles")
 end
 
 after "continuous_volume_backup", "continuous_s3_backup", "continuous_cloudfiles_backup" do
