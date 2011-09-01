@@ -53,7 +53,7 @@ module VirtualMonkey
         if s.cloud_id.to_i < 10
           snapshots = Ec2EbsSnapshot.find_by_tags("rs_backup:lineage=#{@lineage}")
         elsif s.cloud_id.to_i == 232
-          snapshot = [] # Ignore Rackspace, there are no snapshots
+          snapshots = [] # Ignore Rackspace, there are no snapshots
         else
           snapshots = McVolumeSnapshot.find_by_tags("rs_backup:lineage=#{@lineage}").select { |vs| vs.cloud.split(/\//).last.to_i == s.cloud_id.to_i }
         end
