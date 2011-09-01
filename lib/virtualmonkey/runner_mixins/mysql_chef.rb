@@ -178,7 +178,7 @@ module VirtualMonkey
           run_script("do_secondary_backup", s_one)
           wait_for_snapshots
           run_script("do_force_reset", s_one)
-          run_script("do_restore", s_one)
+          run_script("do_secondary_restore", s_one)
           probe(s_one, "ls /mnt/storage") do |result, status|
             raise "FATAL: no files found in the backup" if result == nil || result.empty?
             true
