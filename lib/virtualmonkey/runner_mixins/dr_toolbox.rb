@@ -84,7 +84,7 @@ module VirtualMonkey
       end
 
       # Pick a storage_type depending on what cloud we're on.
-      def set_variation_storage_type(storage)
+      def set_variation_storage_type(storage = :volume)
         if s_one.cloud_id.to_i == 232 # Rackspace
           @storage_type = "ros"
         elsif s_one.cloud_id.to_i < 10
