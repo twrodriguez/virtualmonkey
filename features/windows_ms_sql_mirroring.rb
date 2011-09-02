@@ -28,7 +28,7 @@ test "default" do
   @runner.run_script_on_set("DB SQLS Backup to disk/S3 v1", :toolbox_server)  
   @runner.run_script_on_set("SQLS CHECK backup to disk/S3 ok", :toolbox_server)
   @runner.run_script_on_set("DB SQLS Norecovery snapshot", :toolbox_server)  
-  @runner.run_script_on_set("SQLS CHECK norecovery snapshot ok", :toolbox_server)  
+  @runner.run_script_on_set("SQLS CHECK norecovery snapshot ok", :toolbox_server, 1800)  
   @runner.run_script_on_set("DB SQLS DISABLE SERVER - snapshot, detach and delete volumes v1", :toolbox_server) 
 
   @runner.stop_all
