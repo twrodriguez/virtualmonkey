@@ -24,6 +24,6 @@ test "default" do
   @runner.run_script_on_all("SYS install MSDeploy2.0 check")
   @runner.run_script_on_all("SYS install ASP.NET MVC 3")
   @runner.run_script_on_all("SYS install ASP.NET MVC 3 check")
-  @runner.run_script_on_all("SYS Install .NET Framework 4 check")
   @runner.run_script_on_all("SYS Install .NET Framework 4")
+  @runner.run_script_on_all("SYS Install .NET Framework 4 check")
 end
