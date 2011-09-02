@@ -18,7 +18,7 @@ module VirtualMonkey
                    [ 'AWS Register with ELB', 'AWS Register with ELB' ],
                    [ 'AWS Deregister from ELB', 'AWS Deregister from ELB' ],
                    [ 'SYS Install Web Deploy 2.0', 'SYS Install Web Deploy 2.0' ],
-                   [ 'SYS Install .NET Framework 4.0', 'SYS Install .NET Framework 4.0' ],
+                   [ 'SYS Install .NET Framework 4', 'SYS Install .NET Framework 4' ],
                    [ 'SYS install ASP.NET MVC 3', 'SYS install ASP.NET MVC 3' ],
                  ]
         st = ServerTemplate.find(resource_id(server_ad.server_template_href))
@@ -26,6 +26,8 @@ module VirtualMonkey
         load_script('SYS install MSDeploy2.0 check', RightScript.new('href' => "/api/acct//29082/right_scripts/430037"))
         load_script('IIS Restart web server check', RightScript.new('href' => "/api/acct//29082/right_scripts/430040"))
         load_script('IIS monkey tests', RightScript.new('href' => "/api/acct//29082/right_scripts/430759"))
+        load_script('SYS install ASP.NET MVC 3 check', RightScript.new('href' => "/api/acct//29082/right_scripts/433157"))
+        load_script('SYS Install .NET Framework 4 check', RightScript.new('href' => "/api/acct//29082/right_scripts/433158"))
       end
     end
   end

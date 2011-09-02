@@ -20,6 +20,10 @@ test "default" do
 #  @runner.run_script_on_all("DB SQLS Create login check")
   @runner.run_script_on_all("AWS Register with ELB")
   @runner.run_script_on_all("AWS Deregister from ELB")
-  @runner.run_script_on_all("SYS install MSDeploy2.0")
+  @runner.run_script_on_all("SYS Install Web Deploy 2.0")
   @runner.run_script_on_all("SYS install MSDeploy2.0 check")
+  @runner.run_script_on_all("SYS install ASP.NET MVC 3")
+  @runner.run_script_on_all("SYS install ASP.NET MVC 3 check")
+  @runner.run_script_on_all("SYS Install .NET Framework 4 check")
+  @runner.run_script_on_all("SYS Install .NET Framework 4")
 end

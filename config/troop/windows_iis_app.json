@@ -2,8 +2,8 @@
   "feature":"windows_ms_iis.rb",
   "cloud_variables":"aws_clouds.json",
   "common_inputs":"windows_iis.json",
-  "prefix":"MD_MS_IIS_APP",
+  "prefix":"IIS_APP_BETA",
   "server_template_ids":[
-    "104768",
+    "104768"
   ]
 }
