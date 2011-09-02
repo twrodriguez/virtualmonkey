@@ -14,6 +14,8 @@ module VirtualMonkey
   end
 
   module TestCaseInterface
+    attr_reader :done_resuming
+
     class Retry < Exception
     end
 

@@ -167,10 +167,14 @@ module VirtualMonkey
           print_to_readable_log(feature, :after, :all)
           @blocks[:after][feature][:all].call
         end
-        # Successful run, delete the resume file
+        # Run completed, delete the resume file
         FileUtils.rm_rf @options[:resume_file]
-        @completed_features << feature
-        VirtualMonkey::trace_log = []
+        if @runner.done_resuming
+          @completed_features << feature
+          VirtualMonkey::trace_log = []
+        else
+          raise "FATAL: Never finished resuming, removing unclean resume file. Please run again with --no_resume"
+        end
       }
     ensure
       # For being friendly to tests (multiple TestCase instances in one test)
