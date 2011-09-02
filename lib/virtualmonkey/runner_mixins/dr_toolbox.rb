@@ -219,7 +219,20 @@ module VirtualMonkey
 
         # Disable cron job
         run_script("do_disable_continuous_backups_#{provider}", s_one)
-        sleep(((total_sleep_time - tick)**2)/60)
+        time_to_sleep = (((total_sleep_time - tick)**2)/60)
+        while time_to_sleep > 0
+          sleep(tick)
+          time_to_sleep -= tick
+          # rest_connection keep alive calls:
+          # - API 0.1 Class connection
+          # - API 1.0 Class connection
+          # - API 1.5 Class connection
+          # - API 0.1 Instance connection
+          # - API 1.0 Instance connection
+          # - API 1.5 Instance connection
+          ServerTemplate.find(@server_templates.first.reload['href']).multi_cloud_images.each { |mci_i| mci_i.reload }
+          
+        end
         if type == :volume
           count = find_snapshots.length
           sleep(total_sleep_time - tick)
