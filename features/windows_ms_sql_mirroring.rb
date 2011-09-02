@@ -31,7 +31,7 @@ test "default" do
   @runner.run_script_on_set("SQLS CHECK norecovery snapshot ok", :toolbox_server, 1800)  
   @runner.run_script_on_set("DB SQLS DISABLE SERVER - snapshot, detach and delete volumes v1", :toolbox_server) 
 
-  @runner.stop_all
+#  @runner.stop_all
 
   @runner.launch_set(:mirror_servers)
   @runner.wait_for_set(:mirror_servers, "operational")
