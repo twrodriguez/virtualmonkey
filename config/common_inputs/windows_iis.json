@@ -8,7 +8,8 @@
   "LOG_VOLUME_SIZE" : "text:5",
   "OPT_APP_VOLUME_LETTER" : "text:d",
   "OPT_CONNECTION_STRING_NAME" : "text:dbconnection",
-  "OPT_LOG_VOLUME_LETTER" : "text:e",
+  "OPT_LOG_VOLUME_LETTER" : "text:True",
+  "OPT_DELETE_VOLUMES_ON_TERMINATION" : "text:e",
   "SVN_DB_PATH" : "text:https://dotnetnuke.svn.codeplex.com/svn/Trunk/Website/App_Data/",
   "SVN_PATH" : "text:https://dotnetnuke.svn.codeplex.com/svn/Trunk/Website/"
 }

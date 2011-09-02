@@ -25,7 +25,7 @@ module VirtualMonkey
                    [ 'DB SQLS Switch mirroring off', 'DB SQLS Switch mirroring off' ],
                    [ 'DB SQLS Backup to disk/S3 v1', 'DB SQLS Backup to disk/S3 v1' ],
                    [ 'DB SQLS Norecovery snapshot', 'DB SQLS Norecovery snapshot' ],
-                   [ 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes', 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes' ],
+                   [ 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes v1', 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes v1' ],
                  ]
         st = ServerTemplate.find(resource_id(s_one.server_template_href)) 
         load_script_table(st,scripts)
