@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Command
-    def self.list
+    def self.list(*args)
+      self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:list]
         eval(VirtualMonkey::Command::use_options(:prefix, :verbose))

@@ -1,22 +1,16 @@
 set :runner, VirtualMonkey::Runner::SimpleWindowsSQL
 
-before do
+hard_reset do
   @runner.stop_all
+end
 
-
+before do
   @runner.launch_all
-
-
   @runner.wait_for_all("operational")
-
 end
 
 test "default" do
-
   @runner.check_monitoring
-
-
-
   @runner.run_script_on_all("EBS Restore data and log volumes")
   @runner.run_script_on_all("sql_db_check")
   @runner.run_script_on_all("DB SQLS Rename instance")

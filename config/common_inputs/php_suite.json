@@ -1,0 +1,31 @@
+{
+  "lb_haproxy/health_check_uri" : "text:/index.html",
+  "lb_haproxy/host" : "text:localhost",
+  "lb_haproxy/cron_reconverge_hour" : "ignore:$ignore",
+  "lb_haproxy/cron_reconverge_minute" : "ignore:$ignore",
+  "php/code/url"  : "text:git://github.com/rightscale/examples",
+  "php/code/branch"  : "text:unified_php",
+  "php/db_dns_name" : "text:notsure",
+  "php/db_schema_name" : "text:app_test",
+  "php/server_name" : "text:reg-php.test.rightscale.com",
+  "db_mysql/application/user" : "cred:DBAPPLICATION_USER",
+  "db_mysql/application/password" : "cred:DBAPPLICATION_PASSWORD",
+  "web_apache/ssl_enable" : "text:false",
+  "db_mysql/backup/container" : "text:lamp-feature-bucket-us-east",
+  "db_mysql/backup/prefix" : "text:app_test",
+  "db_mysql/backup/schema_name" : "text:app_test",
+  "db_mysql/backup/storage_account_provider" : "text:ec2",
+  "db_mysql/backup/aws_access_key_id" : "cred:AWS_ACCESS_KEY_ID",
+  "db_mysql/backup/aws_secret_access_key" : "cred:AWS_SECRET_ACCESS_KEY",
+  "db_mysql/backup/rackspace_user" : "cred:RACKSPACE_USERNAME",
+  "db_mysql/backup/rackspace_secret" : "cred:RACKSPACE_AUTH_KEY",
+  "rs_utils/private_ssh_key" : "key:publish-test:1",
+  "sys_firewall/enabled": "text:enabled",
+  "db_mysql/fqdn": "text:localhost",
+  "db/fqdn": "text:localhost",
+  "sys/swap_size": "text:2.0"
+
+}
+
+
+

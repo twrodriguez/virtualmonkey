@@ -1,0 +1,9 @@
+{
+  "feature":"windows_ms_sql_mirroring.rb",
+  "cloud_variables":"aws_clouds.json",
+  "common_inputs":"windows_ms_sql_mirroring.json",
+  "prefix":"MD_MS_SQL_MIRRORING_TROOP",
+  "server_template_ids":[
+    "119413","114937","114937"
+  ]
+}

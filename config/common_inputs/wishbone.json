@@ -21,7 +21,8 @@
   "db_mysql/backup/rackspace_secret" : "cred:RACKSPACE_AUTH_KEY",
   "rs_utils/private_ssh_key" : "key:publish-test:1",
   "sys_firewall/enabled": "text:enabled",
-  "db_mysql/fqdn": "text:localhost"
+  "db/fqdn": "text:localhost",
+  "sys/swap_size": "text:2.0"
 
 }
 

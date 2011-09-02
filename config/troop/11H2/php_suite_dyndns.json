@@ -1,0 +1,13 @@
+{
+  "feature":"php_suite_dyndns.rb",
+  "cloud_variables":"all_clouds.json",
+  "common_inputs":["php_suite.json","chef_swap.json"],
+  "prefix":"DYNDNS",
+  "server_template_ids":[
+    "27958",
+    "27958",
+    "120077",
+    "120077",
+    "107666"
+  ]
+}

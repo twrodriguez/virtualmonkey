@@ -1,8 +1,8 @@
 {
-  "feature":"php_fullstack_ssl.rb",
+  "feature":"php_suite_awsdns.rb",
   "cloud_variables":"all_clouds.json",
-  "common_inputs":"php_full_stack.json",
-  "prefix":"FULLSTACK_SSL",
+  "common_inputs":["php_suite.json","chef_swap.json"],
+  "prefix":"AWSDNS",
   "server_template_ids":[
     "27958",
     "27958",

@@ -8,6 +8,6 @@
     "109706"
   ],
   "cloud_variables":"aws_us_east.json",
-  "common_inputs":"php.json",
+  "common_inputs":["php.json","chef_swap.json"],
   "prefix":"TROOP_NGNXPHP"
 }

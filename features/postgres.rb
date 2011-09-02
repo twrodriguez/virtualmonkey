@@ -1,7 +1,10 @@
 set :runner, VirtualMonkey::Runner::Postgres
 
-before do
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_variation_lineage
   @runner.set_variation_stripe_count(1)
   @runner.set_variation_volume_size(3)

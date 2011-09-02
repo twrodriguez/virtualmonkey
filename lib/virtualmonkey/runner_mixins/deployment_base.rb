@@ -6,20 +6,27 @@ module VirtualMonkey
       attr_accessor :scripts_to_run
       
       def initialize(deployment, opts = {})
-        test_case_interface_init(opts)
         @scripts_to_run = {}
         @server_templates = []
         @st_table = []
         @deployment = Deployment.find_by_nickname_speed(deployment).first
         raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
+        test_case_interface_init(opts)
         populate_settings
       end
-  
-      def server_by_info_tag(tags = {})
+
+      # Select a server based on the info tags attached to it
+      # If a hash of tags is passed, the server needs to match all of them by value
+      # If a block is passed, all info tags will be passed to the block as an array
+      def server_by_info_tag(tags = {}, &block)
         set = @servers
-        tags.each { |key,val|
-          set = set.select { |s| s.get_info_tags(key)["self"][key] == val }
-        }
+        if block
+          set = set.select { |s| yield(s.get_info_tags["self"]) }
+        else
+          tags.each { |key,val|
+            set = set.select { |s| s.get_info_tags(key)["self"][key] == val }
+          }
+        end
         set.first
       end
 
@@ -89,8 +96,8 @@ module VirtualMonkey
         sts.each { |st|
           table.each { |a|
             st_id = resource_id(st)
-            puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id]
-            @scripts_to_run[st_id] = {} unless @scripts_to_run[st_id]
+            @scripts_to_run[st_id] ||= {}
+            puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id][ a[0] ]
             @scripts_to_run[st_id][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
             raise "FATAL: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[st_id][ a[0] ]
           }
@@ -162,6 +169,7 @@ module VirtualMonkey
         @deployment.set_input("MASTER_DB_DNSNAME", the_name) 
         @deployment.set_input("DB_HOST_NAME", the_name) 
         @deployment.set_input("db_mysql/fqdn", the_name)
+        @deployment.set_input("db/fqdn", the_name)
       end
   
       # Launch server(s) that match nickname_substr
@@ -287,10 +295,17 @@ module VirtualMonkey
         set = select_set(set)
         if wait
           set.each do |s|
-            transaction {
-              a = launch_script(friendly_name, s, options)
-              a.wait_for_completed if wait
-            }
+            if wait.is_a?(Fixnum)
+              transaction {
+                a = launch_script(friendly_name, s, options)
+                a.wait_for_completed(wait)
+              }
+            else
+              transaction {
+                a = launch_script(friendly_name, s, options)
+                a.wait_for_completed
+              }
+            end
           end
         else
           set.each do |s|
@@ -382,17 +397,15 @@ module VirtualMonkey
         end
       end
       
-      # Assumes the host machine is EC2, uses the meta-data to grab the IP address of this
+      # Assumes the host machine is in the cloud, uses the toolbox functions to grab the IP address of this
       # 'tester server' eg. used for the input variation MASTER_DB_DNSNAME
       def get_tester_ip_addr
-        if File.exists?("/var/spool/ec2/meta-data.rb")
-          require "/var/spool/ec2/meta-data-cache" 
+        if VirtualMonkey::my_api_self
+          ip = VirtualMonkey::my_api_self.reachable_ip
         else
-          ENV['EC2_PUBLIC_HOSTNAME'] = "127.0.0.1"
+          ip = "127.0.0.1"
         end
-        my_ip_input = "text:" 
-        my_ip_input += ENV['EC2_PUBLIC_HOSTNAME']
-        my_ip_input
+        return "text:#{ip}" 
       end
       
       # Log rotation
@@ -417,30 +430,32 @@ module VirtualMonkey
       # Checks that monitoring is enabled on all servers in the deployment.  Will raise an error if monitoring is not enabled.
       def check_monitoring
         @servers.each do |server|
-          transaction { server.settings }
-          response = nil
-          count = 0
-          until response || count > 20 do
-            begin
-              response = transaction { server.monitoring }
-            rescue
-              response = nil
-              count += 1
+          transaction {
+            server.settings
+            response = nil
+            count = 0
+            until response || count > 20 do
+              begin
+                response = server.monitoring
+              rescue
+                response = nil
+                count += 1
+                sleep 10
+              end
             end
-              sleep 10
-          end
-          raise "Fatal: Failed to verify that monitoring is operational" unless response
+            raise "Fatal: Failed to verify that monitoring is operational" unless response
   #TODO: pass in some list of plugin info to check multiple values.  For now just
   # hardcoding the cpu check
-          sleep 180 # This is to allow monitoring data to accumulate
-          monitor = transaction { server.get_sketchy_data({'start' => -60,
-                                                           'end' => -20,
-                                                           'plugin_name' => "cpu-0",
-                                                           'plugin_type' => "cpu-idle"}) }
-          idle_values = monitor['data']['value']
-          raise "No cpu idle data" unless idle_values.length > 0
-          raise "CPU idle time is < 0: #{idle_values}" unless idle_values[0] > 0
-          puts "Monitoring is OK for #{server.nickname}"
+            sleep 180 # This is to allow monitoring data to accumulate
+            monitor = transaction { server.get_sketchy_data({'start' => -60,
+                                                             'end' => -20,
+                                                             'plugin_name' => "cpu-0",
+                                                             'plugin_type' => "cpu-idle"}) }
+            idle_values = monitor['data']['value']
+            raise "No cpu idle data" unless idle_values.length > 0
+            raise "CPU idle time is < 0: #{idle_values}" unless idle_values[0] > 0
+            puts "Monitoring is OK for #{server.nickname}"
+          }
         end
       end
   
@@ -504,6 +519,24 @@ module VirtualMonkey
       def run_simple_check(server)
         test_mail_config(server)
         test_syslog_config(server)
+      end
+
+      # parameter tag_to_set is a string
+      # example pass in rs_agent_dev:package=5.7.11
+      def tag_all_servers(tag_to_set)
+        servers.each_index { |counter|
+          servers[counter].settings
+          servers[counter].reload
+          puts "tag added " + tag_to_set.to_s + " " + servers[counter].to_s
+
+          if servers[counter].multicloud
+            McTag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+          else
+            Tag.set(servers[counter].href,["#{tag_to_set}"]) ## Tag.set expects and array input
+          end
+
+          servers[counter].tags(true)
+        }
       end
     end
   end

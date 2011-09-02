@@ -1,7 +1,10 @@
 set :runner, VirtualMonkey::Runner::NginxFeApp
 
-before do
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_master_db_dnsname
 end
 

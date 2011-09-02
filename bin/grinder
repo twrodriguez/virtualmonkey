@@ -18,10 +18,10 @@ self_deployment = ENV['MONKEY_SELF_DEPLOYMENT_NAME'] if VirtualMonkey::Toolbox::
 self_deployment ||= "nil"
 
 options = Trollop::options do
-  opt :deployment, "Full deployment name",                                  :short => "-d", :type => :string, :default => self_deployment, :required => true
-  opt :file, "Feature file name",                                           :short => "-f", :type => :string, :required => true
+  opt :deployment, "Full deployment name",                                  :short => "-d", :type => :string,  :default => self_deployment, :required => true
+  opt :features, "Feature file names",                                      :short => "-f", :type => :strings, :required => true
   opt :no_debug, "Disable all debugging",                                   :short => "-g", :type => :boolean
-  opt :log, "Log file name",                                                :short => "-l", :type => :string, :default => default_log_file, :required => true
+  opt :log, "Log file name",                                                :short => "-l", :type => :string,  :default => default_log_file, :required => true
   opt :no_resume, "Do not resume; start test from scratch",                 :short => "-r", :type => :boolean
   opt :post_mortem, "Enable Post Mortem debugging",                         :short => "-s", :type => :boolean
   opt :tests, "Space-separated strings of tests to execute (default: all)", :short => "-t", :type => :strings
@@ -41,5 +41,23 @@ unless ENV['MONKEY_NO_DEBUG'] =~ /true/i
 end
 
 # Run
-test_case = VirtualMonkey::TestCase.new(options[:file], options)
+options[:tests] ||= []
+features = [options[:features]].flatten
+if features.length > 1
+  test_cases = features.map_to_h { |feature| VirtualMonkey::TestCase.new(feature, options) }
+  unless test_cases.unanimous? { |tc| tc.options[:runner] }
+    raise ":runner options MUST match for multiple feature files"
+  end
+  unless test_cases.unanimous? { |tc| tc.options[:allow_meta_monkey] }
+    raise ":allow_meta_monkey options MUST match for multiple feature files"
+  end
+  combo_feature = GrinderMonk.combo_feature_name(features)
+  File.open(combo_feature, "w") { |f|
+    f.write(features.map { |feature| "mixin_feature '#{feature}', :hard_reset" }.join("\n"))
+  }
+  test_case = VirtualMonkey::TestCase.new(combo_feature, options)
+else
+  test_case = VirtualMonkey::TestCase.new(options[:features].first, options)
+end
+
 test_case.run(*options[:tests])

@@ -1,6 +1,10 @@
 set :runner, VirtualMonkey::Runner::MysqlV2Migration
-before do
+
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_variation_lineage
   @runner.set_variation_stripe_count(3)
 end

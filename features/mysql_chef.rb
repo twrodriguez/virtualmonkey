@@ -1,30 +1,46 @@
 set :runner, VirtualMonkey::Runner::MysqlChef
 
-clean_start do
-  @runner.stop_all
+hard_reset do
+  stop_all
 end
 
 before do
-  @runner.set_variation_lineage
-  @runner.set_variation_container
-  @runner.set_variation_storage_type
-#  @runner.setup_dns("virtualmonkey_shared_resources") # DNSMadeEasy
-  @runner.launch_all
-  @runner.wait_for_all("operational")
+  set_variation_lineage
+  set_variation_container
+  launch_all
+  wait_for_all("operational")
+  disable_db_reconverge
 end
 
-test "default" do
-#  @runner.setup_block_device
-#  @runner.do_backup
-#  @runner.do_force_reset
-#  @runner.do_restore
-  @runner.test_multicloud
-#  @runner.check_monitoring
-#  @runner.check_mysql_monitoring
-#  @runner.run_reboot_operations
-#  @runner.check_monitoring
-#  @runner.run_restore_with_timestamp_override
-#  @runner.run_logger_audit
-#  @runner.stop_all(true)
-#  @runner.release_dns
+test "primary_backup" do
+  test_primary_backup
+end
+
+test "secondary_backup_s3" do
+  test_secondary_backup("S3")
+end
+
+test "secondary_backup_cloudfiles" do
+  test_secondary_backup("CloudFiles")
+end
+
+after 'primary_backup', 'secondary_backup_s3', 'secondary_backup_cloudfiles', 'reboot' do
+  do_force_reset
+end
+
+before 'reboot' do
+  do_force_reset
+  run_script("setup_block_device", s_one)
+end
+
+test "reboot" do
+  check_mysql_monitoring
+  run_reboot_operations
+  check_monitoring
+  check_mysql_monitoring
+end
+
+after do
+  cleanup_volumes
+  cleanup_snapshots
 end

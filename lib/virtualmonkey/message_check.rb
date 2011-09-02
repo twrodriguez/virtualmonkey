@@ -57,7 +57,7 @@ class MessageCheck
   # Loads lists from json files and from runner list initializers
   def load_lists(lists = {})
     LISTS.each { |l|
-      @db[l] = JSON::parse(IO.read(File.join("config", "lists", "#{l}.json")))
+      @db[l] = JSON::parse(IO.read(File.join(VirtualMonkey::LIST_DIR, "#{l}.json")))
       if lists[l]
         @db[l] ||= []
         lists[l].each { |logfile,st_rgx,msg_rgx|
@@ -71,7 +71,7 @@ class MessageCheck
   def save_db
     LISTS.each { |list|
       list_out = @db[list].to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
-      File.open(File.join("config", "lists", "#{list}.json"), "w") { |f| f.write(list_out) }
+      File.open(File.join(VirtualMonkey::LIST_DIR, "#{list}.json"), "w") { |f| f.write(list_out) }
     }
   end
 

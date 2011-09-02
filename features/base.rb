@@ -1,10 +1,11 @@
 set :runner, VirtualMonkey::Runner::Simple
 
-clean_start do
+hard_reset do
   @runner.stop_all
 end
 
 before do
+#  @runner.tag_all_servers("rs_agent_dev:package=5.7.13")
   @runner.launch_all
   @runner.wait_for_all("operational")
 end

@@ -1,5 +1,9 @@
 set :runner, VirtualMonkey::Runner::Mysql
 
+hard_reset do
+  @runner.stop_all
+end
+
 before do
 #  @runner.stop_all
 

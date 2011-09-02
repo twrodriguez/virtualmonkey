@@ -1,9 +1,13 @@
 set :runner, VirtualMonkey::Runner::FeApp
 
-before do
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_master_db_dnsname
 end
+
 test "default" do
 # When I launch the "Front End" servers
   @runner.launch_set("Front End")

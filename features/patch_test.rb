@@ -1,7 +1,10 @@
 set :runner, VirtualMonkey::Runner::Patch
 
-before do
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_user_data("RS_patch_url=http://s3.amazonaws.com/rightscale_rightlink_dev")
 
   @runner.launch_all

@@ -1,10 +1,14 @@
 set :runner, VirtualMonkey::Runner::Dotnet
 
-before do
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.launch_all
   @runner.wait_for_all("operational")
 end
+
 test "default" do
   @runner.check_monitoring
   @runner.run_script_on_all('DB SQLS Download and attach DB')
