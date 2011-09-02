@@ -10,24 +10,24 @@ module VirtualMonkey
   
       def oleg_windows_iis_lookup_scripts
        scripts = [
-                   [ 'SYS Timezone set', 'SYS Timezone set' ],
                    [ 'IIS Download application code', 'IIS Download application code' ],
                    [ 'IIS Add connection string', 'IIS Add connection string' ],
                    [ 'IIS Switch default website', 'IIS Switch default website' ],
                    [ 'IIS Restart application', 'IIS Restart application' ],
                    [ 'IIS Restart web server', 'IIS Restart web server' ],
-                   [ 'DB SQLS Download and attach db', 'DB SQLS Download and attach db' ],
-                   [ 'DB SQLS Create login', 'DB SQLS Create login' ],
                    [ 'AWS Register with ELB', 'AWS Register with ELB' ],
                    [ 'AWS Deregister from ELB', 'AWS Deregister from ELB' ],
-                   [ 'SYS install MSDeploy2.0', 'SYS install MSDeploy2.0' ],
+                   [ 'SYS Install Web Deploy 2.0', 'SYS Install Web Deploy 2.0' ],
+                   [ 'SYS Install .NET Framework 4', 'SYS Install .NET Framework 4' ],
+                   [ 'SYS install ASP.NET MVC 3', 'SYS install ASP.NET MVC 3' ],
                  ]
         st = ServerTemplate.find(resource_id(server_ad.server_template_href))
         load_script_table(st,scripts)
-#        load_script('DB SQLS Create login check', RightScript.new('href' => "/api/acct/29082/right_scripts/430024"))
         load_script('SYS install MSDeploy2.0 check', RightScript.new('href' => "/api/acct//29082/right_scripts/430037"))
         load_script('IIS Restart web server check', RightScript.new('href' => "/api/acct//29082/right_scripts/430040"))
         load_script('IIS monkey tests', RightScript.new('href' => "/api/acct//29082/right_scripts/430759"))
+        load_script('SYS install ASP.NET MVC 3 check', RightScript.new('href' => "/api/acct//29082/right_scripts/433157"))
+        load_script('SYS Install .NET Framework 4 check', RightScript.new('href' => "/api/acct//29082/right_scripts/433158"))
       end
     end
   end
