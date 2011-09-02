@@ -29,7 +29,7 @@ test "default" do
   @runner.run_script_on_set("SQLS CHECK backup to disk/S3 ok", :toolbox_server)
   @runner.run_script_on_set("DB SQLS Norecovery snapshot", :toolbox_server)  
   @runner.run_script_on_set("SQLS CHECK norecovery snapshot ok", :toolbox_server, 1800)  
-  @runner.run_script_on_set("DB SQLS DISABLE SERVER - snapshot, detach and delete volumes v1", :toolbox_server) 
+#  @runner.run_script_on_set("DB SQLS DISABLE SERVER - snapshot, detach and delete volumes v1", :toolbox_server) 
 
 #  @runner.stop_all
 
@@ -45,5 +45,5 @@ test "default" do
   @runner.run_script_on_set("SQLS CHECK failover ok", :principal_mirror_server)
   @runner.run_script_on_set("DB SQLS Switch mirroring off", :principal_mirror_server)
   @runner.run_script_on_set("SQLS CHECK mirroring switched off", :principal_mirror_server)
-  @runner.run_script_on_set("DB SQLS DISABLE SERVER - snapshot, detach and delete volumes v1", :principal_mirror_server)
+#  @runner.run_script_on_set("DB SQLS DISABLE SERVER - snapshot, detach and delete volumes v1", :principal_mirror_server)
 end
