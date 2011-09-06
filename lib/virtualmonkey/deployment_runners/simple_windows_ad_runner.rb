@@ -5,20 +5,22 @@ module VirtualMonkey
       include VirtualMonkey::Mixin::SimpleWindows
   
       def server_ad
-          @servers.select { |s| s.nickname =~ /AD 2008/i }.first
+          @servers.select { |s| s.nickname =~ /Active/i }.first
       end
   
       def oleg_windows_ad_lookup_scripts
        scripts = [
                    [ 'AD change Administrator password', 'AD change Administrator password' ],
                    [ 'AD create a backup', 'AD create a backup' ],
+                   [ 'AD restore from backup', 'AD restore from backup' ],
                    [ 'AD create a new group', 'AD create a new group' ],
                    [ 'AD create a new user', 'AD create a new user' ],
                    [ 'AD bulk add user', 'AD bulk add user' ],
-                   [ 'SYS change to safe boot mode', 'SYS change to safe boot mode' ],
-                   [ 'AD restore from backup', 'AD restore from backup' ],
                    [ 'AD recreate domain shares', 'AD recreate domain shares' ],
                    [ 'AD install ADFS', 'AD install ADFS' ],
+                   [ 'AD Transferring FSMO Roles', 'AD Transferring FSMO Roles' ],
+                   [ 'SYS change to safe boot mode', 'SYS change to safe boot mode' ],
+                   [ 'SYS change to normal boot mode', 'SYS change to normal boot mode' ],
                    [ 'SYS Install AD Backup Policy', 'SYS Install AD Backup Policy' ],
                  ]
         st = ServerTemplate.find(resource_id(server_ad.server_template_href))
