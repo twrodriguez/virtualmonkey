@@ -9,23 +9,23 @@ end
 
 test "default" do
 
-  @runner.run_script_on_set("EBS Create data and log volumes v1", :toolbox_server)
+  @runner.run_script_on_set("EBS Create Data and Log volumes", :toolbox_server)
   @runner.run_script_on_set("SQLS CHECK volumes created", :toolbox_server)
-  @runner.run_script_on_set("EBS Create backup volume", :toolbox_server)
+  @runner.run_script_on_set("EBS Create Backup volume", :toolbox_server)
   @runner.run_script_on_set("SQLS CHECK backup volume created", :toolbox_server)
-  @runner.run_script_on_set("DB SQLS Configure tempdb", :toolbox_server)  
+  @runner.run_script_on_set("DB SQLS Configure TempDB", :toolbox_server)  
   @runner.run_script_on_set("SQLS CHECK tempdb configured", :toolbox_server)
-  @runner.run_script_on_set("DB SQLS Restore from disk/S3 v1", :toolbox_server)  
+  @runner.run_script_on_set("DB SQLS Restore from disk/S3", :toolbox_server)  
   @runner.run_script_on_set("SQLS CHECK restore from disk/S3 ok", :toolbox_server)
   @runner.run_script_on_set("DB SQLS Set Full Recovery Model", :toolbox_server)  
   @runner.run_script_on_set("SQLS CHECK full recovery model set", :toolbox_server)
   @runner.run_script_on_set("DB SQLS Set default backup compression", :toolbox_server)  
   @runner.run_script_on_set("SQLS CHECK backup compression set", :toolbox_server)
-  @runner.run_script_on_set("DB SQLS Create login v1", :toolbox_server)  
+  @runner.run_script_on_set("DB SQLS Create login", :toolbox_server)  
   @runner.run_script_on_set("SQLS CHECK login created", :toolbox_server)
   @runner.run_script_on_set("DB SQLS Switch mirroring off", :toolbox_server)
   @runner.run_script_on_set("SQLS CHECK mirroring switched off", :toolbox_server)
-  @runner.run_script_on_set("DB SQLS Backup to disk/S3 v1", :toolbox_server)  
+  @runner.run_script_on_set("DB SQLS Backup to disk/S3", :toolbox_server)  
   @runner.run_script_on_set("SQLS CHECK backup to disk/S3 ok", :toolbox_server)
   @runner.run_script_on_set("DB SQLS Norecovery snapshot", :toolbox_server)  
   @runner.run_script_on_set("SQLS CHECK norecovery snapshot ok", :toolbox_server, 1800)  
@@ -39,7 +39,7 @@ test "default" do
   @runner.check_monitoring
  
   @runner.run_script_on_set("SQLS CHECK principal connected", :principal_mirror_server)
-  @runner.run_script_on_set("DNS dnsmadeeasy register IP", :principal_mirror_server)
+  @runner.run_script_on_set("DNS DNSMadeEasy register IP", :principal_mirror_server)
   @runner.run_script_on_set("SQLS CHECK dns updated", :principal_mirror_server)
   @runner.run_script_on_set("DB SQLS Manual failover", :principal_mirror_server)
   @runner.run_script_on_set("SQLS CHECK failover ok", :principal_mirror_server)
