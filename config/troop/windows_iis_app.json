@@ -4,6 +4,6 @@
   "common_inputs":"windows_iis.json",
   "prefix":"IIS_APP_BETA",
   "server_template_ids":[
-    "104768"
+    "129978"
   ]
 }
