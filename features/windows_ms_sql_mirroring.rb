@@ -39,7 +39,7 @@ test "default" do
   @runner.check_monitoring
  
   @runner.run_script_on_set("SQLS CHECK principal connected", :principal_mirror_server)
-  @runner.run_script_on_set("DNS dnsmadeeasy register IP", :principal_mirror_server)
+  @runner.run_script_on_set("DNS DNSMadeEasy register IP", :principal_mirror_server)
   @runner.run_script_on_set("SQLS CHECK dns updated", :principal_mirror_server)
   @runner.run_script_on_set("DB SQLS Manual failover", :principal_mirror_server)
   @runner.run_script_on_set("SQLS CHECK failover ok", :principal_mirror_server)
