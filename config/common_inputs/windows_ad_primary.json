@@ -10,7 +10,7 @@
   "AD_USER_LOGIN" : "text:John.Smith",
   "AD_USER_PASSWORD" : "text:Fyhgenxhw1",
   "CSV_FILE_NAME" : "text:bulk.csv",
-  "FQDN_DOMAIN_NAME" : "text:Rightscale",
+  "FQDN_DOMAIN_NAME" : "text:Rightscale.local",
   "GROUP_DESCRIPTION" : "text:Test group",
   "GROUP_NAME" : "text:Test_group",
   "GROUP_SCOPE" : "text:Universal",
