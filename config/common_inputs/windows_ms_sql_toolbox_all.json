@@ -10,7 +10,7 @@
   "DB_NAME" : "text:DotNetNuke",
   "LOCAL_PATH" : "text:C:\\",
   "LOGS_VOLUME_SIZE" : "text:3",
-  "OPT_BACKUP_S3_BUCKET" : "text:Windows3tier",
+  "OPT_BACKUP_S3_BUCKET" : "text:rightscale-windows-st",
   "OPT_RESTORE_NORECOVERY" : "text:False",
   "OPT_USE_PUBLIC_IP" : "text:False",
   "INSTANCE_ID" : "env:INSTANCE_ID",

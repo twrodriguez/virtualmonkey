@@ -1,6 +1,5 @@
 {
   "feature":"windows_ms_sql_toolbox.rb",
-  "cloud_variables":"aws_clouds.json",
   "common_inputs":"windows_ms_sql_toolbox_all.json",
   "prefix":"MD_MS_SQL_TOOLBOX_TROOP",
   "server_template_ids":[
