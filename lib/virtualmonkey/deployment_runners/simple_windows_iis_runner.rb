@@ -4,8 +4,10 @@ module VirtualMonkey
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::SimpleWindows
   
-      def server_ad
-          @servers.select { |s| s.nickname =~ /Microsoft IIS App/i }.first
+      def server_iis
+        #  @servers.select { |s| s.nickname =~ /Microsoft IIS App/i }.first
+        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft IIS App/i } 
+        match_servers_by_st(st)
       end
   
       def oleg_windows_iis_lookup_scripts
@@ -21,7 +23,7 @@ module VirtualMonkey
                    [ 'SYS Install .NET Framework 4', 'SYS Install .NET Framework 4' ],
                    [ 'SYS install ASP.NET MVC 3', 'SYS install ASP.NET MVC 3' ],
                  ]
-        st = ServerTemplate.find(resource_id(server_ad.server_template_href))
+        st = ServerTemplate.find(resource_id(server_iis.server_template_href))
         load_script_table(st,scripts)
         load_script('SYS Install Web Deploy 2.0 check', RightScript.new('href' => "/api/acct//2901/right_scripts/434985"))
         load_script('IIS Restart web server check', RightScript.new('href' => "/api/acct//2901/right_scripts/435028"))
