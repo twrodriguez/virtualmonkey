@@ -1,7 +1,10 @@
 set :runner, VirtualMonkey::Runner::SimpleWindowsSqlsToolbox
 
-before do
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_test_lineage
   @runner.launch_all
   @runner.wait_for_all("operational")
