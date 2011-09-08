@@ -129,10 +129,24 @@ module VirtualMonkey
         elsif add_only_to_this_st.nil?
           sts = @server_templates
         end
+
+        if script.is_a?(RightScript) or script.is_a?(Executable)
+          script_ref = script
+          script_ref.reload
+        elsif script.is_a?(Fixnum)
+          begin
+            script_ref = RightScript.find(script)
+          rescue
+            script_ref = Executable.find(script)
+          end 
+        elsif script.is_a?(String)
+          script_ref = RightScript.find_by(:nickname) { |n| n =~ /#{Regexp.escape(script)}/i }.first
+        end
+        raise "FATAL: Script '#{script}' not found" unless script_ref
+
         sts.each { |st|
-          @scripts_to_run[resource_id(st)] = {} unless @scripts_to_run[resource_id(st)]
-          @scripts_to_run[resource_id(st)][friendly_name] = script
-          raise "FATAL: Script #{a[1]} not found" unless @scripts_to_run[resource_id(st)][friendly_name]
+          @scripts_to_run[resource_id(st)] ||= {}
+          @scripts_to_run[resource_id(st)][friendly_name] = script_ref
         }
       end
   

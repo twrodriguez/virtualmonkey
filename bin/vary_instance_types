@@ -18,7 +18,7 @@ options = Trollop::options do
   opt :tag, "Tag of the DeploymentSet that you want to vary the sizes on", :type => :string, :required => true
   opt :spot, "Use spot instances", :default => false
   opt :micro_mayhem, "Set everything to Micros", :default => false
-  opt :href, "API 1.5 only: Set all instances to a specific InstanceType href", :type => :string
+  opt :href, "API 1.5 only: Set all instances to a specific InstanceType href", :type => :string, :short => "-H"
   opt :name, "API 1.0 only: Set all instances to a specific AWS instance size", :type => :string
 end
 

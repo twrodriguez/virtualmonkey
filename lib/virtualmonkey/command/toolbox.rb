@@ -1,5 +1,10 @@
 module VirtualMonkey
   module Command
+
+    #
+    # Generate ssh_keys.json, ~.ssh/ keys, and Cloud ssh key pairs
+    #
+
     def self.generate_ssh_keys(*args)
       self.init(*args)
       @@options = Trollop::options do
@@ -12,6 +17,10 @@ module VirtualMonkey
       puts "SSH Keyfiles generated."
     end
 
+    #
+    # Destroy ssh_keys.json, ~.ssh/ keys, and Cloud ssh key pairs
+    #
+
     def self.destroy_ssh_keys(*args)
       self.init(*args)
       @@options = Trollop::options do
@@ -22,11 +31,15 @@ module VirtualMonkey
       puts "SSH Keyfiles destroyed."
     end
 
+    #
+    # Populate security_groups.json
+    #
+
     def self.populate_security_groups(*args)
       self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:populate_security_groups]
-        opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
+        opt :clouds, "Add security_groups to set of clouds (takes the integer cloud id)", :type => :integers, :short => "-i"
         opt :security_group_name, "Populate the file with this security group (will search for the name of the security group attached to the monkey instance, then 'default' by default)", :type => :string, :short => '-n'
         opt :overwrite, "Refresh values by replacing existing data"
       end
@@ -35,17 +48,25 @@ module VirtualMonkey
       puts "Security Group file populated."
     end
 
+    #
+    # Populate datacenters.json
+    #
+
     def self.populate_datacenters(*args)
       self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:populate_datacenters]
-        opt :add_cloud, "Add a non-ec2 cloud to security_groups (takes the integer cloud id)", :type => :integer
+        opt :add_cloud, "Add a non-ec2 cloud to datacenters (takes the integer cloud id)", :type => :integer
         opt :overwrite, "Refresh values by replacing existing data"
       end
 
       VirtualMonkey::Toolbox::populate_datacenters(@@options[:add_cloud], @@options[:overwrite])
       puts "Datacenters file populated."
     end
+
+    #
+    # Populate the cloud_vars folder
+    #
 
     def self.populate_all_cloud_vars(*args)
       self.init(*args)
@@ -60,6 +81,10 @@ module VirtualMonkey
       VirtualMonkey::Toolbox::populate_all_cloud_vars(@@options[:force], @@options)
       puts "Cloud Variables folder populated."
     end
+
+    #
+    # Check API version connectivity
+    #
 
     def self.api_check(*args)
       self.init(*args)

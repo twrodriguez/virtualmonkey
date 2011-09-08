@@ -309,9 +309,9 @@ module VirtualMonkey
     # generated servers (requires the same security group name in each cloud). Will default to the 'default'
     # security group for every cloud that doesn't have the named security group. use_this_sec_group should
     # be a string, or nil.
-    def populate_security_groups(single_cloud = nil, use_this_sec_group = nil, overwrite = false)
+    def populate_security_groups(cloud_id_set = nil, use_this_sec_group = nil, overwrite = false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
-      cloud_ids.reject! { |i| i != single_cloud } if single_cloud
+      cloud_ids.reject! { |i| !cloud_id_set.include?(i) } unless cloud_id_set.empty?
 
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {}) 
 
@@ -332,14 +332,6 @@ module VirtualMonkey
         end
         sg_name = "#{use_this_sec_group || my_sec_group || 'default'}"
         puts "Looking for the '#{sg_name}' security group in all supporting clouds."
-=begin
-        if ENV['EC2_SECURITY_GROUPS']
-          sg_name = "#{ENV['EC2_SECURITY_GROUPS']}"
-        else
-          sg_name = "default"
-        end
-        sg_name = use_this_sec_group if use_this_sec_group
-=end
         if cloud <= 10
           found = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /#{sg_name}/ }.first
           if found
