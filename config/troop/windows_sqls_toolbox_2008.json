@@ -1,0 +1,8 @@
+{
+  "feature":"windows_ms_sql_toolbox.rb",
+  "common_inputs":"windows_ms_sql_toolbox_2008.json",
+  "prefix":"MD_MS_SQL_TOOLBOX_TROOP_08",
+  "server_template_ids":[
+    "130010"
+  ]
+}

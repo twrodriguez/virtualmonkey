@@ -1,7 +1,10 @@
 set :runner, VirtualMonkey::Runner::SimpleWindowsSqlsMirroring
 
-before do
+hard_reset do
   @runner.stop_all
+end
+
+before do
   @runner.set_mirroring_inputs
   @runner.launch_set(:toolbox_server)
   @runner.wait_for_set(:toolbox_server, "operational")
