@@ -13,5 +13,6 @@
   "LOGS_VOLUME_SIZE" : "text:3",
   "OPT_BACKUP_S3_BUCKET" : "text:rightscale-windows-st",
   "OPT_RESTORE_NORECOVERY" : "text:False",
+  "OPT_TEMPDB_DATAFILE_SIZE" : "text:1",
   "OPT_USE_PUBLIC_IP" : "text:False"
 }
