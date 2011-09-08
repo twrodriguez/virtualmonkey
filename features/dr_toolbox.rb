@@ -43,7 +43,8 @@ end
 #
 
 before "continuous_volume_backup", "continuous_s3_backup", "continuous_cloudfiles_backup" do
-  run_script("do_force_reset", s_one)
+  cleanup_volumes
+  cleanup_snapshots
 end
 
 test "continuous_volume_backup" do

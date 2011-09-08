@@ -96,6 +96,7 @@ module VirtualMonkey
         find_snapshots.each do |snap|
           snap.destroy
         end
+        # TODO cleanup secondary_container
       end
 
       def cleanup_volumes

@@ -147,6 +147,7 @@ module VirtualMonkey
         find_snapshots.each do |snap|
           snap.destroy
         end
+        # TODO cleanup buckets
       end
 
       def cleanup_volumes
@@ -158,6 +159,12 @@ module VirtualMonkey
       end
 
       def test_continuous_backups(type = :volume)
+        @passed_continuous_backups ||= false
+        if @passed_continuous_backups
+          # Skip continuous part if we've already tested continuous backups
+          test_backup(type)
+          return true
+        end
         return true if s_one.cloud_id.to_i == 232 and type == :volume # Rackspace can't do volumes
         if type == :volume
           set_variation_storage_type(:volume)
@@ -174,22 +181,21 @@ module VirtualMonkey
         provider = type.to_s.underscore
         run_script("setup_block_device", s_one)
 
-        # Setup Backups for every 5 minutes
+        # Setup Backups for every 3 minutes
         total_sleep_time = 0
-        every_n_minutes = 5
+        every_n_minutes = 3
         tick = every_n_minutes * 60 # Number of seconds between cron jobs
         opts = {"block_device/cron_backup_hour" => "text:*",
                 "block_device/cron_backup_minute" => "text:*/#{every_n_minutes}"}
         run_script("setup_continuous_backups_#{provider}", s_one, opts)
 
         # Wait for snapshots to be created
-        sleep(total_sleep_time += tick)
         retries = 0
         if type == :volume
           snapshots = find_snapshots
           until snapshots.length > 0
             retries += 1
-            raise "FATAL: Retry count exceeded 6; Failed Continuous Backup Enable Test" unless retries < 6
+            raise "FATAL: Retry count exceeded 10; Failed Continuous Backup Enable Test" unless retries < 10
             sleep(tick / 3)
             total_sleep_time += (tick / 3)
             snapshots = find_snapshots
@@ -197,7 +203,7 @@ module VirtualMonkey
         else
           until dir = fog_store.directories.detect { |d| d.key == @container }
             retries += 1
-            raise "FATAL: Retry count exceeded 6; Failed Continuous Backup Enable Test" unless retries < 6
+            raise "FATAL: Retry count exceeded 10; Failed Continuous Backup Enable Test" unless retries < 10
             sleep(tick / 3)
             total_sleep_time += (tick / 3)
           end
@@ -230,8 +236,7 @@ module VirtualMonkey
           # - API 0.1 Instance connection
           # - API 1.0 Instance connection
           # - API 1.5 Instance connection
-          ServerTemplate.find(@server_templates.first.reload['href']).multi_cloud_images.each { |mci_i| mci_i.reload }
-          
+          ServerTemplate.find(@server_templates.first.reload['href']).multi_cloud_images.each { |mci_i| mci_i.reload } 
         end
         if type == :volume
           count = find_snapshots.length
@@ -243,6 +248,7 @@ module VirtualMonkey
           dir.files.reload
           raise "FATAL: Failed Continuous Backup Disable Test" unless dir.files.length == count
         end
+        @passed_continuous_backups = true
       end
   
       def release_container
