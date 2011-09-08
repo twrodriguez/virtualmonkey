@@ -59,7 +59,7 @@ module VirtualMonkey
           puts "Got \"execution expired...\". Retrying...."
           sleep 5
           return true # Exception Handled
-        elsif e.message =~ /Service (Temporarily )*Unavailable/
+        elsif e.message =~ /Service Unavailable|Service Temporarily Unavailable/
           puts "Got \"Service Temporarily Unavailable\". Retrying...."
           sleep 10
           return true # Exception Handled
