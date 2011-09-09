@@ -181,9 +181,6 @@ module VirtualMonkey
         query = "show variables like 'tmpdir'"
         query_command = "echo -e \"#{query}\"| mysql"
         probe(@servers, query_command) { |result,st| result.include?("/mnt/mysqltmp") }
-  #      @servers.each do |server|
-  #        server.spot_check(query_command) { |result| raise "Failure: tmpdir was unset#{result}" unless result.include?("/mnt/mysqltmp") }
-  #      end
   
         # check that mysql cron script exits success
         @servers.each do |server|
@@ -196,21 +193,12 @@ module VirtualMonkey
   
         # check that logrotate has mysqlslow in it
         probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql-server") { |out,st| out =~ /mysqlslow/ and st == 0 }
-  #      @servers.each do |server|
-  #        res = server.spot_check_command("logrotate --force -v /etc/logrotate.d/mysql-server")
-  #        raise "LOGROTATE FAILURE, exited with non-zero status" if res[:status] != 0
-  #        raise "DID NOT FIND mysqlslow.log in the log rotation!" if res[:output] !~ /mysqlslow/
-  #      end
       end
   
   
       # check that mysql can handle 5000 concurrent connections (file limits, etc.)
       def run_mysqlslap_check
           probe(@servers, "mysqlslap  --concurrency=5000 --iterations=10 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --csv=/tmp/mysqlslap_q1000_innodb.csv --engine=innodb --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=mixed --number-of-queries=1000 --user=root") { |out,st| st == 0 }
-  #      @servers.each do |server|
-  #        result = server.spot_check_command("mysqlslap  --concurrency=5000 --iterations=10 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --csv=/tmp/mysqlslap_q1000_innodb.csv --engine=innodb --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=mixed --number-of-queries=1000 --user=root")
-  #        raise "FATAL: mysqlslap check failed" unless result[:output].empty?
-  #      end
       end
   
       def init_slave_from_slave_backup

@@ -132,7 +132,31 @@ module VirtualMonkey
           server.set_inputs({"block_device/storage_container" => "text:#{@container}"})
         end
       end
-  
+      
+      # sets the storage provider for the server
+      # * kind<~String> can be "chef" or nil
+      def set_variation_storage_account_provider(provider)
+        @deployment.set_input("db_mysql/dump/storage_account_provider", "text:#{provider}")
+        @servers.each do |server|
+          server.set_inputs({"db_mysql/dump/storage_account_provider" => "text:#{provider}"})
+        end
+        # Set the username and auth inputs for the account provider
+
+
+  "block_device/storage_account_id":"cred:RACKSPACE_USERNAME",
+  "block_device/storage_account_secret":"cred:RACKSPACE_AUTH_KEY",
+
+
+        case provider
+        when "ec2"
+          "block_device/storage_account_id":"cred:AWS_ACCESS_KEY_ID",
+          "block_device/storage_account_secret":"cred:AWS_SECRET_ACCESS_KEY",
+        when "rackspace"
+        else
+          raise "FATAL: Provider #{provider.to_s} not supported."
+        end
+      end
+
       def test_primary_backup
         run_script("setup_block_device", s_one)
         probe(s_one, "touch /mnt/storage/monkey_was_here")

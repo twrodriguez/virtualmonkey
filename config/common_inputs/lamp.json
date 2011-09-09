@@ -3,8 +3,10 @@
   "OPT_PHP_MODULES_LIST":"ignore:$ignore",
   "ADMIN_EMAIL":"text:root@localhost",
   "MON_PROCESSES":"text:mysqld httpd",
-  "DB_MYSQLDUMP_BUCKET":"text:lamp-feature-bucket-ap",
-  "AWS_ACCESS_KEY_ID":"cred:AWS_ACCESS_KEY_ID",
+  "DB_MYSQLDUMP_BUCKET":"text:lamp-feature-bucket-us-east",
+  "STORAGE_ACCOUNT_ID":"cred:AWS_ACCESS_KEY_ID",
+  "STORAGE_ACCOUNT_SECRET":"cred:AWS_SECRET_ACCESS_KEY",
+  "STORAGE_ACCOUNT_PROVIDER":"text:ec2",
   "DBADMIN_PASSWORD":"text:admin_pass",
   "APPLICATION_CODE_BUCKET":"text:lamp-feature-bucket-ap",
   "DBADMIN_USER":"text:admin",
@@ -21,12 +23,9 @@
   "OPT_SERVE_TOMCAT_APP_AT_ROOT":"text:false",
   "MASTER_DB_DNSNAME":"text:localhost",
   "DB_SCHEMA_NAME":"text:app_test",
-  "AWS_SECRET_ACCESS_KEY":"cred:AWS_SECRET_ACCESS_KEY",
   "SYS_TZINFO":"text:UTC",
   "DB_BINLOG_PREFIX":"text:/mnt/mysql-binlogs/mysql-bin",
   "DBAPPLICATION_PASSWORD":"cred:DBAPPLICATION_PASSWORD",
   "SKETCHY":"env:RS_SKETCHY",
-  "SERVER_UUID":"env:RS_INSTANCE_UUID",
-  "STORAGE_ACCOUNT_ID":"cred:AWS_ACCESS_KEY_ID",
-  "STORAGE_ACCOUNT_SECRET":"cred:AWS_SECRET_ACCESS_KEY"
+  "SERVER_UUID":"env:RS_INSTANCE_UUID"
 }

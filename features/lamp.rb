@@ -5,6 +5,8 @@ hard_reset do
 end
 
 before do
+# Set the provider and account / auth information
+  set_variation_storage_account_provider
   @runner.launch_all
   @runner.wait_for_all("operational")
 end
