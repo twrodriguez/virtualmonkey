@@ -142,16 +142,17 @@ module VirtualMonkey
         end
         # Set the username and auth inputs for the account provider
 
-
-  "block_device/storage_account_id":"cred:RACKSPACE_USERNAME",
-  "block_device/storage_account_secret":"cred:RACKSPACE_AUTH_KEY",
-
-
         case provider
         when "ec2"
-          "block_device/storage_account_id":"cred:AWS_ACCESS_KEY_ID",
-          "block_device/storage_account_secret":"cred:AWS_SECRET_ACCESS_KEY",
+          @servers.each do |server|
+            server.set_inputs({"block_device/storage_account_id" => "cred:AWS_ACCESS_KEY_ID"})
+            server.set_inputs({"block_device/storage_account_secret" => "cred:AWS_SECRET_ACCESS_KEY"})
+          end
         when "rackspace"
+          @servers.each do |server|
+            server.set_inputs({"block_device/storage_account_id" => "cred:RACKSPACE_USERNAME"})
+            server.set_inputs({"block_device/storage_account_secret" => "cred:RACKSPACE_AUTH_KEY"})
+          end
         else
           raise "FATAL: Provider #{provider.to_s} not supported."
         end
@@ -216,6 +217,18 @@ module VirtualMonkey
             true
           end
         end
+      end
+
+      def run_chef_promotion_operations
+        #TODO replicate the checks in the 11H1 tests.
+      end
+
+      def run_chef_check
+        #TODO replicate the checks in the 11H1 tests.
+      end
+
+      def run_HA_reboot_operations
+        #TODO replicate the checks in the 11H1 tests.
       end
 
       def enable_db_reconverge
@@ -297,7 +310,13 @@ module VirtualMonkey
             dir.destroy
           end
         end
-      end  
+      end
+
+      def create_monkey_table
+        run_query("create database bananas", s_one)
+        run_query("use bananas; create table bunches (tree text)", s_one)
+        run_query("use bananas; insert into bunches values ('banana')", s_one)
+      end
 
       def run_reboot_operations
         # set up a database to test after we reboot
