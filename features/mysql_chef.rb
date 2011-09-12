@@ -7,6 +7,8 @@ end
 before do
   set_variation_lineage
   set_variation_container
+  setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+  set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   launch_all
   wait_for_all("operational")
   disable_db_reconverge

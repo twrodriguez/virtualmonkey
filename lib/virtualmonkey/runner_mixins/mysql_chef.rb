@@ -232,7 +232,7 @@ module VirtualMonkey
        promote_server(s_one)
       end
 
-      def run_chef_check
+      def run_chef_checks
         #TODO replicate the checks in the 11H1 tests.
       end
 
