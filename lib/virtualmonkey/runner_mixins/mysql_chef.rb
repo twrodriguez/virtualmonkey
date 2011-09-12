@@ -451,6 +451,7 @@ EOS
       
       def promote_server(server)
        run_script("do_promote_to_master", server)
+       # delete this line luke
       end
     end
   end
