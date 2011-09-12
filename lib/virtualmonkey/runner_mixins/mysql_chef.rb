@@ -220,7 +220,16 @@ module VirtualMonkey
       end
 
       def run_chef_promotion_operations
-        #TODO replicate the checks in the 11H1 tests.
+       config_master_from_scratch(s_one)
+        obj_behavior(s_one, :relaunch)
+        s_one.dns_name = nil
+        wait_for_snapshots
+        # need to wait for ebs snapshot, otherwise this could easily fail
+       restore_server(s_two)
+        obj_behavior(s_one, :wait_for_operational_with_dns)
+       wait_for_snapshots
+       slave_init_server(s_one)
+       promote_server(s_one)
       end
 
       def run_chef_check
@@ -420,7 +429,29 @@ EOS
         @deployment.set_input("web_apache/ssl_enable", "text:false")
       end
 
-  
+      def config_master_from_scratch(server)
+       create_stripe(server)
+        probe(server, "service mysqld start") # TODO Check that it started?
+        #TODO the service name depends on the OS
+        #      server.spot_check_command("service mysql start")
+       run_query("create database mynewtest", server)
+       set_master_dns(server)
+        # This sleep is to wait for DNS to settle - must sleep
+        sleep 120
+       run_script("backup", server)
+      end
+ 
+      def slave_init_server(server)
+       run_script("do_init_slave", server)
+      end
+      
+      def restore_server(server)
+       run_script("do_restore ", server)
+      end
+      
+      def promote_server(server)
+       run_script("do_promote_to_master", server)
+      end
     end
   end
 end
