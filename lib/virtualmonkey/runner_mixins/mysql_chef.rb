@@ -252,15 +252,16 @@ module VirtualMonkey
          
           # check that mysql cron script exits success
           @servers.each do |server|
-          chk1 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+            chk1 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
          
-          chk2 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+            chk2 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
          
-          raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2) 
+            raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2) 
           
-          # check that logrotate has mysqlslow in it
-          probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql-server") { |out,st| out =~ /mysqlslow/ and st == 0 }
-      end
+            # check that logrotate has mysqlslow in it
+            probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql-server") { |out,st| out =~ /mysqlslow/ and st == 0 }
+          end
+     end
 
       def run_HA_reboot_operations
         #TODO replicate the checks in the 11H1 tests.
