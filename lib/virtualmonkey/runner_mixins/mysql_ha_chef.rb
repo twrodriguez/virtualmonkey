@@ -34,12 +34,12 @@ module VirtualMonkey
                    [ 'do_init_slave',                'db_mysql::do_init_slave'], 
                    [ 'do_promote_to_master',         'db_mysql::do_promote_to_master'],
                    [ 'setup_master_dns',             'db_mysql::setup_master_dns'],
-                   [ 'do_lookup_master',             'db_mysql::do_lookup_master.rb' ],
-                   [ 'do_restore_and_become_master', 'db_mysql::do_restore_and_become_master.rb' ],
-                   [ 'do_tag_as_master',             'db_mysql::do_tag_as_master.rb' ],
-                   [ 'setup_master_backup',          'db_mysql::setup_master_backup.rb' ],
-                   [ 'setup_replication_privileges', 'db_mysql::setup_replication_privileges.rb' ],
-                   [ 'setup_slave_backup',           'db_mysql::setup_slave_backup.rb' ]
+                   [ 'do_lookup_master',             'db_mysql::do_lookup_master' ],
+                   [ 'do_restore_and_become_master', 'db_mysql::do_restore_and_become_master' ],
+                   [ 'do_tag_as_master',             'db_mysql::do_tag_as_master' ],
+                   [ 'setup_master_backup',          'db_mysql::setup_master_backup' ],
+                   [ 'setup_replication_privileges', 'db_mysql::setup_replication_privileges' ],
+                   [ 'setup_slave_backup',           'db_mysql::setup_slave_backup' ]
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
    
