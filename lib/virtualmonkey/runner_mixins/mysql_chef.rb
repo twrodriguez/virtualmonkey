@@ -35,10 +35,13 @@ module VirtualMonkey
                    [ 'do_list_rules', 'sys_firewall::do_list_rules' ],
                    [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ],
                    [ 'do_reconverge_list_disable', 'sys::do_reconverge_list_disable' ],
-                   [ 'do_force_reset', 'db::do_force_reset' ]
+                   [ 'do_force_reset', 'db::do_force_reset' ],
+                   [ 'do_init_slave', 'db_mysql::do_init_slave'], 
+                   [ 'do_promote_to_master', 'db_mysql::do_promote_to_master'],
+                   [ 'setup_master_dns', 'db_mysql::setup_master_dns']
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
-  
+   
         st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
         load_script_table(st,scripts,st)
       end
@@ -504,28 +507,9 @@ EOS
         Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
           hash_output.each{ |key, value|
             if value.to_s.match(/master_active/)  
-              count_num_master_tags++
+              count_num_master_tags+=1
             elsif value.to_s.match(/master_instance_uuid/)
-              count_num_master_tags++
-            end
-           }     
-        }
-        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)          
-      end
-      
-      # checks if the server is infact a master
-      def check_master(master_server)
-        count_num_master_tags = 0  # this number should equal 2 otherwise it is not valid
-        master_server.settings
-        master_server.reload
-        
-        # get all the tags and then do a regex
-        Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
-          hash_output.each{ |key, value|
-            if value.to_s.match(/master_active/)  
-              count_num_master_tags++
-            elsif value.to_s.match(/master_instance_uuid/)
-              count_num_master_tags++
+              count_num_master_tags+=1
             end
            }     
         }
@@ -542,9 +526,9 @@ EOS
               Tag.search_by_href(slave_server.current_instance_href).each{ |hash_output|
                 hash_output.each{ |key, value|
                   if value.to_s.match(/slave_active/)  
-                    count_num_slave_tags++
+                    count_num_slave_tags+=1
                   elsif value.to_s.match(/slave_instance_uuid/)
-                    count_num_slave_tags++
+                    count_num_slave_tags+=1
                   end
                  }     
               }
@@ -554,19 +538,14 @@ EOS
       # creates a MySQL enabled EBS stripe on the server
       # * server<~Server> the server to create stripe on
       def create_stripe(server)
-        options = { "EBS_MOUNT_POINT" => "text:/mnt/mysql", 
-                    "EBS_VOLUME_SIZE" => "text:#{@stripe_count}", 
-                    "block_device/volume_size" => "text:1", 
+        options = { "block_device/volume_size" => "text:1", 
                     "db/application/user" => "text:someuser", 
-                    "DB_MYSQLDUMP_BUCKET" => "ignore:$ignore",
-                    "DB_MYSQLDUMP_FILENAME" => "ignore:$ignore",
                     "block_device/aws_access_key_id" => "ignore:$ignore",
                     "block_device/aws_secret_access_key" => "ignore:$ignore",
-                    "DB_SCHEMA_NAME" => "ignore:$ignore",
                     "db/application/password" => "text:somepass", 
                     "block_device/volume_size" => "text:1",
                     "db/backup/lineage" => "text:#{@lineage}" }
-        run_script('setup_block_device', server, options)
+        run_script('setup_block_device', server, options) 
       end
       
     end
