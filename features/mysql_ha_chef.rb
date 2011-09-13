@@ -1,4 +1,4 @@
-set :runner, VirtualMonkey::Runner::MysqlHAChef
+set :runner, VirtualMonkey::Runner::MysqlChef
 
 hard_reset do
   stop_all

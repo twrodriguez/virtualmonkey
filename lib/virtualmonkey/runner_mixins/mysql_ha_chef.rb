@@ -1,6 +1,6 @@
 module VirtualMonkey
   module Mixin
-    module ChefMysqlHA
+    module ChefMysql
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
       attr_accessor :scripts_to_run
