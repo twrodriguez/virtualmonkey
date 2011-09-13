@@ -513,6 +513,25 @@ EOS
         raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)          
       end
       
+      # checks if the server is infact a master
+      def check_master(master_server)
+        count_num_master_tags = 0  # this number should equal 2 otherwise it is not valid
+        master_server.settings
+        master_server.reload
+        
+        # get all the tags and then do a regex
+        Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
+          hash_output.each{ |key, value|
+            if value.to_s.match(/master_active/)  
+              count_num_master_tags++
+            elsif value.to_s.match(/master_instance_uuid/)
+              count_num_master_tags++
+            end
+           }     
+        }
+        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)          
+      end
+      
       # checks if the server is infact a slave
       def check_slave(slave_server)
               count_num_slave_tags = 0  # this number should equal 2 otherwise it is not valid
