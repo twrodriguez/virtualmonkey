@@ -1,0 +1,24 @@
+#!/bin/bash
+
+for FILE in `git diff-index --name-only HEAD --` ; do
+  # Remove trailing whitespace
+  sed -i "s/^\\s\\s*$\|\\s\\s*$//g" $FILE
+
+  # If a file is ruby, check for syntax errors
+  if [[ -n `find $FILE -regex ".*\.rb$"` ]]; then
+    if [[ "$fail" -eq 0 || -z "$fail" ]]; then
+      `ruby -c $FILE 1> /dev/null`; fail=$?
+    else
+      `ruby -c $FILE 1> /dev/null`
+    fi
+  fi
+done
+
+git diff-index --check HEAD --
+
+if [[ "$fail" -eq 0 || -z "$fail" ]]; then
+  exit 0
+else
+  echo "Syntax Errors Found. Aborting commit"
+  exit 1
+fi
