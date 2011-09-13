@@ -32,12 +32,12 @@ class SharedDns
   def reserve_dns(owner, timeout = 0)
     puts "Checking DNS reservation for #{owner}"
     result = @sdb.select("SELECT * from #{@domain} where owner = '#{owner}'")
-    puts "Reusing DNS reservation" unless result.body["Items"].empty?
+    puts "Reusing DNS reservation" + result.body["Attributes"]["MASTER_DB_DNSNAME"].first.gsub(/^text:/,"") unless result.body["Items"].empty?
     if result.body["Items"].empty?
        result = @sdb.select("SELECT * from #{@domain} where owner = 'available'")
        return false if result.body["Items"].empty?
-       puts "Aquired new DNS reservation"
        item_name = result.body["Items"].keys.first
+       puts "Aquired new DNS reservation" + @sdb.get_attributes(@domain, item_name).body["Attributes"]["MASTER_DB_DNSNAME"].first.gsub(/^text:/,"")
        response = @sdb.put_attributes(@domain, item_name, {'owner' => owner}, :expect => {'owner' => "available"}, :replace => ['owner'])
     end
     @owner = owner
