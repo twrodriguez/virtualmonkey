@@ -221,25 +221,62 @@ module VirtualMonkey
 
       def run_chef_promotion_operations
        config_master_from_scratch(s_one)
+       check_master(s_one) ## check is the server sone is a master
         obj_behavior(s_one, :relaunch)
         s_one.dns_name = nil
         wait_for_snapshots
         # need to wait for ebs snapshot, otherwise this could easily fail
        restore_server(s_two)
+       check_master(s_two) # check if s_two is now master
         obj_behavior(s_one, :wait_for_operational_with_dns)
        wait_for_snapshots
+       
        slave_init_server(s_one)
+       check_slave(s_one)
+       check_master(s_two)
+       
        promote_server(s_one)
+        check_slave(s_two)
+        check_master(s_one)
       end
 
       def run_chef_checks
         #TODO replicate the checks in the 11H1 tests.
+        # check that mysql tmpdir is custom setup on all servers
+          query = "show variables like 'tmpdir'"
+          query_command = "echo -e \"#{query}\"| mysql"
+          probe(@servers, query_command) { |result,st| result.include?("/mnt/mysqltmp") }
+         
+          # check that mysql cron script exits success
+          @servers.each do |server|
+          chk1 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+         
+          chk2 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
+         
+          raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2) 
+          
+          # check that logrotate has mysqlslow in it
+          probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql-server") { |out,st| out =~ /mysqlslow/ and st == 0 }
       end
 
       def run_HA_reboot_operations
         #TODO replicate the checks in the 11H1 tests.
+        # Duplicate code here because we need to wait between the master and the slave time
+                @servers.each do |s|
+                  obj_behavior(s, :reboot, true)
+                  obj_behavior(s, :wait_for_state, "operational")
+                end
+               wait_for_all("operational")
+               run_HA_reboot_checks
       end
 
+      def run_HA_reboot_checks
+         # one simple check we can do is the backup.  Backup can fail if anything is amiss
+         @servers.each do |server|
+         run_script("backup", server)
+         end
+      end
+     
       def enable_db_reconverge
         run_script_on_set('do_reconverge_list_enable', mysql_servers)
       end
@@ -438,21 +475,81 @@ EOS
        set_master_dns(server)
         # This sleep is to wait for DNS to settle - must sleep
         sleep 120
-       run_script("backup", server)
+        run_script("do_backup", server)
       end
  
       def slave_init_server(server)
-       run_script("do_init_slave", server)
+        run_script("do_init_slave", server)
       end
       
       def restore_server(server)
-       run_script("do_restore ", server)
+        run_script("do_restore ", server)
       end
       
       def promote_server(server)
-       run_script("do_promote_to_master", server)
-       # delete this line luke
+        run_script("do_promote_to_master", server)
       end
+      
+      def set_master_dns(server)
+        run_script('setup_master_dns', server)
+      end
+      
+      # checks if the server is infact a master
+      def check_master(master_server)
+        count_num_master_tags = 0  # this number should equal 2 otherwise it is not valid
+        master_server.settings
+        master_server.reload
+        
+        # get all the tags and then do a regex
+        Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
+          hash_output.each{ |key, value|
+            if value.to_s.match(/master_active/)  
+              count_num_master_tags++
+            elsif value.to_s.match(/master_instance_uuid/)
+              count_num_master_tags++
+            end
+           }     
+        }
+        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)          
+      end
+      
+      # checks if the server is infact a slave
+      def check_slave(slave_server)
+              count_num_slave_tags = 0  # this number should equal 2 otherwise it is not valid
+              slave_server.settings
+              slave_server.reload
+              
+              # get all the tags and then do a regex
+              Tag.search_by_href(slave_server.current_instance_href).each{ |hash_output|
+                hash_output.each{ |key, value|
+                  if value.to_s.match(/slave_active/)  
+                    count_num_slave_tags++
+                  elsif value.to_s.match(/slave_instance_uuid/)
+                    count_num_slave_tags++
+                  end
+                 }     
+              }
+              raise "Less than 2 slave tags found on #{slave_server.current_instance_href}" unless (count_num_slave_tags == 2)          
+       end
+       
+      # creates a MySQL enabled EBS stripe on the server
+      # * server<~Server> the server to create stripe on
+      def create_stripe(server)
+        options = { "EBS_MOUNT_POINT" => "text:/mnt/mysql", 
+                    "EBS_VOLUME_SIZE" => "text:#{@stripe_count}", 
+                    "block_device/volume_size" => "text:1", 
+                    "db/application/user" => "text:someuser", 
+                    "DB_MYSQLDUMP_BUCKET" => "ignore:$ignore",
+                    "DB_MYSQLDUMP_FILENAME" => "ignore:$ignore",
+                    "block_device/aws_access_key_id" => "ignore:$ignore",
+                    "block_device/aws_secret_access_key" => "ignore:$ignore",
+                    "DB_SCHEMA_NAME" => "ignore:$ignore",
+                    "db/application/password" => "text:somepass", 
+                    "block_device/volume_size" => "text:1",
+                    "db/backup/lineage" => "text:#{@lineage}" }
+        run_script('setup_block_device', server, options)
+      end
+      
     end
   end
 end
