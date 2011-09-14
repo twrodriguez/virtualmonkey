@@ -1,6 +1,6 @@
 module VirtualMonkey
   module Mixin
-    module ChefMysql
+    module ChefMysqlHA
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
       attr_accessor :scripts_to_run
@@ -30,7 +30,6 @@ module VirtualMonkey
                    [ 'do_reconverge_list_enable',    'sys::do_reconverge_list_enable' ],
                    [ 'do_reconverge_list_disable',   'sys::do_reconverge_list_disable' ],
                    [ 'do_force_reset',               'db::do_force_reset' ],
-
                    [ 'do_init_slave',                'db_mysql::do_init_slave'],
                    [ 'do_promote_to_master',         'db_mysql::do_promote_to_master'],
                    [ 'setup_master_dns',             'db_mysql::setup_master_dns'],
@@ -41,9 +40,9 @@ module VirtualMonkey
                    [ 'setup_replication_privileges', 'db_mysql::setup_replication_privileges' ],
                    [ 'setup_slave_backup',           'db_mysql::setup_slave_backup' ]
                  ]
-        raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
+        raise "FATAL: Need 1 MySQL servers in the deployment" unless servers.size >= 1
 
-        st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
+        st = ServerTemplate.find(resource_id(servers.first.server_template_href))
         load_script_table(st,scripts,st)
       end
 
@@ -363,10 +362,19 @@ module VirtualMonkey
         end
       end
 
-      def create_monkey_table
-        run_query("create database bananas", s_one)
-        run_query("use bananas; create table bunches (tree text)", s_one)
-        run_query("use bananas; insert into bunches values ('banana')", s_one)
+      def make_master(server)
+          run_script('do_tag_as_master', server)
+      end
+
+      def find_master(server)
+        run_script('do_lookup_master', server)
+      end
+
+      def create_monkey_table(server)
+        run_query("DROP DATABASE IF EXISTS bananas", server)
+        run_query("create database bananas", server)
+        run_query("use bananas; create table bunches (tree text)", server)
+        run_query("use bananas; insert into bunches values ('banana')", server)
       end
 
       def run_reboot_operations
@@ -499,24 +507,30 @@ EOS
         run_script('setup_master_dns', server)
       end
 
-      # checks if the server is infact a master
-      def check_master(master_server)
-        count_num_master_tags = 0  # this number should equal 2 otherwise it is not valid
-        master_server.settings
-        master_server.reload
+      # checks if the server is in fact a master
+      def check_master(server)
+        run_script('do_lookup_master',server)
 
-        # get all the tags and then do a regex
-        Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
-          hash_output.each{ |key, value|
-            if value.to_s.match(/master_active/)
-              count_num_master_tags+=1
-            elsif value.to_s.match(/master_instance_uuid/)
-              count_num_master_tags+=1
-            end
-           }
-        }
-        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)
       end
+
+      # checks if the server is in fact a master
+#      def check_master(master_server)
+#        count_num_master_tags = 0  # this number should equal 2 otherwise it is not valid
+#        master_server.settings
+#        master_server.reload
+#
+#        # get all the tags and then do a regex
+#        Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
+#          hash_output.each{ |key, value|
+#            if value.to_s.match(/master_active/)
+#              count_num_master_tags+=1
+#            elsif value.to_s.match(/master_instance_uuid/)
+#              count_num_master_tags+=1
+#            end
+#           }
+#        }
+#        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)
+#      end
 
       # checks if the server is infact a slave
       def check_slave(slave_server)

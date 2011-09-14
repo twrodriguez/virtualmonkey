@@ -1,10 +1,12 @@
-set :runner, VirtualMonkey::Runner::MysqlChef
+set :runner, VirtualMonkey::Runner::MysqlChefHA
 
+#terminates servers if there are any running
 hard_reset do
   stop_all
 end
 
 before do
+  mysql_lookup_scripts
   set_variation_lineage
   set_variation_container
   setup_dns("dnsmadeeasy_new") # dnsmadeeasy
@@ -15,25 +17,42 @@ before do
 end
 
 test "create_master_from_scratch" do
-  find_master
-  create_monkey_table
+  make_master(s_one)
+  create_monkey_table(s_one)
+  check_master(s_one)
 end
 
 test "backup_master" do
-  find_master
+  run_script("setup_block_device", s_one)
+  probe(s_one, "touch /mnt/storage/monkey_was_here")
+  run_script("do_backup", s_one)
+  wait_for_snapshots
+end
+
+
+test "create_slave_from_master_backup" do
+  run_script("do_init_slave", s_two)
 end
 
 test "create_master_from_master_backup" do
-end
-
-test "create_slave_from_master_backup" do
+  run_script("do_restore_and_become_master",s_one)
 end
 
 test "backup_slave" do
+  run_script("setup_block_device", s_two)
+  probe(s_one, "touch /mnt/storage/monkey_was_here")
+  run_script("do_backup", s_two)
+  wait_for_snapshots
 end
 
 test "create_master_from_slave_backup" do
+#  run_script("do_restore_and_become_master",s_one)
 end
+
+test "promote_slave_to_master" do
+#  run_script("do_promote_to_master",s_one)
+end
+
 
 before 'reboot' do
   do_force_reset
@@ -41,15 +60,15 @@ before 'reboot' do
 end
 
 test "reboot" do
-  check_mysql_monitoring
-  run_reboot_operations
-  check_monitoring
-  check_mysql_monitoring
+#  check_mysql_monitoring
+#  run_reboot_operations
+#  check_monitoring
+#  check_mysql_monitoring
 end
 
 after do
-  cleanup_volumes
-  cleanup_snapshots
+#  cleanup_volumes
+#  cleanup_snapshots
 end
 
 #test "default" do
