@@ -460,9 +460,10 @@ module VirtualMonkey
             raise "Fatal: Failed to verify that monitoring is operational" unless response
   #TODO: pass in some list of plugin info to check multiple values.  For now just
   # hardcoding the cpu check
-            sleep 180 # This is to allow monitoring data to accumulate
-            monitor = transaction { server.get_sketchy_data({'start' => -60,
-                                                             'end' => -20,
+            sleep 60 # This is to allow monitoring data to accumulate
+            @monitor_start, @monitor_end = -60, -20
+            monitor = transaction { server.get_sketchy_data({'start' => @monitor_start,
+                                                             'end' => @monitor_end,
                                                              'plugin_name' => "cpu-0",
                                                              'plugin_type' => "cpu-idle"}) }
             idle_values = monitor['data']['value']
@@ -470,6 +471,17 @@ module VirtualMonkey
             raise "CPU idle time is < 0: #{idle_values}" unless idle_values[0] > 0
             puts "Monitoring is OK for #{server.nickname}"
           }
+        end
+      end
+
+      def check_monitoring_exception_handle(e)
+        if e.message =~ /CPU idle time is|No cpu idle data/i
+          puts "Got \"#{e.message}\". Adjusting monitoring window and retrying...."
+          @monitor_start -= 45
+          @monitor_end -= 45
+          return true # Exception Handled
+        else
+          return false # Exception Not Handled
         end
       end
   
