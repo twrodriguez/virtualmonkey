@@ -2,18 +2,18 @@ set :runner, VirtualMonkey::Runner::MysqlChefHA
 
 #terminates servers if there are any running
 hard_reset do
-  #stop_all
+  stop_all
 end
 
 before do
   mysql_lookup_scripts
-#  set_variation_lineage
-#  set_variation_container
-#  setup_dns("dnsmadeeasy_new") # dnsmadeeasy
-#  set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
-#  launch_all
-#  wait_for_all("operational")
-#  disable_db_reconverge
+  set_variation_lineage
+  set_variation_container
+  setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+  set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
+  launch_all
+  wait_for_all("operational")
+  disable_db_reconverge
 end
 
 test "create_master_from_scratch" do
@@ -27,35 +27,30 @@ test "backup_master" do
   probe(s_one, "touch /mnt/storage/monkey_was_here")
   run_script("do_backup", s_one)
   wait_for_snapshots
-  run_script("do_force_reset", s_one)
-  run_script("do_restore", s_one)
-  probe(s_one, "ls /mnt/storage") do |result, status|
-    raise "FATAL: no files found in the backup" if result == nil || result.empty?
-    true
-  end
-  run_script("do_force_reset", s_one)
-  run_script("do_restore", s_one, {"db/backup/timestamp_override" =>
-                                   "text:#{find_snapshot_timestamp(s_one)}" })
-  probe(s_one, "ls /mnt/storage") do |result, status|
-    raise "FATAL: no files found in the backup" if result == nil || result.empty?
-    true
-  end
+end
+
+
+test "create_slave_from_master_backup" do
+  run_script("do_init_slave", s_two)
 end
 
 test "create_master_from_master_backup" do
-  #do_restore_and_become_master
-end
-
-test "create_slave_from_master_backup" do
+  run_script("do_restore_and_become_master",s_one)
 end
 
 test "backup_slave" do
+  run_script("setup_block_device", s_two)
+  probe(s_one, "touch /mnt/storage/monkey_was_here")
+  run_script("do_backup", s_two)
+  wait_for_snapshots
 end
 
 test "create_master_from_slave_backup" do
+#  run_script("do_restore_and_become_master",s_one)
 end
 
-test "promote_to_master" do
+test "promote_slave_to_master" do
+#  run_script("do_promote_to_master",s_one)
 end
 
 
