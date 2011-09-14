@@ -54,7 +54,7 @@ class SharedDns
 
   def retry_reservation(owner, timeout)
     STDOUT.flush
-    if timeout > 20 
+    if timeout > 20
       return false
     end
     sleep(5)
@@ -70,7 +70,7 @@ class SharedDns
 
   def release_dns(res = @reservation)
     raise "FATAL: could not release dns because there was no @reservation" unless res
-    @sdb.put_attributes(@domain, res, {"owner" => "available"}, :replace => ["owner"]) 
+    @sdb.put_attributes(@domain, res, {"owner" => "available"}, :replace => ["owner"])
     @reservation = nil
   end
 end
