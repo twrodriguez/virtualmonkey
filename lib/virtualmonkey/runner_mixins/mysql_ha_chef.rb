@@ -583,7 +583,7 @@ EOS
           true
         }
       end
-      
+
       def create_table_replication(server)
         run_query("create database replication_checks", server)
         run_query("use replication_checks; create table replication (NBA text)", server)
