@@ -56,6 +56,7 @@ test "create_master_from_slave_backup" do
 end
 
 test "promote_slave_to_master" do
+# this requires dns items to be uncommented at before do stuff
 #  run_script("do_promote_to_master",s_one)
 end
 
