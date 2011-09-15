@@ -513,24 +513,24 @@ EOS
 
       end
 
-      # checks if the server is in fact a master
-#      def check_master(master_server)
-#        count_num_master_tags = 0  # this number should equal 2 otherwise it is not valid
-#        master_server.settings
-#        master_server.reload
-#
-#        # get all the tags and then do a regex
-#        Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
-#          hash_output.each{ |key, value|
-#            if value.to_s.match(/master_active/)
-#              count_num_master_tags+=1
-#            elsif value.to_s.match(/master_instance_uuid/)
-#              count_num_master_tags+=1
-#            end
-#           }
-#        }
-#        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)
-#      end
+       #checks if the server is in fact a master
+      def check_master_tag(master_server)
+        count_num_master_tags = 0  # this number should equal 2 otherwise it is not valid
+        master_server.settings
+        master_server.reload
+
+        # get all the tags and then do a regex
+        Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
+          hash_output.each{ |key, value|
+            if value.to_s.match(/master_active/)
+              count_num_master_tags+=1
+            elsif value.to_s.match(/master_instance_uuid/)
+              count_num_master_tags+=1
+            end
+           }
+        }
+        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)
+      end
 
       # checks if the server is infact a slave
       def check_slave(slave_server)
@@ -577,11 +577,23 @@ EOS
         }
       end
 
-      def check_table(server)
-        probe("mysql", server)
-        probe("use bananas; SHOW TABLES;", server){|returned_from_query, returned|
-          print returned_from_query.to_s ## just print for now
-          print returned.to_s ## just print for now
+      def check_table_bananas(server)
+        run_query("use bananas; select * from bunches;", server){|returned_from_query, returned|
+          raise "The bananas table is corrupted" unless returned_from_query.to_s.match(/banana/) # raise error if the regex does not match
+          true
+        }
+      end
+      
+      def create_table_replication(server)
+        run_query("create database replication_checks", server)
+        run_query("use replication_checks; create table replication (NBA text)", server)
+        run_query("use replication_checks; insert into replication values ('kobe bryant')", server)
+      end
+
+      def check_table_replication(server)
+        run_query("use replication_checks; select * from replication;", server){|returned_from_query, returned|
+          raise "The bananas table is corrupted" unless returned_from_query.to_s.match(/kobe bryant/) # raise error if the regex does not match
+          true
         }
       end
 

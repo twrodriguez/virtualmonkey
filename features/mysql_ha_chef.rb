@@ -13,7 +13,7 @@ before do
 #  set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   launch_all
   wait_for_all("operational")
-#  disable_db_reconverge
+ disable_db_reconverge # it is important to disable this if we want
 end
 
 test "create_master_from_scratch" do
@@ -33,12 +33,13 @@ test "create_master_from_master_backup" do
   remove_master_tags
   run_script("do_restore_and_become_master",s_one)
   check_table(s_one)
+  create_table_replication(s_one) # create a table in the  master that is not in slave for replication checks below
 end
 
 test "create_slave_from_master_backup" do
   run_script("do_init_slave", s_two)
-  check_table(s_two)
-  #TODO also check if replication is running
+  check_table_bananas(s_two) # also check if the banana table is there
+  check_table_replication(s_two) # checks if the replication table exists in the slave
 end
 
 test "backup_slave" do
