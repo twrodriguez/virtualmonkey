@@ -2,18 +2,18 @@ set :runner, VirtualMonkey::Runner::MysqlChefHA
 
 #terminates servers if there are any running
 hard_reset do
-  stop_all
+#  stop_all
 end
 
 before do
   mysql_lookup_scripts
   set_variation_lineage
   set_variation_container
-  setup_dns("dnsmadeeasy_new") # dnsmadeeasy
-  set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
+#  setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+#  set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   launch_all
   wait_for_all("operational")
-  disable_db_reconverge
+#  disable_db_reconverge
 end
 
 test "create_master_from_scratch" do
@@ -24,29 +24,34 @@ end
 
 test "backup_master" do
   run_script("setup_block_device", s_one)
-  probe(s_one, "touch /mnt/storage/monkey_was_here")
   run_script("do_backup", s_one)
   wait_for_snapshots
 end
 
+test "create_master_from_master_backup" do
+  cleanup_volumes  ## runs do_force_reset on both servers
+  remove_master_tags
+  run_script("do_restore_and_become_master",s_one)
+  check_table(s_one)
+end
 
 test "create_slave_from_master_backup" do
   run_script("do_init_slave", s_two)
-end
-
-test "create_master_from_master_backup" do
-  run_script("do_restore_and_become_master",s_one)
+  check_table(s_two)
+  #TODO also check if replication is running
 end
 
 test "backup_slave" do
-  run_script("setup_block_device", s_two)
-  probe(s_one, "touch /mnt/storage/monkey_was_here")
   run_script("do_backup", s_two)
   wait_for_snapshots
 end
 
 test "create_master_from_slave_backup" do
-#  run_script("do_restore_and_become_master",s_one)
+  cleanup_volumes  ## runs do_force_reset on both servers
+  remove_master_tags
+  run_script("do_restore_and_become_master",s_one)
+  check_table(s_one)
+#TODO how do we verify this is a slave backup?
 end
 
 test "promote_slave_to_master" do
@@ -55,7 +60,6 @@ end
 
 
 before 'reboot' do
-  do_force_reset
   run_script("setup_block_device", s_one)
 end
 

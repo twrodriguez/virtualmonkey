@@ -563,6 +563,27 @@ EOS
                     "db/backup/lineage" => "text:#{@lineage}" }
         run_script('setup_block_device', server, options)
       end
+      def remove_master_tags
+        servers.each { |server|
+          server.settings
+          server.reload
+
+          # get all the tags and then do a regex for master or slave
+          Tag.search_by_href(server.current_instance_href).each{ |hash_output|  # itereate through each tag retrieved from the server
+            hash_output.each{ |key, value|
+              Tag.unset(server.current_instance_href, ["#{value}"] ) if value.to_s.match(/master/) # unset the master and slave tag
+            }
+          }
+        }
+      end
+
+      def check_table(server)
+        probe("mysql", server)
+        probe("use bananas; SHOW TABLES;", server){|returned_from_query, returned|
+          print returned_from_query.to_s ## just print for now
+          print returned.to_s ## just print for now
+        }
+      end
 
     end
   end
