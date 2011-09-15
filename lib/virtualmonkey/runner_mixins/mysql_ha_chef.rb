@@ -315,9 +315,9 @@ module VirtualMonkey
         @dns.set_dns_inputs(@deployment)
       end
 
-      def setup_block_device
+      def setup_all_server_block_devices(servers)
         puts "SETUP_BLOCK_DEVICE"
-        run_script("setup_block_device", s_one)
+        servers.each { |s| run_script("setup_block_device", s) }
       end
 
       def do_backup

@@ -13,7 +13,8 @@ before do
 #  set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   launch_all
   wait_for_all("operational")
- disable_db_reconverge # it is important to disable this if we want
+  disable_db_reconverge # it is important to disable this if we want
+  setup_master_slave_block_devices( [ s_one, s_two ] )
 end
 
 test "create_master_from_scratch" do
@@ -23,7 +24,6 @@ test "create_master_from_scratch" do
 end
 
 test "backup_master" do
-  run_script("setup_block_device", s_one)
   run_script("do_backup", s_one)
   wait_for_snapshots
 end
