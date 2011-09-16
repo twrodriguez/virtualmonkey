@@ -10,7 +10,6 @@ module VirtualMonkey
         raise "FATAL: #{self.class} must be run in the cloud" unless VirtualMonkey::my_api_self
         @cloud = VirtualMonkey::my_api_self.cloud_id
         @commands = VirtualMonkey::Command::AvailableCommands.keys.map_to_h { |cmd| [] }
-        @servers = [VirtualMonkey::my_api_self]
         populate_commands
         load_inputs
       end
@@ -26,7 +25,7 @@ module VirtualMonkey
 
       def populate_commands
         # Basic (Free) Commands
-        @commands[:help] = @commands.keys.dup - [:help]
+        @commands[:help] = @commands.keys.map { |cmd| cmd.to_s } - ["help"]
         @commands[:api_check] += ["-a 0.1", "-a 1.0", "-a 1.5"]
         @commands[:version] << ""
 
@@ -82,11 +81,15 @@ module VirtualMonkey
         FileUtils.rm_rf(@root_dir) if @options[:runner_options]["branch"] and File.directory?(@root_dir)
       end
 
-      def run_self_diagnostics
+      def run_self_diagnostic
         @commands.keys.each { |cmd|
           @commands[cmd].each { |opts|
             if @root_dir == VirtualMonkey::ROOTDIR
-              VirtualMonkey::Command.__send__(cmd, opts)
+              puts "Running bin/monkey #{cmd} #{opts}"
+              begin
+                VirtualMonkey::Command.__send__(cmd, opts)
+              rescue SystemExit => e
+              end
             else
               result = `cd #{@root_dir}; bin/monkey #{cmd} #{opts}; echo $?`.chomp
               result =~ /([0-9]+)$/

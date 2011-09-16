@@ -312,7 +312,11 @@ module VirtualMonkey
     # be a string, or nil.
     def populate_security_groups(cloud_id_set = nil, use_this_sec_group = nil, overwrite = false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
-      cloud_ids.reject! { |i| !cloud_id_set.include?(i) } unless cloud_id_set.empty?
+      if cloud_id_set.is_a?(Array)
+        cloud_ids.reject! { |i| !cloud_id_set.include?(i) } unless cloud_id_set.empty?
+      else
+        cloud_ids.reject! { |i| i != cloud_id_set } unless cloud_id_set
+      end
 
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {})
 
