@@ -1,10 +1,10 @@
 {
-  "prefix":"HAHAHA",
-  "common_inputs":["mysql_chef.json","chef_swap.json"],
+  "prefix":"MYHAHAHA",
+  "common_inputs":["mysql_ha_chef.json","chef_swap.json"],
   "server_template_ids":[
-   "107666" ,
-   "107666" 
+   "107666",
+   "107666"
   ],
-  "feature":"mysql_HAHAHA_chef.rb",
+  "feature":"mysql_ha_chef.rb",
   "cloud_variables":"all_clouds.json"
 }

@@ -32,12 +32,14 @@ class SharedDns
   def reserve_dns(owner, timeout = 0)
     puts "Checking DNS reservation for #{owner}"
     result = @sdb.select("SELECT * from #{@domain} where owner = '#{owner}'")
-    puts "Reusing DNS reservation" + result.body["Attributes"]["MASTER_DB_DNSNAME"].first.gsub(/^text:/,"") unless result.body["Items"].empty?
+    unless result.body["Items"].empty?
+      puts "Reusing DNS reservation: " + @sdb.get_attributes(@domain, result.body["Items"].keys.first).body["Attributes"]["MASTER_DB_DNSNAME"].first.gsub(/^text:/,"")
+    end
     if result.body["Items"].empty?
        result = @sdb.select("SELECT * from #{@domain} where owner = 'available'")
        return false if result.body["Items"].empty?
        item_name = result.body["Items"].keys.first
-       puts "Aquired new DNS reservation" + @sdb.get_attributes(@domain, item_name).body["Attributes"]["MASTER_DB_DNSNAME"].first.gsub(/^text:/,"")
+       puts "Aquired new DNS reservation: " + @sdb.get_attributes(@domain, item_name).body["Attributes"]["MASTER_DB_DNSNAME"].first.gsub(/^text:/,"")
        response = @sdb.put_attributes(@domain, item_name, {'owner' => owner}, :expect => {'owner' => "available"}, :replace => ['owner'])
     end
     @owner = owner
@@ -52,7 +54,7 @@ class SharedDns
 
   def retry_reservation(owner, timeout)
     STDOUT.flush
-    if timeout > 20 
+    if timeout > 20
       return false
     end
     sleep(5)
@@ -68,7 +70,7 @@ class SharedDns
 
   def release_dns(res = @reservation)
     raise "FATAL: could not release dns because there was no @reservation" unless res
-    @sdb.put_attributes(@domain, res, {"owner" => "available"}, :replace => ["owner"]) 
+    @sdb.put_attributes(@domain, res, {"owner" => "available"}, :replace => ["owner"])
     @reservation = nil
   end
 end

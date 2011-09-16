@@ -1,0 +1,9 @@
+{
+  "prefix":"MONKEY_DIAGNOSTIC_TROOP",
+  "feature":"monkey_diagnostic.rb",
+
+  "common_inputs":"monkey_diagnostic_fail.json",
+  "server_template_ids":[
+    "98231"
+  ]
+}

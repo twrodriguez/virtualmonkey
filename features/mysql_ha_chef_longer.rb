@@ -1,5 +1,6 @@
 set :runner, VirtualMonkey::Runner::MysqlChefHA
-
+master_server = s_one
+slave_server  = s_two
 #terminates servers if there are any running
 hard_reset do
 #  stop_all
@@ -13,10 +14,8 @@ before do
 #  set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   launch_all
   wait_for_all("operational")
-#  setup_master_slave_block_devices( [ s_one, s_two ] )
-  run_script("setup_block_device", s_one)
-  run_script("setup_block_device", s_two)
   disable_db_reconverge # it is important to disable this if we want
+  #setup_master_slave_block_devices( [ s_one, s_two ] ) #TODO fix this function
 end
 
 test "create_master_from_scratch" do
@@ -78,7 +77,11 @@ after do
 #  cleanup_volumes
 #  cleanup_snapshots
 end
-
+test "tester" do
+# verify_master(s_two)
+write_to_slave("the slave",s_two)
+check_slave_backup(s_two)
+end 
 #test "default" do
 #  run_chef_promotion_operations
 #  run_chef_checks
@@ -86,4 +89,5 @@ end
 #  check_mysql_monitoring
 #  run_HA_reboot_operations
 #end
+
 

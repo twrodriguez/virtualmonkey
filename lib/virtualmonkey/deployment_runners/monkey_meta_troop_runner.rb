@@ -10,10 +10,21 @@ module VirtualMonkey
         @exit_log = "/tmp/troop_exit_st.log"
         @commands = {}
         @free_commands = {}
+        @my_inputs = {}
         @cloud = @servers.first.cloud_id
         VirtualMonkey::my_api_self
         VirtualMonkey::Command::AvailableCommands.keys.each { |cmd| @commands[cmd.to_s] = [] }
         populate_commands
+        load_inputs
+      end
+
+      def monkey_meta_troop_lookup_scripts
+        scripts = [
+                   ['generate cloud data', 'RB virtualmonkey generate cloud test data'],
+                   ['destroy cloud data', 'RB virtualmonkey destroy cloud test data']
+                  ]
+        st = @server_templates.first
+        load_script_table(st,scripts)
       end
 
       def populate_commands
@@ -44,7 +55,7 @@ module VirtualMonkey
       end
 
       def set_inputs
-        
+        @servers.each { |server| server.set_inputs(@my_inputs) }
       end
 
       def pull_branch
@@ -81,8 +92,8 @@ module VirtualMonkey
             # Wait for command to complete
             job_running = true
             while job_running
-              probe(@servers.first, "ps #{job_id}") { |result, status| job_running = (status == 0); true }
               sleep 30
+              probe(@servers.first, "ps #{job_id}") { |result, status| job_running = (status == 0); true }
             end
             # Get console output
             probe(@servers.first, "cat #{@troop_log}") { |result, status|
@@ -104,15 +115,6 @@ module VirtualMonkey
             }
           }
         }
-      end
-
-      def monkey_self_test_lookup_scripts
-        scripts = [
-                   ['generate cloud data', 'RB virtualmonkey generate cloud test data'],
-                   ['destroy cloud data', 'RB virtualmonkey destroy cloud test data']
-                  ]
-        st = ServerTemplate.find(resource_id(s_one.server_template_href))
-        load_script_table(st,scripts)
       end
     end
   end

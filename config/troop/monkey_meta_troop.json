@@ -1,0 +1,9 @@
+{
+  "prefix":"MONKEY_SELF_TROOP",
+  "feature":"monkey_self_troop.rb",
+
+  "common_inputs":"monkey_self_test_pass.json",
+  "server_template_ids":[
+    "121837"
+  ]
+}
