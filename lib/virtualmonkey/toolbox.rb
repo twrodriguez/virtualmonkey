@@ -142,11 +142,12 @@ module VirtualMonkey
       if ENV['I_AM_IN_EC2']
         myself = Server.find_with_filter('aws_id' => ENV['EC2_INSTANCE_ID']).first
         if myself
+          myself.settings
           my_deploy = Deployment.find(myself.deployment_href)
           ENV['MONKEY_SELF_SERVER_HREF'] = myself.href
           ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = my_deploy.href
           ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.nickname
-          return myself
+          return ServerInterface.new(myself.cloud_id, myself.params)
         end
       elsif ENV['I_AM_IN_MULTICLOUD']
         cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"].to_i }.reject { |cid| cid < 10 }
@@ -166,7 +167,7 @@ module VirtualMonkey
                 ENV['MONKEY_SELF_SERVER_HREF'] = myself.href
                 ENV['MONKEY_SELF_DEPLOYMENT_HREF'] = my_deploy.href
                 ENV['MONKEY_SELF_DEPLOYMENT_NAME'] = my_deploy.name
-                return myself
+                return ServerInterface.new(myself.cloud_id, myself.params)
               end
             end
           }
@@ -313,7 +314,7 @@ module VirtualMonkey
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids.reject! { |i| !cloud_id_set.include?(i) } unless cloud_id_set.empty?
 
-      sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {}) 
+      sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {})
 
       cloud_ids.each { |cloud|
         if sgs["#{cloud}"] and sgs["#{cloud}"] != {} and not overwrite
@@ -341,7 +342,7 @@ module VirtualMonkey
             default = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
             raise "Security Group 'default' not found in cloud #{cloud}." unless default
             sg = default
-          end 
+          end
           sgs["#{cloud}"] = {"ec2_security_groups_href" => sg.href }
         else
           begin
@@ -353,14 +354,14 @@ module VirtualMonkey
               default = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /default/ }.first
               raise "Security Group 'default' not found in cloud #{cloud}." unless default
               sg = default
-            end 
+            end
             sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
           rescue Exception => e
             raise e if e.message =~ /Security Group.*not found/
             puts "Cloud #{cloud} doesn't support the resource 'security_group'"
             sgs["#{cloud}"] = {}
           end
-        end 
+        end
       }
 
       sgs_out = sgs.to_json(:indent => "  ",
@@ -375,7 +376,7 @@ module VirtualMonkey
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids.reject! { |i| i != single_cloud } if single_cloud
 
-      dcs = (File.exists?(@@dcs_file) ? JSON::parse(IO.read(@@dcs_file)) : {}) 
+      dcs = (File.exists?(@@dcs_file) ? JSON::parse(IO.read(@@dcs_file)) : {})
 
       cloud_ids.each { |cloud|
         if dcs["#{cloud}"] and dcs["#{cloud}"] != {} and not overwrite
@@ -402,7 +403,7 @@ module VirtualMonkey
             puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
             dcs["#{cloud}"] = {}
           end
-        end 
+        end
       }
 
       dcs_out = dcs.to_json(:indent => "  ",

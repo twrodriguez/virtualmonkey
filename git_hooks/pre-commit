@@ -1,24 +1,34 @@
 #!/bin/bash
 
 for FILE in `git diff-index --name-only HEAD --` ; do
-  # Remove trailing whitespace
-  sed -i "s/^\\s\\s*$\|\\s\\s*$//g" $FILE
-
-  # If a file is ruby, check for syntax errors
-  if [[ -n `find $FILE -regex ".*\.rb$"` ]]; then
-    if [[ "$fail" -eq 0 || -z "$fail" ]]; then
-      `ruby -c $FILE 1> /dev/null`; fail=$?
-    else
-      `ruby -c $FILE 1> /dev/null`
+  if test -e $FILE; then
+    # Remove trailing whitespace
+    sed -i "s/\\s\\s*$//g" $FILE
+    # Remove tabs
+    sed -i "s/\t/  /g" $FILE
+    # If a file is ruby, check for syntax errors
+    if [[ -n `find $FILE -regex ".*\.rb$"` ]]; then
+      if [[ "$fail" -eq 0 || -z "$fail" ]]; then
+        `ruby -c $FILE 1> /dev/null`; fail=$?
+      else
+        `ruby -c $FILE 1> /dev/null`
+      fi
     fi
   fi
 done
 
+# Built-in git checks
 git diff-index --check HEAD --
 
-if [[ "$fail" -eq 0 || -z "$fail" ]]; then
-  exit 0
-else
+if [[ "$fail" -ne 0 && -n "$fail" ]]; then
   echo "Syntax Errors Found. Aborting commit"
   exit 1
 fi
+
+# Check that project metadata files exist
+for FILE in "LICENSE" "README.rdoc" "VERSION" "Gemfile" "Gemfile.lock" ".gitignore"; do
+  if test ! -e $FILE; then
+    echo "$FILE not present. Aborting commit"
+    exit 1
+  fi
+done
