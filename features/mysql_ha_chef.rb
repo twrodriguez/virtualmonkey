@@ -13,6 +13,8 @@ before do
   set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
   launch_all
   wait_for_all("operational")
+  run_script("setup_block_device", s_one)
+  run_script("setup_block_device", s_two)
   disable_db_reconverge
 end
 
