@@ -86,7 +86,7 @@ module VirtualMonkey
       @deprecation_error.gsub!(/<\/*b>/,"")
       @deprecation_error.chomp!
       if @options[:resume_file] && File.exists?(@options[:resume_file])
-        @done_resuming = false     
+        @done_resuming = false
       end
 
       # Setup runner_options
@@ -128,7 +128,7 @@ module VirtualMonkey
         self.class.class_eval("alias_method :#{new_m}, :#{m}; def #{m}(*args, &block); function_wrapper(:#{m},:#{new_m}, *args, &block); end")
       end
     end
-    
+
     def function_wrapper(sym, behave_sym, *args, &block)
       if sym.to_s =~ /^set/
         call_str = stringify_call(sym, args) unless block
@@ -150,7 +150,7 @@ module VirtualMonkey
         continue_test
       rescue VirtualMonkey::TestCaseInterface::Retry
       end while @rerun_last_command.pop
-      write_trace_log 
+      write_trace_log
       @retry_loop.pop
       result
     end
@@ -186,7 +186,7 @@ module VirtualMonkey
       result
     end
 
-    # Launches an irb debugging session if 
+    # Launches an irb debugging session if
     def launch_irb_session(debug = false)
       IRB.start unless debug
       debugger if debug

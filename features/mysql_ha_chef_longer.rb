@@ -81,7 +81,7 @@ test "tester" do
 # verify_master(s_two)
 write_to_slave("the slave",s_two)
 check_slave_backup(s_two)
-end 
+end
 #test "default" do
 #  run_chef_promotion_operations
 #  run_chef_checks
