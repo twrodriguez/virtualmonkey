@@ -518,24 +518,24 @@ EOS
         print "verify master\n"
         current_max_master_timestamp = -5
         current_max_master_server = assumed_master_server
-       
+
         servers.each{ |potential_new_master|
           potential_new_master.settings
           potential_new_master.reload
-          
+
           Tag.search_by_href(potential_new_master.current_instance_href).each{ |hash_output|
           hash_output.each{ |key, value|
-        
+
             if value.match(/master_active/)
                 potential_time_stamp = value.split("=")[1]
               if(Integer(potential_time_stamp) > current_max_master_timestamp)
-                current_max_master_timestamp = Integer(potential_time_stamp) 
+                current_max_master_timestamp = Integer(potential_time_stamp)
                 current_max_master_server    = potential_new_master
-              end 
+              end
             end
             }
           }
-        }  
+        }
         raise "The actual master is #{current_max_master_server}" unless (assumed_master_server == current_max_master_server)
 
        end
@@ -604,21 +604,21 @@ EOS
           true
         }
       end
-     
+
      def write_to_slave(string_to_write_to_slave, slave_server)
       probe(slave_server, "echo #{string_to_write_to_slave} > /mnt/storage/slave.txt")
      end
-     
+
      def check_slave_backup(server)
        probe(server, "cat /mnt/storage/slave.txt"){|x,y|
          print x.to_s
          print y.to_s
          true
-         
+
        }
 
      end
- 
+
     def disable_backups(server)
       run_script('disable_backups',server)
     end
@@ -626,7 +626,7 @@ EOS
     def do_force_reset(server)
       run_script("do_force_reset", server)
     end
-  
+
     end
   end
 end

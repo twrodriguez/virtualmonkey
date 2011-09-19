@@ -1,7 +1,7 @@
 set :runner, VirtualMonkey::Runner::MysqlChefHA
 
 #terminates servers if there are any running
-hard_reset do 
+hard_reset do
 #  stop_all
 end
 
@@ -9,28 +9,28 @@ before do
   mysql_lookup_scripts
   set_variation_lineage
   set_variation_container
-   setup_dns("virtualmonkey_awsdns_new") # AWSDNS 
+   setup_dns("virtualmonkey_awsdns_new") # AWSDNS
    set_variation_dnschoice("text:Route53") # set variation choice
   launch_all
   wait_for_all("operational")
-  
+
   #setup_master_slave_block_devices( [ s_one, s_two ] ) #TODO fix this function
   disable_db_reconverge # it is important to disable this if we want
   disable_backups(s_one)
   disable_backups(s_two)
-  do_force_reset(s_one) 
+  do_force_reset(s_one)
   run_script("setup_block_device", s_one)
 end
 
 test "sequential_test" do
-  
+
   create_monkey_table(s_one)
   run_script("do_backup", s_one)
   wait_for_snapshots
-  do_force_reset(s_one) 
- 
+  do_force_reset(s_one)
+
   run_script("do_restore_and_become_master",s_one)
-  
+
   #create_master_from_scratch"
   #make_master(s_one)
   check_master(s_one) # run script to check master
@@ -92,7 +92,7 @@ test "tester" do
 # verify_master(s_two)
 #write_to_slave("the slave",s_two)
 #check_slave_backup(s_two)
-end 
+end
 #test "default" do
 #  run_chef_promotion_operations
 #  run_chef_checks
