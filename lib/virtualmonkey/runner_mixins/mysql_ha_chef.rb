@@ -38,7 +38,8 @@ module VirtualMonkey
                    [ 'do_tag_as_master',             'db_mysql::do_tag_as_master' ],
                    [ 'setup_master_backup',          'db_mysql::setup_master_backup' ],
                    [ 'setup_replication_privileges', 'db_mysql::setup_replication_privileges' ],
-                   [ 'setup_slave_backup',           'db_mysql::setup_slave_backup' ]
+                   [ 'setup_slave_backup',           'db_mysql::setup_slave_backup' ],
+                   ['disable_backups',              'db::do_backup_schedule_disable' ]
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless servers.size >= 1
 
@@ -510,46 +511,53 @@ EOS
       # checks if the server is in fact a master
       def check_master(server)
         run_script('do_lookup_master',server)
-
       end
 
        #checks if the server is in fact a master
-      def check_master_tag(master_server)
-        count_num_master_tags = 0  # this number should equal 2 otherwise it is not valid
-        master_server.settings
-        master_server.reload
-
-        # get all the tags and then do a regex
-        Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
+      def verify_master(assumed_master_server)
+        print "verify master\n"
+        current_max_master_timestamp = -5
+        current_max_master_server = assumed_master_server
+       
+        servers.each{ |potential_new_master|
+          potential_new_master.settings
+          potential_new_master.reload
+          
+          Tag.search_by_href(potential_new_master.current_instance_href).each{ |hash_output|
           hash_output.each{ |key, value|
-            if value.to_s.match(/master_active/)
-              count_num_master_tags+=1
-            elsif value.to_s.match(/master_instance_uuid/)
-              count_num_master_tags+=1
+        
+            if value.match(/master_active/)
+                potential_time_stamp = value.split("=")[1]
+              if(Integer(potential_time_stamp) > current_max_master_timestamp)
+                current_max_master_timestamp = Integer(potential_time_stamp) 
+                current_max_master_server    = potential_new_master
+              end 
             end
-           }
-        }
-        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)
-      end
+            }
+          }
+        }  
+        raise "The actual master is #{current_max_master_server}" unless (assumed_master_server == current_max_master_server)
+
+       end
 
       # checks if the server is infact a slave
-      def check_slave(slave_server)
-              count_num_slave_tags = 0  # this number should equal 2 otherwise it is not valid
-              slave_server.settings
-              slave_server.reload
-
-              # get all the tags and then do a regex
-              Tag.search_by_href(slave_server.current_instance_href).each{ |hash_output|
-                hash_output.each{ |key, value|
-                  if value.to_s.match(/slave_active/)
-                    count_num_slave_tags+=1
-                  elsif value.to_s.match(/slave_instance_uuid/)
-                    count_num_slave_tags+=1
-                  end
-                 }
-              }
-              raise "Less than 2 slave tags found on #{slave_server.current_instance_href}" unless (count_num_slave_tags == 2)
-       end
+     # def check_slave(slave_server)
+      #        count_num_slave_tags = 0  # this number should equal 2 otherwise it is not valid
+       #       slave_server.settings
+       #       slave_server.reload
+#
+#              # get all the tags and then do a regex
+#              Tag.search_by_href(slave_server.current_instance_href).each{ |hash_output|
+#                hash_output.each{ |key, value|
+#                  if value.to_s.match(/slave_active/)
+#                    count_num_slave_tags+=1
+#                  elsif value.to_s.match(/slave_instance_uuid/)
+#                    count_num_slave_tags+=1
+#                  end
+#                 }
+#              }
+#              raise "Less than 2 slave tags found on #{slave_server.current_instance_href}" unless (count_num_slave_tags == 2)
+#       end
 
       # creates a MySQL enabled EBS stripe on the server
       # * server<~Server> the server to create stripe on
@@ -592,11 +600,33 @@ EOS
 
       def check_table_replication(server)
         run_query("use replication_checks; select * from replication;", server){|returned_from_query, returned|
-          raise "The bananas table is corrupted" unless returned_from_query.to_s.match(/kobe bryant/) # raise error if the regex does not match
+          raise "The replication_table is corrupted" unless returned_from_query.to_s.match(/kobe bryant/) # raise error if the regex does not match
           true
         }
       end
+     
+     def write_to_slave(string_to_write_to_slave, slave_server)
+      probe(slave_server, "echo #{string_to_write_to_slave} > /mnt/storage/slave.txt")
+     end
+     
+     def check_slave_backup(server)
+       probe(server, "cat /mnt/storage/slave.txt"){|x,y|
+         print x.to_s
+         print y.to_s
+         true
+         
+       }
 
+     end
+ 
+    def disable_backups(server)
+      run_script('disable_backups',server)
+    end
+
+    def do_force_reset(server)
+      run_script("do_force_reset", server)
+    end
+  
     end
   end
 end
