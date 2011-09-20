@@ -70,6 +70,7 @@ test "sequential_test" do
    #"create_master_from_slave_backup"
    cleanup_volumes  ## runs do_force_reset on ALL servers
 #TODO remove master tags should also hose the DNS settings.  change the ip to 1.1.1.1
+#TODO remove master tags is not working
    remove_master_tags
    run_script("do_restore_and_become_master",s_two)
    check_table_bananas(s_two)
