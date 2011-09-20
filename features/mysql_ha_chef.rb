@@ -2,7 +2,7 @@ set :runner, VirtualMonkey::Runner::MysqlChefHA
 
 # s_one - the first server that is used to create a DB from scratch in order to get a valid
 # backup for additional testing.
-# s_two - the first real master  created from do_restore_and_become_master using the from 
+# s_two - the first real master  created from do_restore_and_become_master using the from
 # scracth backup
 # s_three - the first slave restored from a newly launched state.
 #
