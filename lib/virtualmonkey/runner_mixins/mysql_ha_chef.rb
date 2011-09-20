@@ -572,6 +572,8 @@ EOS
                     "db/backup/lineage" => "text:#{@lineage}" }
         run_script('setup_block_device', server, options)
       end
+#TODO add description
+#TODO unset DNS - i.e. set master to 1.1.1.1
       def remove_master_tags
         servers.each { |server|
           server.settings
