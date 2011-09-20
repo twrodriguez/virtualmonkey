@@ -80,11 +80,12 @@ test "sequential_test" do
    # We have one master (s_two) and a bad slave (from different master and disks wipted).
 #TODO VERIFY that a slave can be restored from a slave backup
    #
-  run_script("do_init_slave", s_three)
-  check_table_bananas(s_three) # also check if the banana table is there
+  run_script("do_init_slave", s_one)
+  check_table_bananas(s_one) # also check if the banana table is there
 
    # "promote_slave_to_master"
-  run_script("do_promote_to_master",s_three)
+  run_script("do_promote_to_master",s_one)
+  #TODO add checks to make sure promotion worked
 end
 
 

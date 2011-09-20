@@ -371,13 +371,6 @@ module VirtualMonkey
         run_script('do_lookup_master', server)
       end
 
-      def create_monkey_table(server)
-        run_query("DROP DATABASE IF EXISTS bananas", server)
-        run_query("create database bananas", server)
-        run_query("use bananas; create table bunches (tree text)", server)
-        run_query("use bananas; insert into bunches values ('banana')", server)
-      end
-
       def run_reboot_operations
         # set up a database to test after we reboot
         @engines = ['myisam', 'innodb']
@@ -588,6 +581,15 @@ EOS
         }
       end
 
+      # TODO make names consisten
+      def create_monkey_table(server)
+        run_query("DROP DATABASE IF EXISTS bananas", server)
+        run_query("create database bananas", server)
+        run_query("use bananas; create table bunches (tree text)", server)
+        run_query("use bananas; insert into bunches values ('banana')", server)
+      end
+
+      # TODO this test passes when it shouldn't
       def check_table_bananas(server)
         run_query("use bananas; select * from bunches;", server){|returned_from_query, returned|
           raise "The bananas table is corrupted" unless returned_from_query.to_s.match(/banana/) # raise error if the regex does not match
