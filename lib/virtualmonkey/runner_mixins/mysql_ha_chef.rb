@@ -508,10 +508,12 @@ EOS
         run_script('setup_master_dns', server)
       end
 
-      # checks if the server is in fact a master
-      def check_master(server)
-        run_script('do_lookup_master',server)
-      end
+#TODO tests should never call this.  This changes the variables in the node.  
+# REMOVE all usage
+#      ## checks if the server is in fact a master
+#      def check_master(server)
+#        run_script('do_lookup_master',server)
+#      end
 
        #checks if the server is in fact a master
       def verify_master(assumed_master_server)
@@ -524,15 +526,14 @@ EOS
           potential_new_master.reload
 
           Tag.search_by_href(potential_new_master.current_instance_href).each{ |hash_output|
-          hash_output.each{ |key, value|
-
-            if value.match(/master_active/)
+            hash_output.each{ |key, value|
+              if value.match(/master_active/)
                 potential_time_stamp = value.split("=")[1]
-              if(Integer(potential_time_stamp) > current_max_master_timestamp)
-                current_max_master_timestamp = Integer(potential_time_stamp)
-                current_max_master_server    = potential_new_master
+                if(Integer(potential_time_stamp) > current_max_master_timestamp)
+                  current_max_master_timestamp = Integer(potential_time_stamp)
+                  current_max_master_server    = potential_new_master
+                end
               end
-            end
             }
           }
         }
