@@ -508,7 +508,7 @@ EOS
         run_script('setup_master_dns', server)
       end
 
-#TODO tests should never call this.  This changes the variables in the node.  
+#TODO tests should never call this.  This changes the variables in the node.
 # REMOVE all usage
 #      ## checks if the server is in fact a master
 #      def check_master(server)

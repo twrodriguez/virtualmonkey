@@ -6,7 +6,7 @@ set :runner, VirtualMonkey::Runner::MysqlChefHA
 # s_three - the first slave restored from a newly launched state.
 #
 
-#terminates servers if there are any running 
+#terminates servers if there are any running
 hard_reset do
   stop_all
 end
