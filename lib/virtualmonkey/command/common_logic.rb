@@ -12,6 +12,29 @@ module VirtualMonkey
       @@options[:terminate] = true if @@command =~ /troop|destroy/
       @@options[:clouds] = load_clouds(config) unless @@options[:clouds] and @@options[:clouds].length > 0
       @@options[:server_template_ids] = config['server_template_ids']
+      if (@@options[:revisions] ||= []).empty?
+        @@options[:revisions] = [0] * config['server_template_ids'].length
+      else
+        rev_len, st_len = @@options[:revisions].length, config['server_template_ids'].length
+        if rev_len != st_len
+          raise "FATAL: #{rev_len} revisions specified. This troop is configured for #{st_len} servers."
+        end
+        pp config['server_template_ids'].zip(@@options[:revisions]).map { |stid, rev|
+          {ServerTemplate.find(stid.to_i).nickname => "[rev #{rev}]"}
+        }.to_h
+        unless @@options[:yes]
+          unless ask("Are these the correct revisions that should be used?", lambda { |ans| ans =~ /^[yY]/ })
+            STDERR.puts "Aborting."
+            exit(1)
+          end
+        end
+      end
+      st_revision_map = config['server_template_ids'].zip(@@options[:revisions]).to_h
+      # TODO - Blocked on API 1.5 Revision History
+      #@@options[:server_template_ids] = []
+      #st_revision_map.each { |st_id|
+      #  ServerTemplate.find_by(:nickname) { |n| n == ServerTemplate.find(st_id) }
+      #}
     end
 
     def self.load_clouds(config)
@@ -34,25 +57,30 @@ module VirtualMonkey
           files_to_check.any? { |feature|
             File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(feature)))
           }
-        end 
-        @@do_these = temp if temp.length > 0 
-      end 
+        end
+        @@do_these = temp if temp.length > 0
+      end
 
-      raise "No deployments matched!" unless @@do_these.length > 0 
+      raise "No deployments matched!" unless @@do_these.length > 0
       if @@options[:verbose]
         pp @@do_these.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
       else
         pp @@do_these.map { |d| d.nickname }
       end
       unless @@options[:yes] or @@command == "troop"
-        confirm = ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) }) 
-        raise "Aborting." unless confirm
-      end   
+        unless ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| ans =~ /^[yY]/ })
+          STDERR.puts "Aborting."
+          exit(1)
+        end
+      end
     end
 
     # Encapsulates the logic for loading the necessary variables to create a set of deployments
     def self.create_logic
-      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      unless VirtualMonkey::Toolbox::api0_1?
+        STDERR.puts "Need Internal Testing API access to use this command."
+        exit(1)
+      end
       if @@options[:clouds]
         @@dm.load_clouds(@@options[:clouds])
 #      elsif @@options[:cloud_variables]
@@ -68,7 +96,10 @@ module VirtualMonkey
     # with a test case. Included is the logic for optionally destroying "successful" servers or
     # running "successful" servers through the log auditor/trainer.
     def self.run_logic
-      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      unless VirtualMonkey::Toolbox::api0_1?
+        STDERR.puts "Need Internal Testing API access to use this command."
+        exit(1)
+      end
       @@options[:runner] ||= get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
 
@@ -89,7 +120,7 @@ module VirtualMonkey
             if @@gm.all_done?
               watch.cancel
             end
-            
+
             if @@options[:terminate] and not (@@options[:list_trainer] or @@options[:qa])
               @@remaining_jobs.each do |job|
                 if job.status == 0
@@ -142,7 +173,10 @@ module VirtualMonkey
 
     # Encapsulates the logic for destroying all matched deployments
     def self.destroy_all_logic
-      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      unless VirtualMonkey::Toolbox::api0_1?
+        STDERR.puts "Need Internal Testing API access to use this command."
+        exit(1)
+      end
       @@options[:runner] ||= get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
       @@do_these ||= @@dm.deployments
@@ -157,10 +191,10 @@ module VirtualMonkey
             Dir.new(state_dir).each do |state_file|
               if File.extname(state_file) =~ /((rb)|(feature))/
                 File.delete(File.join(state_dir, state_file))
-              end 
-            end 
+              end
+            end
             FileUtils.rm_rf(state_dir)
-          end 
+          end
           #Release DNS logic
           if runner.respond_to?(:release_dns) and not @@options[:keep]
             release_all_dns_domains(deploy.href)
@@ -185,9 +219,16 @@ module VirtualMonkey
           puts "WARNING: Got #{e.message} from #{e.backtrace.first}"
           sleep 5
         end while not complete
-      end 
+      end
 
-      @@dm.destroy_all unless @@options[:keep]
+      unless @@options[:keep]
+        @@do_these.each { |deploy|
+          deploy.servers.each { |s|
+            s.wait_for_state("stopped")
+          }
+          deploy.destroy
+        }
+      end
     end
 
     # Encapsulates the logic for releasing the DNS entries for a single deployment, no matter what DNS it used
@@ -237,15 +278,15 @@ module VirtualMonkey
 
     def self.build_scenario_names(underscore_name = " ")
       if underscore_name != " "
-        if ask("Is \"#{underscore_name.gsub(/ /,"_")}\" an acceptable name for this scenario (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
-          underscore_name.gsub!(/ /,"_")
+        if ask("Is \"#{underscore_name.gsub(/ |\./,"_")}\" an acceptable name for this scenario (y/n)?", lambda { |ans| ans =~ /^[yY]/ })
+          underscore_name.gsub!(/ |\./,"_")
         else
           underscore_name = " "
         end
       end
 
-      while underscore_name.gsub!(/ /,"")
-        underscore_name = ask("What is the name for this runner? (Please use underscores instead of spaces), eg. 'mysql', 'php_chef', etc.)")
+      while underscore_name.gsub!(/ |\./,"")
+        underscore_name = ask("What is the name for this runner? (Please use underscores instead of spaces and periods), eg. 'mysql', 'php_chef', etc.)")
       end
       @@underscore_name = underscore_name.downcase
       @@camel_case_name = @@underscore_name.camelcase
@@ -291,7 +332,7 @@ module VirtualMonkey
             st_ary << ServerTemplate.find(st.to_i)
           }
           puts st_ary.map { |st| st.nickname }.join("\n")
-          correct = ask("Are these the ServerTemplates that you wish to use with this runner? (y/n)", lambda { |ans| true if (ans =~ /^[yY]{1}/) })
+          correct = ask("Are these the ServerTemplates that you wish to use with this runner? (y/n)", lambda { |ans| ans =~ /^[yY]/ })
         end
 
         puts "Available Clouds for this Account (Note that your MCI's may not support all of these):"
@@ -399,8 +440,8 @@ EOS
         script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{Regexp.escape(script)}']" }
         mixin_tpl += "#{script_array.join(",\n")}\n"
         mixin_tpl += "                  ]\n"
-        mixin_tpl += "        st_ref = @server_templates.detect { |st| st.rs_id.to_i == #{st_ref.rs_id.to_i} }\n"
-        mixin_tpl += "        load_script_table(st_ref,scripts,st_ref)\n\n"
+        mixin_tpl += "        st_ref = @server_templates.detect { |st| st.nickname == '#{st_ref.nickname}' }\n"
+        mixin_tpl += "        load_script_table(st_ref, scripts, st_ref)\n\n"
       }
       mixin_tpl += "      end\n"
 
@@ -421,9 +462,13 @@ EOS
       # scenarios. Exception_handle methods should return true if they have
       # handled the exception, or return false otherwise.
       def #{@@underscore_name}_exception_handle(e)
-        if e.message =~ /INSERT YOUR ERROR HERE/
-          puts "Got 'INSERT YOUR ERROR HERE'. Retrying..."
+        if e.message =~ /INSERT YOUR RETRY-ABLE ERROR HERE/
+          STDERR.puts "Got 'RETRY-ABLE ERROR'. Retrying..."
           sleep 30
+          return true # Exception Handled
+        elsif e.message =~ /INSERT YOUR IGNORE-ABLE ERROR HERE/
+          STDERR.puts "Got 'IGNORE-ABLE ERROR'. Continuing tests..."
+          continue_test
           return true # Exception Handled
         else
           return false # Exception Not Handled

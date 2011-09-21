@@ -7,7 +7,7 @@ require 'parse_tree_extensions'
 require 'ruby2ruby'
 
 module VirtualMonkey
-  VERSION = "2.1"
+  VERSION = "2.1" + ((`git branch | grep \\*`.chomp =~ /\* ([^ ]+)/; branch = $1) == "master" ? "" : " #{branch.upcase}")
 
   ROOTDIR = File.expand_path(File.join(File.dirname(__FILE__), ".."))
   CONFIG_DIR = File.join(ROOTDIR, "config")

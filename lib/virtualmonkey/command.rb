@@ -46,6 +46,10 @@ module VirtualMonkey
       :help                       => "Displays usage information"
     }
 
+    NonInteractiveCommands = AvailableCommands.reject { |cmd,desc|
+      [:new_config, :new_runner, :import_deployment].include?(cmd)
+    }
+
     AvailableQACommands = {
       :alpha      => "",
       :beta       => "",
@@ -70,6 +74,7 @@ module VirtualMonkey
       :no_resume      => "opt :no_resume, 'Do not use trace info to resume a previous test',                :short => '-r', :type => :boolean",
       :tests          => "opt :tests, 'List of test names to run across Deployments (default is all)',      :short => '-t', :type => :strings",
       :verbose        => "opt :verbose, 'Print all output to STDOUT as well as the log files',              :short => '-v', :type => :boolean",
+      :revisions      => "opt :revisions, 'Specify a list of revision numbers for templates (0 = HEAD)',    :short => '-w', :type => :integers",
       :prefix         => "opt :prefix, 'Prefix of the Deployments',                                         :short => '-x', :type => :string",
       :yes            => "opt :yes, 'Turn off confirmation',                                                :short => '-y', :type => :boolean",
       :one_deploy     => "opt :one_deploy, 'Load all variations of a single ST into one Deployment',        :short => '-z', :type => :boolean"
@@ -100,7 +105,8 @@ module VirtualMonkey
       max_width = @@available_commands.keys.map { |k| k.to_s.length }.max
       @@usage_msg += @@available_commands.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
       @@usage_msg += "\n\nHelp usage: 'monkey help <command>' OR 'monkey <command> --help'\n"
-      @@usage_msg += "If this is your first time using VirtualMonkey, start with new_runner and new_config\n\n"
+      @@usage_msg += "If this is your first time using VirtualMonkey, start with new_runner and new_config.\n"
+      @@usage_msg += "Or, if you already have an example deployment, you can use import_deployment.\n\n"
 
       # QA Mode message
       @@qa_usage_msg = "\nValid commands for #{@@version_string} (QA mode):\n\n"

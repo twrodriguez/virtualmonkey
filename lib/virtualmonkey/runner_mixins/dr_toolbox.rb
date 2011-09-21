@@ -1,7 +1,7 @@
 module VirtualMonkey
   module Mixin
     module DrToolbox
-  
+
       # Stolen from ::EBS need to consolidate or dr_toolbox needs a terminate script to include ::EBS instead
       # take the lineage name, find all snapshots and sleep until none are in the pending state.
       def wait_for_snapshots
@@ -10,7 +10,7 @@ module VirtualMonkey
         while timeout > 0
           puts "Checking for snapshot completed"
           snapshots =find_snapshots
-          status = snapshots.map { |x| x.aws_status } 
+          status = snapshots.map { |x| x.aws_status }
           break unless status.include?("pending")
           sleep step
           timeout -= step
@@ -66,7 +66,7 @@ module VirtualMonkey
         end
         return timestamp
       end
-  
+
       def set_variation_lineage
         @lineage = "testlineage#{resource_id(@deployment)}"
         @deployment.set_input("block_device/lineage", "text:#{@lineage}")
@@ -74,7 +74,7 @@ module VirtualMonkey
           server.set_inputs({"block_device/lineage" => "text:#{@lineage}"})
         end
       end
-  
+
       def set_variation_container
         @container = "testlineage#{resource_id(@deployment)}"
         @deployment.set_input("block_device/storage_container", "text:#{@container}")
@@ -94,7 +94,7 @@ module VirtualMonkey
         end
         puts "STORAGE_TYPE: #{@storage_type}"
         @storage_type = ENV['STORAGE_TYPE'] if ENV['STORAGE_TYPE']
-   
+
         @deployment.set_input("block_device/storage_type", "text:#{@storage_type}")
         @servers.each do |server|
           server.set_inputs({"block_device/storage_type" => "text:#{@storage_type}"})
@@ -109,11 +109,13 @@ module VirtualMonkey
           server.set_inputs({'block_device/mount_dir' => "text:#{@mount_point}"})
         end
       end
-  
+
       def test_backup(type = :volume)
         if s_one.cloud_id.to_i == 232 and type == "CloudFiles"
           puts "Skipping Rackspace Object Backup since Volume uses CloudFiles"
         else
+          @backup_methods_tested ||= {}
+          return true if @backup_methods_tested[type]
           type = "CloudFiles" if s_one.cloud_id.to_i == 232 and type == :volume
           set_variation_storage_type((type == :volume ? type : "ros"))
           provider = type.to_s.underscore
@@ -140,6 +142,7 @@ module VirtualMonkey
             raise "FATAL: no files found in the backup" if result == nil || result.empty?
             true
           end
+          @backup_methods_tested[type] = true
         end
       end
 
@@ -152,7 +155,7 @@ module VirtualMonkey
 
       def cleanup_volumes
         @servers.each do |server|
-          unless ["stopped", "pending", "inactive", "decommissioning"].include?(server.state)
+          unless ["stopped", "pending", "inactive", "decommissioning", "terminating"].include?(server.state)
             run_script("do_force_reset", server)
           end
         end
@@ -236,7 +239,7 @@ module VirtualMonkey
           # - API 0.1 Instance connection
           # - API 1.0 Instance connection
           # - API 1.5 Instance connection
-          ServerTemplate.find(@server_templates.first.reload['href']).multi_cloud_images.each { |mci_i| mci_i.reload } 
+          ServerTemplate.find(@server_templates.first.reload['href']).multi_cloud_images.each { |mci_i| mci_i.reload }
         end
         if type == :volume
           count = find_snapshots.length
@@ -250,7 +253,7 @@ module VirtualMonkey
         end
         @passed_continuous_backups = true
       end
-  
+
       def release_container
         set_variation_container
         ary = []
@@ -272,7 +275,7 @@ module VirtualMonkey
           end
         end
       end
-  
+
     end
   end
-end 
+end

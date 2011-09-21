@@ -5,7 +5,7 @@ require 'eventmachine'
 require 'right_popen'
 
 class GrinderJob
-  attr_accessor :status, :output, :logfile, :deployment, :rest_log, :other_logs, :no_resume, :verbose
+  attr_accessor :status, :output, :logfile, :deployment, :rest_log, :other_logs, :no_resume, :verbose, :err_log
 
   def link_to_rightscale
 #    i = deployment.href.split(/\//).last
@@ -29,14 +29,15 @@ class GrinderJob
     data_ary = data.split("\n")
     data_ary.each_index do |i|
       data_ary[i] = timestamp + data_ary[i]
-      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n") if @verbose
+      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n")
     end
     File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
+    File.open(@err_log, "a") { |f| f.write(data_ary.join("\n") + "\n") }
   end
 
   def timestamp
     t = Time.now
-    "#{t.strftime("[%m/%d/%Y %H:%M:%S.")}%-6d] " % t.usec
+    "#{t.strftime("[%m/%d/%Y %H:%M:%S.")}%06d] " % t.usec
   end
 
   def deploy_id
@@ -44,19 +45,19 @@ class GrinderJob
   end
 
   # Could be deprecated...
-  def receive_data(data)
-    data_ary = data.split("\n")
-    data_ary.each_index do |i|
-      data_ary[i] = timestamp + data_ary[i]
-      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n") if @verbose
-    end
-    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
-  end
+#  def receive_data(data)
+#    data_ary = data.split("\n")
+#    data_ary.each_index do |i|
+#      data_ary[i] = timestamp + data_ary[i]
+#      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n") if @verbose
+#    end
+#    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
+#  end
 
   # unbind hook for popen3
-  def unbind
-    @status = get_status.exitstatus
-  end
+#  def unbind
+#    @status = get_status.exitstatus
+#  end
 
   # on_exit hook for popen3
   def on_exit(status)
@@ -88,10 +89,11 @@ class GrinderMonk
 
   # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
-  # * feature<~String> the feature filename 
+  # * feature<~String> the feature filename
   def run_test(deployment, feature, test_ary, other_logs = [])
     new_job = GrinderJob.new
     new_job.logfile = File.join(@log_dir, "#{deployment.nickname}.log")
+    new_job.err_log = File.join(@log_dir, "#{deployment.nickname}.stderr.log")
     new_job.rest_log = File.join(@log_dir, "#{deployment.nickname}.rest_connection.log")
     new_job.other_logs = other_logs.map { |log|
       File.join(@log_dir, "#{deployment.nickname}.#{File.basename(log)}")
@@ -118,10 +120,10 @@ class GrinderMonk
     FileUtils.mkdir_p(@log_dir)
     @feature_dir = File.join(VirtualMonkey::ROOTDIR, 'features')
   end
- 
+
   # runs a feature on an array of deployments
   # * deployments<~Array> array of strings containing the nicknames of the deployments
-  # * feature_name<~String> the feature filename 
+  # * feature_name<~String> the feature filename
   def run_tests(deployments,features,set=[])
     features = [features].flatten
     test_cases = features.map_to_h { |feature| VirtualMonkey::TestCase.new(feature, @options) }
@@ -161,7 +163,7 @@ class GrinderMonk
 
       deployment_tests.map! { |ary| ary.shuffle } unless ENV['MONKEY_STRICT_TEST_ORDERING']
 
-      deploy_ary.each_with_index { |d,i| 
+      deploy_ary.each_with_index { |d,i|
         run_test(d, feature, deployment_tests[i], test_cases[feature].options[:additional_logs])
       }
     }
@@ -214,19 +216,22 @@ class GrinderMonk
     ## upload to s3
     # setup credentials in ~/.fog
     s3 = Fog::Storage.new(:provider => 'AWS', :aws_access_key_id => Fog.credentials[:aws_access_key_id_test], :aws_secret_access_key => Fog.credentials[:aws_secret_access_key_test])
-    if directory = s3.directories.detect { |d| d.key == bucket_name } 
+    if directory = s3.directories.detect { |d| d.key == bucket_name }
       puts "found directory, re-using"
     else
       directory = s3.directories.create(:key => bucket_name)
     end
     raise 'could not create directory' unless directory
     s3.put_object(bucket_name, "#{@log_started}/index.html", index.result(binding), 'x-amz-acl' => 'public-read', 'Content-Type' => 'text/html')
- 
+
     report_on.each do |j|
       begin
         done = false
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.logfile)}", IO.read(j.logfile), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
         s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.rest_log)}", IO.read(j.rest_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
+        if File.exists?(j.err_log)
+          s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.err_log)}", IO.read(j.err_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
+        end
         j.other_logs.each { |log|
           if File.exists?(log)
             content = `file -ib #{log}`.split(/;/).first
@@ -239,13 +244,13 @@ class GrinderMonk
         sleep 1
       end while not done
     end
-    
+
     msg = <<END_OF_MESSAGE
     new results avilable at http://s3.amazonaws.com/#{bucket_name}/#{@log_started}/index.html\n-OR-\nin #{@log_dir}/index.html"
 END_OF_MESSAGE
     puts msg
   end
-  
+
   # Prints information on jobs that didn't have an exit code of 0 or 1
   def report_lost_deployments(jobs = {})
     running_change = jobs[:old_running] - jobs[:running]

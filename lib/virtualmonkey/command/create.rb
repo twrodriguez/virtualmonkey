@@ -3,12 +3,15 @@ module VirtualMonkey
 
 # monkey create --server_template_ids 123,123 --common_inputs blah.json --feature simple.feature --tag unique_name --TBD:filter?
     def self.create(*args)
-      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      unless VirtualMonkey::Toolbox::api0_1?
+        STDERR.puts "Need Internal Testing API access to use this command."
+        exit(1)
+      end
       self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:create]
         eval(VirtualMonkey::Command::use_options( :config_file, :clouds, :only, :no_spot, :one_deploy, :prefix,
-                                                  :yes, :verbose, :use_mci))
+                                                  :yes, :verbose, :use_mci, :revisions))
       end
 
       raise "--config_file is required" unless @@options[:config_file]

@@ -52,15 +52,15 @@ module VirtualMonkey
       # Makes this exception_handle available for all runners
       def deployment_base_exception_handle(e)
         if e.message =~ /Insufficient capacity/
-          puts "Got \"Insufficient capacity\". Retrying...."
+          STDERR.puts "Got \"Insufficient capacity\". Retrying...."
           sleep 60
           return true # Exception Handled
         elsif e.message =~ /execution expired/i
-          puts "Got \"execution expired...\". Retrying...."
+          STDERR.puts "Got \"execution expired...\". Retrying...."
           sleep 5
           return true # Exception Handled
         elsif e.message =~ /Service Unavailable|Service Temporarily Unavailable/
-          puts "Got \"Service Temporarily Unavailable\". Retrying...."
+          STDERR.puts "Got \"Service Temporarily Unavailable\". Retrying...."
           sleep 10
           return true # Exception Handled
         else
@@ -340,8 +340,8 @@ module VirtualMonkey
 
       # Run a script on server in the deployment asynchronously
       def launch_script(friendly_name, server, options = nil)
-        raise "No script registered with friendly_name #{friendly_name} for server #{server.inspect}" unless script_to_run?(friendly_name, server)
-        transaction { server.run_executable(@scripts_to_run[resource_id(server.server_template_href)][friendly_name], options) }
+        actual_name = script_to_run?(friendly_name, server)
+        transaction { server.run_executable(@scripts_to_run[resource_id(server.server_template_href)][actual_name], options) }
       end
 
       # Call run_script_on_set with out-of-order params passed in as a hash
@@ -351,22 +351,43 @@ module VirtualMonkey
         run_script_on_set(friendly_name, hash['servers'], hash['wait'], hash['options'])
       end
 
-      # Returns false or true if a script with friendly_name has been registered for all or just one server
+      # If no server argument is passed, this returns an array of friendly_script names that should be called for each server. Or raises an exception
+      # If a server argument is passed, this returs the correct friendly_script name that should be called for that server. Or raises an exception
       def script_to_run?(friendly_name, server = nil)
         if server.nil? #check for all
-          ret = true
-          @server_templates.each { |st|
-            if @scripts_to_run[resource_id(st)]
-              ret &&= @scripts_to_run[resource_id(st)][friendly_name]
-            else
-              ret = false
-            end
+          key_arys = @server_templates.map { |st|
+            raise "No scripts registered for server_template #{st.inspect}" unless @scripts_to_run[resource_id(st)]
+            @scripts_to_run[resource_id(st)].keys
           }
+          agreement = key_arys.unanimous? { |key_ary|
+            key_ary.include?(friendly_name)
+          }
+          if agreement
+            ret = @servers.map { |s| friendly_name }
+          else
+            friendly_name_ary = key_arys.map { |key_ary|
+              val = key_ary.detect { |key| key =~ /#{Regexp.escape(friendly_name)}/i }
+              STDERR.puts "Found case-insensitive match for script friendly name. Searched for '#{friendly_name}', registered name was '#{key}'" if val
+              val
+            }
+            friendly_name_ary.each_with_index { |name,index|
+              raise "No script registered with friendly_name #{friendly_name} for server_template #{@server_templates[index].inspect}" unless name
+            }
+            ret = @servers.map { |s|
+              friendly_name_ary[@server_templates.find_index(match_st_by_server(s))]
+            }
+          end
         else
           if @scripts_to_run[resource_id(server.server_template_href)]
-            ret = true if @scripts_to_run[resource_id(server.server_template_href)][friendly_name]
+            if @scripts_to_run[resource_id(server.server_template_href)][friendly_name]
+              ret = friendly_name
+            else
+              ret = @scripts_to_run[resource_id(server.server_template_href)].keys.detect { |key| key =~ /#{Regexp.escape(friendly_name)}/i }
+              STDERR.puts "Found case-insensitive match for script friendly name. Searched for '#{friendly_name}', registered name was '#{key}'" if ret
+              raise "No script registered with friendly_name #{friendly_name} for server_template #{match_st_by_server(server).inspect}" unless ret
+            end
           else
-            ret = false
+            raise "No scripts registered for server_template #{st.inspect}"
           end
         end
         ret
@@ -476,7 +497,7 @@ module VirtualMonkey
 
       def check_monitoring_exception_handle(e)
         if e.message =~ /CPU idle time is|No cpu idle data/i
-          puts "Got \"#{e.message}\". Adjusting monitoring window and retrying...."
+          STDERR.puts "Got \"#{e.message}\". Adjusting monitoring window and retrying...."
           @monitor_start -= 45
           @monitor_end -= 45
           return true # Exception Handled
@@ -484,7 +505,6 @@ module VirtualMonkey
           return false # Exception Not Handled
         end
       end
-
 
 
   # TODO - we do not know what the RS_INSTANCE_ID available to the testing.

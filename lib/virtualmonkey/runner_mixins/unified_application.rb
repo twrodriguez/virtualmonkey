@@ -20,8 +20,8 @@ module VirtualMonkey
 
       def unified_application_exception_handle(e)
         if e.message =~ /UnifiedApplication Error/
-          puts "Got \"UnifiedApplication Error\". Retrying...."
-          puts e.message
+          STDERR.puts "Got \"UnifiedApplication Error\". Retrying...."
+          STDERR.puts e.message
           sleep 6
           return true # Exception Handled
         else

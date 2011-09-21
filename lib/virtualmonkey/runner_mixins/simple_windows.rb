@@ -3,15 +3,15 @@ module VirtualMonkey
     module SimpleWindows
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::Simple
-  
+
       def simple_windows_exception_handle(e)
-        puts "Got this \"#{e.message}\"."
+        STDERR.puts "Got this \"#{e.message}\"."
         if e.message =~ /timed out waiting for the state to be operational/
-          puts "Got \"#{e.message}\". Retrying...."
+          STDERR.puts "Got \"#{e.message}\". Retrying...."
           sleep 15
           return true # Exception Handled
         elsif e.message =~ /this server is stranded and needs to be operational/
-          puts "Got \"#{e.message}\". Retrying...."
+          STDERR.puts "Got \"#{e.message}\". Retrying...."
           sleep 15
           return true # Exception Handled
         else

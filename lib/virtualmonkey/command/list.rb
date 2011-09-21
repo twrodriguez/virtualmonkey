@@ -4,9 +4,9 @@ module VirtualMonkey
       self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:list]
-        eval(VirtualMonkey::Command::use_options(:prefix, :verbose))
+        eval(VirtualMonkey::Command::use_options(:prefix, :verbose, :yes))
       end
       DeploymentMonk.list(@@options[:prefix], @@options[:verbose])
     end
-  end 
+  end
 end

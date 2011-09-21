@@ -1,7 +1,9 @@
 #!/bin/bash
 
+whitespace=""
 for FILE in `git diff-index --name-only HEAD --` ; do
   if test -e $FILE; then
+    if [[ -n `grep "\\s\\s*$" $FILE` ]]; then whitespace="$whitespace $FILE"; fi
     # Remove trailing whitespace
     sed -i "s/\\s\\s*$//g" $FILE
     # Remove tabs
@@ -24,6 +26,11 @@ if [[ "$fail" -ne 0 && -n "$fail" ]]; then
   echo "Syntax Errors Found. Aborting commit"
   exit 1
 fi
+
+for FILE in $whitespace; do
+  echo "Whitespace problem fixed. Please re-add '$FILE' to your commit"
+done
+if [[ -n "$whitespace" ]]; then exit 1; fi
 
 # Check that project metadata files exist
 for FILE in "LICENSE" "README.rdoc" "VERSION" "Gemfile" "Gemfile.lock" ".gitignore"; do

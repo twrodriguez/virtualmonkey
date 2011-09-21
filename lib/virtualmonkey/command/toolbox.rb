@@ -10,6 +10,7 @@ module VirtualMonkey
       @@options = Trollop::options do
         text @@available_commands[:generate_ssh_keys]
         opt :add_cloud, "Add a non-ec2 cloud to ssh_keys (takes the integer cloud id)", :type => :integer
+        eval(VirtualMonkey::Command::use_options(:yes))
         # TODO: Add ssh_key_id_ary...
       end
 
@@ -25,6 +26,7 @@ module VirtualMonkey
       self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:destroy_ssh_keys]
+        eval(VirtualMonkey::Command::use_options(:yes))
       end
 
       VirtualMonkey::Toolbox::destroy_ssh_keys()
@@ -42,6 +44,7 @@ module VirtualMonkey
         opt :clouds, "Add security_groups to set of clouds (takes the integer cloud id)", :type => :integers, :short => "-i"
         opt :security_group_name, "Populate the file with this security group (will search for the name of the security group attached to the monkey instance, then 'default' by default)", :type => :string, :short => '-n'
         opt :overwrite, "Refresh values by replacing existing data"
+        eval(VirtualMonkey::Command::use_options(:yes))
       end
 
       VirtualMonkey::Toolbox::populate_security_groups(@@options[:add_cloud], @@options[:security_group_name], @@options[:overwrite])
@@ -58,6 +61,7 @@ module VirtualMonkey
         text @@available_commands[:populate_datacenters]
         opt :add_cloud, "Add a non-ec2 cloud to datacenters (takes the integer cloud id)", :type => :integer
         opt :overwrite, "Refresh values by replacing existing data"
+        eval(VirtualMonkey::Command::use_options(:yes))
       end
 
       VirtualMonkey::Toolbox::populate_datacenters(@@options[:add_cloud], @@options[:overwrite])
@@ -76,6 +80,7 @@ module VirtualMonkey
         # TODO: Add ssh_key_id_ary...
         opt :security_group_name, "Populate the file with this security group (will search for the name of the security group attached to the monkey instance, then 'default' by default)", :type => :string, :short => '-n'
         opt :overwrite, "Refresh values by replacing existing data"
+        eval(VirtualMonkey::Command::use_options(:yes))
       end
 
       VirtualMonkey::Toolbox::populate_all_cloud_vars(@@options[:force], @@options)
@@ -91,6 +96,7 @@ module VirtualMonkey
       @@options = Trollop::options do
         text @@available_commands[:api_check]
         opt :api_version, "Check to see if the monkey has RightScale API access for the given version (0.1, 1.0, or 1.5)", :type => :float, :required => true
+        eval(VirtualMonkey::Command::use_options(:yes))
       end
 
       if [0.1, 1.0, 1.5].include?(@@options[:api_version])
@@ -100,5 +106,5 @@ module VirtualMonkey
         STDERR.puts "Invalid version number: #{@@options[:api_version]}"
       end
     end
-  end 
+  end
 end

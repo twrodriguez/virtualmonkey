@@ -1,12 +1,8 @@
 if ENV['SSH_CONNECTION'] # LINUX ONLY
   ENV['REACHABLE_IP'] = ENV['SSH_CONNECTION'].split(/ /)[-2]
 else
-  possible_ips = []
-  0.upto(9) { |i|
-    if `ifconfig eth#{i} 2> /dev/null` =~ /inet addr:([0-9\.]*) /
-      possible_ips << $1
-    end
-  }
+  possible_ips = `ifconfig | grep -o "inet addr:[0-9\.]*" | grep -o [0-9\.]*`.split(/\n/)
+  possible_ips.reject! { |ip| ip == "127.0.0.1" }
   ENV['REACHABLE_IP'] = possible_ips.first
 end
 

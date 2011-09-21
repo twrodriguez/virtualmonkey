@@ -3,7 +3,10 @@ module VirtualMonkey
 
 # monkey clone --deployment name --feature testcase.rb --breakpoint 4 --copies 7
     def self.clone(*args)
-      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      unless VirtualMonkey::Toolbox::api0_1?
+        STDERR.puts "Need Internal Testing API access to use this command."
+        exit(1)
+      end
       self.init(*args)
       @@options = Trollop::options do
         text @@available_commands[:clone]
