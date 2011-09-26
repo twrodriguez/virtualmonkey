@@ -83,14 +83,11 @@ test "sequential_test" do
 
    # "promote_slave_to_master"
    # run_script("do_promote_to_master",s_three)
-   run_HA_reboot_operations
-   check_table_bananas(s_three) # also check if the banana table is there
-   check_table_replication(s_three) # also check if the replication table is there
-   check_table_bananas(s_two)
-   check_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
-   check_slave_backup(s_two) # looks for a file that was written to the slave
+
    #TODO do this one more time i.e. promote the oldmaster/new slave back to a master
    #  this will vefify that there are no files etc.. that break promotion
+=======
+>>>>>>> Stashed changes
 end
 
 #TODO promote a slave server with a dead master
@@ -100,7 +97,6 @@ end
 #  promote the slave
 
 
-#TODO reboot needs to:
 #  reboot a slave, verify that it is operational, then add a table to master and verity replication
 #  reboot the master, verify opernational - " " ^
 before 'reboot' do
@@ -113,21 +109,22 @@ end
 #TODO monitoring checks
 #TODO check for reported issues i.e. tickets
 
-test "reboot" do
-#run_script("do_restore_and_become_master",s_two)
-#remove_master_tags
-#print "hello\n"
-#print  get_input_from_server(s_one, "db/fqdn")
+after "sequential_test" do
+  #  reboot a slave, verify that it is operational, then add a table to master and verity replication
+  #  reboot the master, verify opernational - " " ^
+   run_HA_reboot_operations
+   check_table_bananas(s_three) # also check if the banana table is there
+   check_table_replication(s_three) # also check if the replication table is there
+   check_table_bananas(s_two)
+   check_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
+   check_slave_backup(s_two) # looks for a file that was written to the slave
 
-#verify_master(s_two)
-#remove_master_tags
-#  check_mysql_monitoring
-#  run_reboot_operations
 #  check_monitoring
 #  check_mysql_monitoring
 end
 
 after do
+@runner.release_dns
 #  cleanup_volumes
 #  cleanup_snapshots
 end

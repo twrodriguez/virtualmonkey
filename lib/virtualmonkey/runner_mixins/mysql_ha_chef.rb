@@ -519,6 +519,9 @@ EOS
            all_tags =  McTag.search_by_href(potential_new_master.current_instance_href)
             all_tags.each{ |hash_output|
               tags_we_need = hash_output["tags"]
+            timeout= 60
+            step=10
+            while timeout > 0
               tags_we_need.each{ | value|
                 print "value\n"+ value.to_s + "\n"
                 if value.to_s.match(/master_active/)
@@ -527,21 +530,32 @@ EOS
                     current_max_master_timestamp = Integer(potential_time_stamp)
                     current_max_master_server    = potential_new_master
                   end
+                  break
                 end
               }
+              sleep step
+              timeout -= step
+            end # end of while
             }
           else # use api 1.0 call for any instance that is AWS
             Tag.search_by_href(potential_new_master.current_instance_href).each{ |hash_output|
+            timeout= 60
+            step=10
+            while timeout > 0
               hash_output.each{ | key, value|
-                print "value\n"+ value.to_s + "\n"
+                puts "value\n"+ value.to_s + "\n"
                 if value.to_s.match(/master_active/)
                   potential_time_stamp = value.to_s.split("=")[1]
                   if(Integer(potential_time_stamp) > current_max_master_timestamp)
                     current_max_master_timestamp = Integer(potential_time_stamp)
                     current_max_master_server    = potential_new_master
                   end
+                  break
                 end
               }
+              sleep step
+              timeout -= step
+            end # end of while
             }
             end
           }
@@ -556,24 +570,26 @@ EOS
 
        end
 
-      # checks if the server is infact a slave
-     # def check_slave(slave_server)
-      #        count_num_slave_tags = 0  # this number should equal 2 otherwise it is not valid
-       #       slave_server.settings
-       #       slave_server.reload
-#
-#              # get all the tags and then do a regex
-#              Tag.search_by_href(slave_server.current_instance_href).each{ |hash_output|
-#                hash_output.each{ |key, value|
-#                  if value.to_s.match(/slave_active/)
-#                    count_num_slave_tags+=1
-#                  elsif value.to_s.match(/slave_instance_uuid/)
-#                    count_num_slave_tags+=1
-#                  end
-#                 }
-#              }
-#              raise "Less than 2 slave tags found on #{slave_server.current_instance_href}" unless (count_num_slave_tags == 2)
-#       end
+       def get_master_tags(value)
+        timeout= 60
+        step=10
+        while timeout > 0
+          puts "Getting master Active tag"
+            print "value\n"+ value.to_s + "\n"
+            if value.to_s.match(/master_active/)
+              potential_time_stamp = value.to_s.split("=")[1]
+              if(Integer(potential_time_stamp) > current_max_master_timestamp)
+              current_max_master_timestamp = Integer(potential_time_stamp)
+              current_max_master_server    = potential_new_master
+              end
+           end
+           break unless status.include?("pending")
+           sleep step
+           timeout -= step
+        end
+
+       end
+
 
       # creates a MySQL enabled EBS stripe on the server
       # * server<~Server> the server to create stripe on
