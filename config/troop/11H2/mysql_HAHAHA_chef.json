@@ -5,6 +5,6 @@
    "107666",
    "107666"
   ],
-  "feature":"mysql_ha_chef.rb",
+  "feature":"mysql_haha_chef.rb",
   "cloud_variables":"all_clouds.json"
 }
