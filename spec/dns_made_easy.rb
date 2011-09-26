@@ -20,7 +20,7 @@ Master_DB_DNSID = ["not used", "text:5264480","text:5264481", "text:5264482", "t
        "sys_dns/password"=>["cred:DNSMADEEASY_TEST_PASSWORD"],
        "DNS_PROVIDER"=>["text:DNSMadeEasy"],
        "owner"=>["available"],
-       "db_mysql/fqdn"=>["text:vmonk#{num+1}-master.test.rightscale.com"],
+       "db/fqdn"=>["text:vmonk#{num+1}-master.test.rightscale.com"],
        "MASTER_DB_DNSNAME"=>["text:vmonk#{num+1}-master.test.rightscale.com"]}
       
   response = @sdb.put_attributes(@domain, item_name, attributes)

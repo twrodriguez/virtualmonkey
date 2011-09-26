@@ -278,7 +278,7 @@ module VirtualMonkey
       def run_HA_reboot_checks
          # one simple check we can do is the backup.  Backup can fail if anything is amiss
          @servers.each do |server|
-         run_script("backup", server)
+         #run_script("do_backup", server)
          end
       end
 
@@ -314,6 +314,7 @@ module VirtualMonkey
         @dns = SharedDns.new(domain)
         raise "Unable to reserve DNS" unless @dns.reserve_dns(owner)
         @dns.set_dns_inputs(@deployment)
+
       end
 
       def setup_all_server_block_devices(servers)
@@ -375,7 +376,7 @@ module VirtualMonkey
         run_query("DROP DATABASE IF EXISTS bananas", server)
         run_query("create database bananas", server)
         run_query("use bananas; create table bunches (tree text)", server)
-        run_query("use bananas; insert into bunches values ('banana')", server)
+        run_query("use bananas; insert into bunches values ('yellow')", server)
       end
 
       def run_reboot_operations
@@ -511,33 +512,57 @@ EOS
 #TODO tests should never call this.  This changes the variables in the node.
 # REMOVE all usage
 #      ## checks if the server is in fact a master
-#      def check_master(server)
-#        run_script('do_lookup_master',server)
-#      end
 
-       #checks if the server is in fact a master
+       #checks if the server is in fact a master and if the dns is pointing to the master server
       def verify_master(assumed_master_server)
         print "verify master\n"
+        assumed_master_server.reload
         current_max_master_timestamp = -5
-        current_max_master_server = assumed_master_server
+        current_max_master_server = "NO masters exist"
 
         servers.each{ |potential_new_master|
           potential_new_master.settings
           potential_new_master.reload
+          all_tags = ""
 
-          Tag.search_by_href(potential_new_master.current_instance_href).each{ |hash_output|
-            hash_output.each{ |key, value|
-              if value.match(/master_active/)
-                potential_time_stamp = value.split("=")[1]
-                if(Integer(potential_time_stamp) > current_max_master_timestamp)
-                  current_max_master_timestamp = Integer(potential_time_stamp)
-                  current_max_master_server    = potential_new_master
+          if(Integer(potential_new_master.cloud_id) > 5) # use the api 1.5 for any instances not aws
+           all_tags =  McTag.search_by_href(potential_new_master.current_instance_href)
+            all_tags.each{ |hash_output|
+              tags_we_need = hash_output["tags"]
+              tags_we_need.each{ | value|
+                print "value\n"+ value.to_s + "\n"
+                if value.to_s.match(/master_active/)
+                  potential_time_stamp = value.to_s.split("=")[1]
+                  if(Integer(potential_time_stamp) > current_max_master_timestamp)
+                    current_max_master_timestamp = Integer(potential_time_stamp)
+                    current_max_master_server    = potential_new_master
+                  end
                 end
-              end
+              }
             }
+          else # use api 1.0 call for any instance that is AWS
+            Tag.search_by_href(potential_new_master.current_instance_href).each{ |hash_output|
+              hash_output.each{ | key, value|
+                print "value\n"+ value.to_s + "\n"
+                if value.to_s.match(/master_active/)
+                  potential_time_stamp = value.to_s.split("=")[1]
+                  if(Integer(potential_time_stamp) > current_max_master_timestamp)
+                    current_max_master_timestamp = Integer(potential_time_stamp)
+                    current_max_master_server    = potential_new_master
+                  end
+                end
+              }
+            }
+            end
           }
-        }
         raise "The actual master is #{current_max_master_server}" unless (assumed_master_server == current_max_master_server)
+
+        sleep 60
+
+        db_fqdn = get_input_from_server(assumed_master_server)["db/fqdn"].to_s.split("text:")[1].delete("*")
+        dns_ip = `dig +short "#{ db_fqdn}"`
+       
+        raise "DNS ip #{dns_ip.to_s} does not match private ip #{assumed_master_server.private_ip.to_s}" unless (dns_ip.to_s.strip == assumed_master_server.private_ip.to_s)
 
        end
 
@@ -580,17 +605,19 @@ EOS
           server.reload
 
           # get all the tags and then do a regex for master or slave
-          Tag.search_by_href(server.current_instance_href).each{ |hash_output|  # itereate through each tag retrieved from the server
-            hash_output.each{ |key, value|
-              Tag.unset(server.current_instance_href, ["#{value}"] ) if value.to_s.match(/master/) # unset the master and slave tag
+          server.clear_tags("rs_dbrepl") # clear out any tags that are of type rs_dprepl
+         # Tag.search_by_href(server.current_instance_href).each{ |hash_output|  # itereate through each tag retrieved from the server
+         #   hash_output.each{ |key, value|
+          #    Tag.unset(server.current_instance_href, ["#{value}"] ) if value.to_s.match(/master/) # unset the master and slave tag
+          #    transaction{ server.save }
             }
-          }
-        }
+         # }
+         #}
       end
 
       def check_table_bananas(server)
         run_query("use bananas; select * from bunches;", server){|returned_from_query, returned|
-          raise "The bananas table is corrupted" unless returned_from_query.to_s.match(/banana/) # raise error if the regex does not match
+          raise "The bananas table is corrupted" unless returned_from_query.to_s.match(/yellow/) # raise error if the regex does not match
           true
         }
       end
@@ -622,8 +649,11 @@ EOS
 
      end
 
-    def disable_backups(server)
-      run_script('disable_backups',server)
+    # disables backups on all servers
+    def disable_all_backups
+      servers.each{|server|
+        run_script('disable_backups',server)
+      }
     end
 
     def do_force_reset(server)
