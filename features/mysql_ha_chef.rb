@@ -28,7 +28,7 @@ before do
    create_monkey_table(s_one)
    run_script("do_backup", s_one)
    wait_for_snapshots
- 
+
    #terminate s_one - it is no longer needed - access should error after this point
    # Now we have a backup that can be used to restore master and slave
    # This server is not a real master.  To create a real master the
@@ -50,6 +50,7 @@ test "sequential_test" do
    #"backup_master"
    run_script("do_backup", s_two)
    wait_for_snapshots
+   #TODO check that the backup file age file is created
    create_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
 
    #"create_slave_from_master_backup"
