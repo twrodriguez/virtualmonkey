@@ -88,7 +88,15 @@ test "sequential_test" do
    check_table_bananas(s_two)
    check_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
    check_slave_backup(s_two) # looks for a file that was written to the slave
+   #TODO do this one more time i.e. promote the oldmaster/new slave back to a master
+   #  this will vefify that there are no files etc.. that break promotion
 end
+
+#TODO promote a slave server with a dead master
+#  recreate a master slave setup (or use current?)
+#  backup the master
+#  terminate the master
+#  promote the slave
 
 
 #TODO reboot needs to:
@@ -99,6 +107,8 @@ before 'reboot' do
 end
 
 #TODO checks for master vs slave backup setups
+#  need to verify that the master servers backup cron job is using the master backup cron/minute/hour
+#TODO enable and disable backups on both the master and slave servers
 #TODO monitoring checks
 #TODO check for reported issues i.e. tickets
 
