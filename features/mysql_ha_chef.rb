@@ -65,7 +65,6 @@ test "sequential_test" do
    run_script("do_backup", s_three)
    wait_for_snapshots
 
-   #TODO remove master tags should also hose the DNS settings.  change the ip to 1.1.1.1
    #"create_master_from_slave_backup"
    cleanup_volumes  ## runs do_force_reset on ALL servers
    remove_master_tags
@@ -75,27 +74,37 @@ test "sequential_test" do
    check_slave_backup(s_two) # looks for a file that was written to the slave
 
    # We have one master (s_two) and a bad slave (from different master and disks wipted).
-   #TODO VERIFY that a slave can be restored from a slave backup
-   run_script("do_force_reset", s_three)
-   run_script("do_init_slave", s_three)
-   check_table_bananas(s_three) # also check if the banana table is there
-   check_table_replication(s_three) # also check if the replication table is there
+   # VERIFY that a slave can be restored from a slave backup
+   run_script("do_force_reset", s_one)
+   run_script("do_init_slave", s_one)
+   check_table_bananas(s_one) # also check if the banana table is there
+   check_table_replication(s_one) # also check if the replication table is there
+   check_slave_backup(s_one) # looks for a file that was written to the slave
 
-   # "promote_slave_to_master"
-   # run_script("do_promote_to_master",s_three)
+    # "promote_slave_to_master"
+    #  this will vefify that there are no files etc.. that break promotion
+    run_script("do_promote_to_master",s_three)
+    verify_master(s_three) # run monkey check that compares the master timestamps
+    check_table_bananas(s_three)
+    check_table_replication(s_three) # create a table in the  master that is not in slave for replication checks below
+    check_slave_backup(s_three) # looks for a file that was written to the slave
+ 
+   #  promote a slave server with a dead master
+   #  recreate a master slave setup (or use current?)
+   #  backup the master
+   #  terminate the master
+   #  promote the slave
+   run_script("do_backup", s_three)
+   wait_for_snapshots
+   transaction { s_three.relaunch }
+   transaction { s_two.relaunch }
+   run_script("do_promote_to_master",s_one)
+   verify_master(s_one) # run monkey check that compares the master timestamps
+   check_table_bananas(s_one)
+   check_table_replication(s_one) # create a table in the  master that is not in slave for replication checks below
+   check_slave_backup(s_one) # looks for a file that was written to the slave
 
-   #TODO do this one more time i.e. promote the oldmaster/new slave back to a master
-   #  this will vefify that there are no files etc.. that break promotion
-=======
->>>>>>> Stashed changes
 end
-
-#TODO promote a slave server with a dead master
-#  recreate a master slave setup (or use current?)
-#  backup the master
-#  terminate the master
-#  promote the slave
-
 
 #  reboot a slave, verify that it is operational, then add a table to master and verity replication
 #  reboot the master, verify opernational - " " ^
@@ -106,21 +115,21 @@ end
 #TODO checks for master vs slave backup setups
 #  need to verify that the master servers backup cron job is using the master backup cron/minute/hour
 #TODO enable and disable backups on both the master and slave servers
-#TODO monitoring checks
-#TODO check for reported issues i.e. tickets
 
 after "sequential_test" do
-  #  reboot a slave, verify that it is operational, then add a table to master and verity replication
-  #  reboot the master, verify opernational - " " ^
+   #  reboot a slave, verify that it is operational, then add a table to master and verity replication
+   #  reboot the master, verify opernational - " " ^
+   check_monitoring
+   check_mysql_monitoring
    run_HA_reboot_operations
    check_table_bananas(s_three) # also check if the banana table is there
    check_table_replication(s_three) # also check if the replication table is there
    check_table_bananas(s_two)
    check_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
    check_slave_backup(s_two) # looks for a file that was written to the slave
+   check_monitoring
+   check_mysql_monitoring
 
-#  check_monitoring
-#  check_mysql_monitoring
 end
 
 after do

@@ -426,19 +426,19 @@ module VirtualMonkey
             #mysql commands to generate data for collectd to return
             50.times do |ii|
               query = <<EOS
-show databases;
-create database test#{ii};
-use test#{ii};
-create table test#{ii}(test text);
-show tables;
-insert into test#{ii} values ('1');
-update test#{ii} set test='2';
-select * from test#{ii};
-delete from test#{ii};
-show variables;
-show status;
-grant select on test.* to root;
-alter table test#{ii} rename to test2#{ii};
+              show databases;
+              create database test#{ii};
+              use test#{ii};
+              create table test#{ii}(test text);
+              show tables;
+              insert into test#{ii} values ('1');
+              update test#{ii} set test='2';
+              select * from test#{ii};
+              delete from test#{ii};
+              show variables;
+              show status;
+              grant select on test.* to root;
+              alter table test#{ii} rename to test2#{ii};
 EOS
               run_query(query, server)
             end
@@ -517,26 +517,21 @@ EOS
 
           if(Integer(potential_new_master.cloud_id) > 5) # use the api 1.5 for any instances not aws
            all_tags =  McTag.search_by_href(potential_new_master.current_instance_href)
-            all_tags.each{ |hash_output|
+              all_tags.each{ |hash_output|
               tags_we_need = hash_output["tags"]
-            timeout= 60
-            step=10
-            while timeout > 0
-              tags_we_need.each{ | value|
-                print "value\n"+ value.to_s + "\n"
-                if value.to_s.match(/master_active/)
-                  potential_time_stamp = value.to_s.split("=")[1]
-                  if(Integer(potential_time_stamp) > current_max_master_timestamp)
-                    current_max_master_timestamp = Integer(potential_time_stamp)
-                    current_max_master_server    = potential_new_master
+                tags_we_need.each{ | value|
+                  print "value\n"+ value.to_s + "\n"
+                  if value.to_s.match(/master_active/)
+                    potential_time_stamp = value.to_s.split("=")[1]
+                    if(Integer(potential_time_stamp) > current_max_master_timestamp)
+                      current_max_master_timestamp = Integer(potential_time_stamp)
+                      current_max_master_server    = potential_new_master
+                    end
                   end
-                  break
-                end
-              }
-              sleep step
-              timeout -= step
-            end # end of while
+                 }
             }
+             sleep step
+             timeout -= step
           else # use api 1.0 call for any instance that is AWS
             Tag.search_by_href(potential_new_master.current_instance_href).each{ |hash_output|
             timeout= 60
