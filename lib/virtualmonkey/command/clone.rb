@@ -21,12 +21,14 @@ module VirtualMonkey
         raise "FATAL: Ambiguous Regex; no deployment matched /#{@@options[:deployment]}/"
       end
       origin = deployments.first
+      prefix = origin.get_info_tags["self"]["prefix"]
       @@do_these ||= []
       # clone deployment
       for i in 1 .. @@options[:n_copies]
         new_deploy = origin.clone
         new_deploy.reload
         new_deploy.nickname = "#{origin.nickname}-clone-#{i}"
+        new_deploy.set_info_tags("prefix" => prefix)
         new_deploy.save
         @@do_these << new_deploy
       end
