@@ -10,26 +10,29 @@ module VirtualMonkey
   
       # pass in the instance server on which we want to check the backup on
       def wait_for_snapshots(server)
-        sleep(200)
+        done = false
         timeout=1500
         step=10
-        while timeout > 0
-        #    probe(server, "test -e /var/run/db-backup") { |response,status|
-         #   break unless (status == 0)
-          #  sleep step
-           # timeout -= step
-           # }
-       # end
-
-       # if(server.cloud_id <= 5)
-          sleep(200)
-          snapshots =find_snapshots
-          status = snapshots.map { |x| x.aws_status } 
-          break unless status.include?("pending")
-          sleep step
-          timeout -= step
+        while (timeout > 0 && !done)
+          probe(server, "test -e /var/run/db-backup") { |response,status|
+            done = true unless (status == 0)
+            sleep step
+            timeout -= step
+         }
         end
-        raise "FATAL: timed out waiting for all snapshots in lineage #{@lineage} to complete" if timeout == 0
+
+         if(server.cloud_id <= 5)
+           while timeout > 0
+              timeout=1500
+              step=10
+              snapshots =find_snapshots
+              status = snapshots.map { |x| x.aws_status } 
+              break unless status.include?("pending")
+              sleep step
+              timeout -= step
+          end
+        end
+        raise "FATAL: timed out waiting for all snapshots in lineage #{@lineage} to complete" if timeout <= 0
       end
   
     end

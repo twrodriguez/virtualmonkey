@@ -40,8 +40,8 @@ module VirtualMonkey
                    [ 'setup_replication_privileges', 'db_mysql::setup_replication_privileges' ],
                    [ 'setup_slave_backup',           'db_mysql::setup_slave_backup' ],
                    ['disable_backups',              'db::do_backup_schedule_disable' ],
-                   ['secondary_backup',              'db::do_secondary_backup'       ],
-                   ['secondary_restore',            'db::do_secondary_restore'      ]
+                   ['do_secondary_backup',              'db::do_secondary_backup'       ],
+                   ['do_secondary_restore',            'db::do_secondary_restore'      ]
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless servers.size >= 1
 
@@ -734,6 +734,35 @@ EOS
 
       end
  
+      def create_table_secondary_backup(server)
+        run_query("create database secondary_backup", server)
+        run_query("use secondary_backup; create table secondary (some_cloud text)", server)
+        run_query("use secondary_backup; insert into secondary values ('monkey_time')", server)
+      end
+
+      def check_table_secondary_backup(server)
+        run_query("use secondary_backup; select * from secondary;", server){|returned_from_query, returned|
+          raise "The secondary table is corrupted" unless returned_from_query.to_s.match(/monkey_time/) # raise error if the regex does not match
+          true
+        }
+      end
+
+      def test_secondary_backup_ha(location="S3")
+        cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
+        if cid == 232 && location == "CloudFiles"
+          puts "Skipping secondary backup to cloudfiles on Rax -- this is already used for primary backup."
+        else
+          set_secondary_backup_inputs(location)
+          run_script("setup_block_device", s_one)
+          create_table_secondary_backup(s_one)
+          run_script("do_secondary_backup", s_one)
+          wait_for_snapshots
+ 
+          run_script("do_secondary_restore", s_two)
+          check_table_secondary_backup(s_two)
+
+        end
+      end
     end
   end
 end
