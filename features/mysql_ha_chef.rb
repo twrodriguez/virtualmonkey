@@ -22,21 +22,28 @@ before do
    wait_for_all("operational")
 
    disable_db_reconverge # it is important to disable this if we want to verify what backup we are restoring from
+   #   Backups are not setup yet.  Need to figure out where this is needed cause we need backups disabled. Doing it
+   #   here on all 3 servers is inefficient
    disable_all_backups
 
+   # Need to setup a master from scratch to get the first backup for remaining tests
+   #   tag/update dns for master
+   #   create a block device
+   #   add test tables into db
+   #   write the backup
+   run_script("do_tag_as_master", s_one)
    run_script("setup_block_device", s_one)
    create_monkey_table(s_one)
    run_script("do_backup", s_one)
    wait_for_snapshots
 
-   #terminate s_one - it is no longer needed - access should error after this point
    # Now we have a backup that can be used to restore master and slave
    # This server is not a real master.  To create a real master the
    # restore_and_become_master recipe needs to be run on a new instance
    # This one should be re-launched before additional tests are run on it
-   transaction { s_one.relaunch }
+   #
+#   transaction { s_one.relaunch }
 end
-
 test "sequential_test" do
 
    run_script("do_restore_and_become_master",s_two)
@@ -103,9 +110,8 @@ test "sequential_test" do
    check_table_bananas(s_one)
    check_table_replication(s_one) # create a table in the  master that is not in slave for replication checks below
    check_slave_backup(s_one) # looks for a file that was written to the slave
-
 end
-
+=begin
 #  reboot a slave, verify that it is operational, then add a table to master and verity replication
 #  reboot the master, verify opernational - " " ^
 before 'reboot' do
@@ -137,3 +143,4 @@ after do
 #  cleanup_volumes
 #  cleanup_snapshots
 end
+=end
