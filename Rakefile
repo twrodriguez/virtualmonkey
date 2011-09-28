@@ -19,8 +19,8 @@ begin
     gem.add_dependency "fog"
     gem.add_dependency "highline"
     gem.add_dependency "rspec"
-    gem.add_dependency "eventmachine"
     gem.add_dependency "right_popen", "1.0.11"
+    gem.add_dependency "eventmachine", "0.12.10"
     gem.add_dependency "ruby-debug"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
