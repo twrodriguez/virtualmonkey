@@ -9,10 +9,10 @@ set :runner, VirtualMonkey::Runner::MysqlChefHA
 
 # Terminates servers if there are any running
 hard_reset do
-  #stop_all
-  do_force_reset(s_one)
-  do_force_reset(s_two)
-  do_force_reset(s_three)
+  stop_all
+#  do_force_reset(s_one)
+ # do_force_reset(s_two)
+  #do_force_reset(s_three)
 end
 
 before do
@@ -78,4 +78,3 @@ after do
 #  cleanup_volumes
 #  cleanup_snapshots
 end
-=end
