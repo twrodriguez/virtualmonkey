@@ -29,7 +29,6 @@ module VirtualMonkey
                    [ 'do_list_rules',                'sys_firewall::do_list_rules' ],
                    [ 'do_reconverge_list_enable',    'sys::do_reconverge_list_enable' ],
                    [ 'do_reconverge_list_disable',   'sys::do_reconverge_list_disable' ],
-                   [ 'do_force_reset',               'db::do_force_reset' ],
                    [ 'do_init_slave',                'db_mysql::do_init_slave'],
                    [ 'do_promote_to_master',         'db_mysql::do_promote_to_master'],
                    [ 'setup_master_dns',             'db_mysql::setup_master_dns'],
@@ -336,10 +335,11 @@ module VirtualMonkey
         run_script("do_restore", s_one)
       end
 
-      def do_force_reset
-        puts "RESET"
-        run_script("do_force_reset", s_one)
-      end
+#WTF - 2 def's
+#      def do_force_reset
+#        puts "RESET"
+#        run_script("do_force_reset", s_one)
+#      end
 
       # releases records back into the shared DNS pool
       def release_dns
@@ -513,14 +513,13 @@ EOS
         sleep 60
         assumed_master_server.reload
         current_max_master_timestamp = -5
-        current_max_master_server = "NO masters exist"
+        current_max_master_server = nil
 
         servers.each{ |potential_new_master|
           potential_new_master.settings
           potential_new_master.reload
 
-          master_tags = nil ## set it to nil intially
-          master_tags = potential_new_master.get_tags_by_namespace("rs_dbrepl")           
+          master_tags = potential_new_master.get_tags_by_namespace("rs_dbrepl")
           master_tags = master_tags["current_instance"] unless master_tags.nil?
           master_tags = master_tags["master_active"] unless master_tags.nil?
 
@@ -532,6 +531,7 @@ EOS
             end
           end
         }
+        raise "Theere is no master" unless current_max_master_server.is_a?ServerInterface
         raise "The actual master is #{current_max_master_server.nickname}" unless (assumed_master_server == current_max_master_server)
 
         sleep 60
@@ -629,6 +629,7 @@ EOS
 
      def check_slave_backup(server)
        probe(server, "cat /mnt/storage/slave.txt"){|x,y|
+         # TODO this will never fail
          print x.to_s
          print y.to_s
          true
@@ -703,12 +704,12 @@ EOS
          # VERIFY that a slave can be restored from a slave backup
 
          # backup the slave
-         do_backup(s_three)
-         run_script("do_force_reset", s_one)
-         do_init_slave(s_one)
-         check_table_bananas(s_one) # also check if the banana table is there
-         check_table_replication(s_one) # also check if the replication table is there
-         check_slave_backup(s_one) # looks for a file that was written to the slave
+         #do_backup(s_three)
+         #run_script("do_force_reset", s_one)
+         do_init_slave(s_three)
+         check_table_bananas(s_three) # also check if the banana table is there
+         check_table_replication(s_three) # also check if the replication table is there
+         check_slave_backup(s_three) # looks for a file that was written to the slave
 
          # "promote_slave_to_master"
          #  this will vefify that there are no files etc.. that break promotion
@@ -724,13 +725,13 @@ EOS
         #  terminate the master
         #  promote the slave
         transaction { s_three.relaunch }
-        transaction { s_two.relaunch }
+#        transaction { s_two.relaunch }
         wait_for_all("operational")
-        do_promote_to_master(s_one)
-        verify_master(s_one) # run monkey check that compares the master timestamps
-        check_table_bananas(s_one)
-        check_table_replication(s_one) # create a table in the  master that is not in slave for replication checks below
-        check_slave_backup(s_one) # looks for a file that was written to the slave
+        do_promote_to_master(s_two)
+        verify_master(s_two) # run monkey check that compares the master timestamps
+        check_table_bananas(s_two)
+        check_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
+        check_slave_backup(s_two) # looks for a file that was written to the slave
 
       end
  
