@@ -34,36 +34,39 @@ module VirtualMonkey
             menu.index = :number
             menu.choices(*(deployments.map { |d| d.nickname }))
           end
-          deployment = deployments[i]
+          deployment = deployments[i.to_i - 1]
           accepted = true
         end
       end
       deployment.servers.each { |s| s.settings }
-      
+
       # Build Scenario Names
       build_scenario_names(deployment.nickname)
-      
+
       # Build Troop Config and Script_Array
       build_troop_config(deployment)
-      
+
 
       # Extract Inputs from Deployment
-      common_inputs = {}
+      @@common_inputs = {}
       if VirtualMonkey::Toolbox::api1_5?
         mc_deployment = McDeployment.find(deployment.rs_id.to_i)
         mc_deployment.show
-        mc_deployment.inputs.each { |hsh|
-          common_inputs[hsh["name"]] = hsh["value"] unless hsh["value"] == "text:"
+        mc_deployment.get_inputs.each { |hsh|
+          @@common_inputs[hsh["name"]] = hsh["value"] unless hsh["value"] == "text:"
         }
-        #TODO: ServerTemplate inputs (incoming 1.5 API)
       end
 
       # Extract Common Inputs from Servers
       server_inputs = {}
-      @@individual_server_inputs = {} #TODO
+      @@individual_server_inputs = {}
+      add_set_input_fn = false
       deployment.servers_no_reload.each { |s|
-        if s.multicloud && s.current_instance
-          s.current_instance.inputs.each { |hsh|
+        s.settings
+        if s.multicloud
+          instance = s.next_instance
+          instance = s.current_instance if s.current_instance
+          instance.get_inputs.each { |hsh|
             if server_inputs[hsh["name"]]
               if server_inputs[hsh["name"]] != hsh["value"]
                 server_inputs[hsh["name"]] = "text:"
@@ -71,7 +74,10 @@ module VirtualMonkey
             else
               server_inputs[hsh["name"]] = hsh["value"]
             end
+            @@individual_server_inputs[s.rs_id] ||= {}
+            @@individual_server_inputs[s.rs_id][hsh["name"]] = hsh["value"]
           }
+          add_set_input_fn ||= true
         elsif s.current_instance_href
           s.reload_as_current
           s.settings
@@ -84,25 +90,26 @@ module VirtualMonkey
               server_inputs[input_name] = input_value
             end
           }
+          @@individual_server_inputs[s.rs_id] = s.parameters.dup
           s.reload_as_next
+          add_set_input_fn ||= true
         end
       }
       server_inputs.reject! { |name,value| value == "text:" }
-      common_inputs.deep_merge! server_inputs # Server inputs always overwrite deployment inputs
+      @@common_inputs.deep_merge! server_inputs # Server inputs always overwrite deployment inputs
 
-      common_inputs.reject! { |name,value| value == "text:" }
-      if common_inputs.empty?
+      @@common_inputs.reject! { |name,value| value == "text:" }
+      if @@common_inputs.empty?
         write_common_inputs_file()
       else
-        write_common_inputs_file(common_inputs)
+        write_common_inputs_file(@@common_inputs)
       end
-
 
       # Create files
       write_feature_file()
       write_troop_file()
       write_mixin_file()
-      write_runner_file()
+      write_runner_file(add_set_input_fn)
 
       say("Created common_inputs file:  #{@@common_inputs_file}")
       say("Created feature file:        #{@@feature_file}")
