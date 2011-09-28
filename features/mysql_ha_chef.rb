@@ -95,7 +95,7 @@ test "sequential_test" do
     check_table_bananas(s_three)
     check_table_replication(s_three) # create a table in the  master that is not in slave for replication checks below
     check_slave_backup(s_three) # looks for a file that was written to the slave
- 
+
    #  promote a slave server with a dead master
    #  recreate a master slave setup (or use current?)
    #  backup the master
