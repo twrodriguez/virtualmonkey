@@ -39,7 +39,9 @@ module VirtualMonkey
                    [ 'setup_master_backup',          'db_mysql::setup_master_backup' ],
                    [ 'setup_replication_privileges', 'db_mysql::setup_replication_privileges' ],
                    [ 'setup_slave_backup',           'db_mysql::setup_slave_backup' ],
-                   ['disable_backups',              'db::do_backup_schedule_disable' ]
+                   ['disable_backups',              'db::do_backup_schedule_disable' ],
+                   ['secondary_backup',              'db::do_secondary_backup'       ],
+                   ['secondary_restore',            'db::do_secondary_restore'      ]
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless servers.size >= 1
 
@@ -322,9 +324,11 @@ module VirtualMonkey
         servers.each { |s| run_script("setup_block_device", s) }
       end
 
-      def do_backup
+      def do_backup(server)
         puts "BACKUP"
-        run_script("do_backup", s_one)
+        delete_backup_file(server) 
+        run_script("do_backup", server)
+        wait_for_snapshots(server)
       end
 
       def do_restore
@@ -499,13 +503,14 @@ EOS
         run_script('setup_master_dns', server)
       end
 
-#TODO tests should never call this.  This changes the variables in the node.
-# REMOVE all usage
-#      ## checks if the server is in fact a master
+       #TODO tests should never call this.  This changes the variables in the node.
+       # REMOVE all usage
+       ## checks if the server is in fact a master
 
        #checks if the server is in fact a master and if the dns is pointing to the master server
       def verify_master(assumed_master_server)
-        print "verify master\n"
+
+        sleep 60
         assumed_master_server.reload
         current_max_master_timestamp = -5
         current_max_master_server = "NO masters exist"
@@ -513,57 +518,30 @@ EOS
         servers.each{ |potential_new_master|
           potential_new_master.settings
           potential_new_master.reload
-          all_tags = ""
 
-          if(Integer(potential_new_master.cloud_id) > 5) # use the api 1.5 for any instances not aws
-           all_tags =  McTag.search_by_href(potential_new_master.current_instance_href)
-              all_tags.each{ |hash_output|
-              tags_we_need = hash_output["tags"]
-                tags_we_need.each{ | value|
-                  print "value\n"+ value.to_s + "\n"
-                  if value.to_s.match(/master_active/)
-                    potential_time_stamp = value.to_s.split("=")[1]
-                    if(Integer(potential_time_stamp) > current_max_master_timestamp)
-                      current_max_master_timestamp = Integer(potential_time_stamp)
-                      current_max_master_server    = potential_new_master
-                    end
-                  end
-                 }
-            }
-             sleep step
-             timeout -= step
-          else # use api 1.0 call for any instance that is AWS
-            Tag.search_by_href(potential_new_master.current_instance_href).each{ |hash_output|
-            timeout= 60
-            step=10
-            while timeout > 0
-              hash_output.each{ | key, value|
-                puts "value\n"+ value.to_s + "\n"
-                if value.to_s.match(/master_active/)
-                  potential_time_stamp = value.to_s.split("=")[1]
-                  if(Integer(potential_time_stamp) > current_max_master_timestamp)
-                    current_max_master_timestamp = Integer(potential_time_stamp)
-                    current_max_master_server    = potential_new_master
-                  end
-                  break
-                end
-              }
-              sleep step
-              timeout -= step
-            end # end of while
-            }
+          master_tags = nil ## set it to nil intially
+          master_tags = potential_new_master.get_tags_by_namespace("rs_dbrepl")           
+          master_tags = master_tags["current_instance"] unless master_tags.nil?
+          master_tags = master_tags["master_active"] unless master_tags.nil?
+
+          if(master_tags != nil)
+            potential_time_stamp = master_tags.to_i # convert to integer
+            if(potential_time_stamp > current_max_master_timestamp)
+              current_max_master_timestamp = potential_time_stamp
+              current_max_master_server    = potential_new_master
             end
-          }
-        raise "The actual master is #{current_max_master_server}" unless (assumed_master_server == current_max_master_server)
+          end
+        }
+        raise "The actual master is #{current_max_master_server.nickname}" unless (assumed_master_server == current_max_master_server)
 
         sleep 60
 
         db_fqdn = get_input_from_server(assumed_master_server)["db/fqdn"].to_s.split("text:")[1].delete("*")
         dns_ip = `dig +short "#{ db_fqdn}"`
-       
+
         raise "DNS ip #{dns_ip.to_s} does not match private ip #{assumed_master_server.private_ip.to_s}" unless (dns_ip.to_s.strip == assumed_master_server.private_ip.to_s)
 
-       end
+      end
 
        def get_master_tags(value)
         timeout= 60
@@ -659,17 +637,104 @@ EOS
 
      end
 
-    # disables backups on all servers
-    def disable_all_backups
-      servers.each{|server|
+      # disables backups on all servers
+      def disable_all_backups
+        servers.each{|server|
         run_script('disable_backups',server)
-      }
-    end
+        }
+      end
 
-    def do_force_reset(server)
-      run_script("do_force_reset", server)
-    end
+      def do_force_reset(server)
+        run_script("do_force_reset", server)
+      end
+   
+      def do_restore_and_become_master(server)
+        delete_backup_file(server) 
+        run_script("do_restore_and_become_master",server)
+        wait_for_snapshots(server)
+      
+      end
 
+      def do_init_slave(server)
+        delete_backup_file(server) 
+        run_script("do_init_slave", server)
+        wait_for_snapshots(server)
+      end
+
+      def do_promote_to_master(server)
+       delete_backup_file(server) 
+       run_script("do_promote_to_master",server)
+       wait_for_snapshots(server)
+      end
+ 
+      def sequential_test
+
+         # deletes backup file, restores master, and becomes master and waits for snapshots
+         do_restore_and_become_master(s_two)
+         # run monkey check that compares the master timestamps and checks dns entires
+         verify_master(s_two) 
+         check_table_bananas(s_two)
+
+         #TODO  check that the backup file age file is created
+         # create a table in the  master that is not in slave for replication checks below
+         create_table_replication(s_two)
+
+         #"create_slave_from_master_backup"
+         do_init_slave(s_three)
+         check_table_bananas(s_three) # also check if the banana table is there
+         check_table_replication(s_three) # checks if the replication table exists in the slave
+
+         # After this point we can use force reset.  We hav verified the create master and slave init
+         # on fresh servers
+         #"backup_slave"
+         write_to_slave("the slave",s_three) # write to slave file system so later we can verify if the backup came from a slave
+         do_backup(s_three)
+
+         #"create_master_from_slave_backup"
+         # this also calles do backup.. so we dont need to call 
+         cleanup_volumes  ## runs do_force_reset on ALL servers
+         remove_master_tags
+         do_restore_and_become_master(s_two)
+         check_table_bananas(s_two)
+         check_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
+         check_slave_backup(s_two) # looks for a file that was written to the slave
+
+         # We have one master (s_two) and a bad slave (from different master and disks wipted).
+         # VERIFY that a slave can be restored from a slave backup
+
+         # backup the slave
+         do_backup(s_three)
+         run_script("do_force_reset", s_one)
+         do_init_slave(s_one)
+         check_table_bananas(s_one) # also check if the banana table is there
+         check_table_replication(s_one) # also check if the replication table is there
+         check_slave_backup(s_one) # looks for a file that was written to the slave
+
+         # "promote_slave_to_master"
+         #  this will vefify that there are no files etc.. that break promotion
+         do_promote_to_master(s_three)
+         verify_master(s_three) # run monkey check that compares the master timestamps
+         check_table_bananas(s_three)
+         check_table_replication(s_three) # create a table in the  master that is not in slave for replication checks below
+         check_slave_backup(s_three) # looks for a file that was written to the slave
+ 
+        #  promote a slave server with a dead master
+        #  recreate a master slave setup (or use current?)
+        #  backup the master
+        #  terminate the master
+        #  promote the slave
+        transaction { s_three.relaunch }
+        transaction { s_two.relaunch }
+        wait_for_all("operational")
+        do_promote_to_master(s_one)
+        verify_master(s_one) # run monkey check that compares the master timestamps
+        check_table_bananas(s_one)
+        check_table_replication(s_one) # create a table in the  master that is not in slave for replication checks below
+        check_slave_backup(s_one) # looks for a file that was written to the slave
+
+      end
+ 
     end
   end
 end
+

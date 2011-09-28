@@ -38,6 +38,10 @@ module VirtualMonkey
       end
   
       # take the lineage name, find all snapshots and sleep until none are in the pending state.
+      def delete_backup_file(server)
+         probe(server, "rm /var/run/db-backup")
+      end
+
       def wait_for_snapshots
         timeout=1500
         step=10
