@@ -34,20 +34,20 @@ module VirtualMonkey
           files_to_check.any? { |feature|
             File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(feature)))
           }
-        end 
-        @@do_these = temp if temp.length > 0 
-      end 
+        end
+        @@do_these = temp if temp.length > 0
+      end
 
-      raise "No deployments matched!" unless @@do_these.length > 0 
+      raise "No deployments matched!" unless @@do_these.length > 0
       if @@options[:verbose]
         pp @@do_these.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
       else
         pp @@do_these.map { |d| d.nickname }
       end
       unless @@options[:yes] or @@command == "troop"
-        confirm = ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) }) 
+        confirm = ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
         raise "Aborting." unless confirm
-      end   
+      end
     end
 
     # Encapsulates the logic for loading the necessary variables to create a set of deployments
@@ -89,7 +89,7 @@ module VirtualMonkey
             if @@gm.all_done?
               watch.cancel
             end
-            
+
             if @@options[:terminate] and not (@@options[:list_trainer] or @@options[:qa])
               @@remaining_jobs.each do |job|
                 if job.status == 0
@@ -157,10 +157,10 @@ module VirtualMonkey
             Dir.new(state_dir).each do |state_file|
               if File.extname(state_file) =~ /((rb)|(feature))/
                 File.delete(File.join(state_dir, state_file))
-              end 
-            end 
+              end
+            end
             FileUtils.rm_rf(state_dir)
-          end 
+          end
           #Release DNS logic
           if runner.respond_to?(:release_dns) and not @@options[:keep]
             release_all_dns_domains(deploy.href)
@@ -185,7 +185,7 @@ module VirtualMonkey
           puts "WARNING: Got #{e.message} from #{e.backtrace.first}"
           sleep 5
         end while not complete
-      end 
+      end
 
       @@dm.destroy_all unless @@options[:keep]
     end
@@ -272,12 +272,19 @@ module VirtualMonkey
     def self.build_troop_config(deployment = nil)
       @@troop_config = {}
       @@troop_config[:prefix] = "#{@@underscore_name.upcase}_TROOP"
+      @@st_table = []
+      @@st_inputs = {}
 
       if deployment
         # Model Deployment Given
         st_ary = []
         deployment.servers_no_reload.each { |s|
-          st_ary << ServerTemplate.find(s.server_template_href)
+          st = ServerTemplate.find(s.server_template_href.split(/\//).last.to_i)
+          st_ary << st
+          @@st_table << [s, st]
+          if VirtualMonkey::Toolbox::api1_5?
+            @@st_inputs[st.rd_id] = McServerTemplate.find(st.rs_id.to_i).get_inputs
+          end
         }
         @@troop_config[:server_templates_ids] = st_ary.map { |st| st.rs_id.to_s }
       else
@@ -288,7 +295,12 @@ module VirtualMonkey
           @@troop_config[:server_template_ids] = ask("What Server Template ids would you like to use to create the deployments (comma delimited)?").split(",")
           @@troop_config[:server_template_ids].each { |st|
             st.strip!
-            st_ary << ServerTemplate.find(st.to_i)
+            st = ServerTemplate.find(st.to_i)
+            st_ary << st
+            @@st_table << [s, st]
+            if VirtualMonkey::Toolbox::api1_5?
+              @@st_inputs[st.rd_id] = McServerTemplate.find(st.rs_id.to_i).get_inputs
+            end
           }
           puts st_ary.map { |st| st.nickname }.join("\n")
           correct = ask("Are these the ServerTemplates that you wish to use with this runner? (y/n)", lambda { |ans| true if (ans =~ /^[yY]{1}/) })
@@ -344,7 +356,7 @@ before "script_#{index}" do
 end
 
 test "script_#{index}" do
-  run_script_on_set("script_#{index}", server_templates.detect { |st| st.name =~ /#{st.nickname}/ }, true, {})
+  run_script_on_set("script_#{index}", server_templates.detect { |st| st.nickname =~ /#{Regexp.escape(st.nickname)}/ }, true, {})
 end
 
 after "script_#{index}" do
@@ -399,7 +411,7 @@ EOS
         script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{Regexp.escape(script)}']" }
         mixin_tpl += "#{script_array.join(",\n")}\n"
         mixin_tpl += "                  ]\n"
-        mixin_tpl += "        st_ref = @server_templates.detect { |st| st.rs_id.to_i == #{st_ref.rs_id.to_i} }\n"
+        mixin_tpl += "        st_ref = @server_templates.detect { |st| st.nickname =~ /#{Regexp.escape(st_ref.nickname)}/ }\n"
         mixin_tpl += "        load_script_table(st_ref,scripts,st_ref)\n\n"
       }
       mixin_tpl += "      end\n"
@@ -462,7 +474,7 @@ EOS
       File.open(@@mixin_file, "w") { |f| f.write(mixin_tpl) }
     end
 
-    def self.write_runner_file
+    def self.write_runner_file(add_set_input_fn = nil)
       say("Creating runner file...")
       runner_tpl =<<EOS
 module VirtualMonkey
@@ -471,7 +483,51 @@ module VirtualMonkey
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::#{@@camel_case_name}
 
-      # Override any functions from mixins here
+      ###########################################
+      # Override any functions from mixins here #
+      ###########################################
+
+EOS
+      if add_set_input_fn
+        # input_table should be built as:
+        # {
+        #   120567: [
+        #     {"INPUT_A": "VALUE_A", "INPUT_B": "VALUE_B"},
+        #     {"INPUT_A": "VALUE_A", "INPUT_B": "VALUE_B"},
+        #     {"INPUT_A": "VALUE_A", "INPUT_B": "VALUE_B"}
+        #   ],
+        #   121843: [
+        #     {"INPUT_A": "VALUE_A", "INPUT_B": "VALUE_B"}
+        #   ]
+        # }
+        input_ref = {}
+        @@st_table.each { |s,st|
+          next unless @@individual_server_inputs[s.rs_id.to_i]
+          @@individual_server_inputs[s.rs_id.to_i].reject! { |input,value|
+            value == "text:" || @@common_inputs[input] == value
+          }
+          @@individual_server_inputs[s.rs_id.to_i].each { |input,value|
+            if @@st_inputs[st.rs_id.to_i][input] == value
+              @@individual_server_inputs[s.rs_id.to_i].delete(input)
+            end
+          }
+          input_ref[st.rs_id.to_i] ||= []
+          input_ref[st.rs_id.to_i] << @@individual_server_inputs[s.rs_id]
+        }
+        unless input_ref.empty?
+          runner_tpl += "      def set_inputs\n"
+          input_ref.each { |st_id,ary|
+            st = @@st_table.select { |s,st| st.rs_id.to_i == st_id }.first.last
+            runner_tpl += "        server_array = select_set(@server_templates.detect { |st| st.nickname =~ /#{Regexp.escape(st.nickname)}/ })\n"
+            ary.each_with_index { |input_hsh,idx|
+              runner_tpl += "        server_array[#{idx}].set_inputs(#{input_hsh.inspect})\n"
+            }
+            runner_tpl += "\n"
+          }
+          runner_tpl += "      end\n"
+        end
+      end
+      runner_tpl += <<EOS
     end
   end
 end

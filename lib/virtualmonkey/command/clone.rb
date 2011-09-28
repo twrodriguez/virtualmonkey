@@ -25,7 +25,7 @@ module VirtualMonkey
         new_deploy = origin.clone
         new_deploy.reload
         new_deploy.nickname = "#{origin.nickname}-clone-#{i}"
-        new_deploy.set_info_tags("prefix" => prefix)
+        new_deploy.set_info_tags("prefix" => prefix) if prefix
         new_deploy.save
         @@do_these << new_deploy
       end
