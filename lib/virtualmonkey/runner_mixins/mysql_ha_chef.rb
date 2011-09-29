@@ -325,7 +325,7 @@ module VirtualMonkey
 
       def do_backup(server)
         puts "BACKUP"
-        delete_backup_file(server) 
+        delete_backup_file(server)
         run_script("do_backup", server)
         wait_for_snapshots(server)
       end
@@ -648,32 +648,32 @@ EOS
       def do_force_reset(server)
         run_script("do_force_reset", server)
       end
-   
+
       def do_restore_and_become_master(server)
-        delete_backup_file(server) 
+        delete_backup_file(server)
         run_script("do_restore_and_become_master",server)
         wait_for_snapshots(server)
-      
+
       end
 
       def do_init_slave(server)
-        delete_backup_file(server) 
+        delete_backup_file(server)
         run_script("do_init_slave", server)
         wait_for_snapshots(server)
       end
 
       def do_promote_to_master(server)
-       delete_backup_file(server) 
+       delete_backup_file(server)
        run_script("do_promote_to_master",server)
        wait_for_snapshots(server)
       end
- 
+
       def sequential_test
 
          # deletes backup file, restores master, and becomes master and waits for snapshots
          do_restore_and_become_master(s_two)
          # run monkey check that compares the master timestamps and checks dns entires
-         verify_master(s_two) 
+         verify_master(s_two)
          check_table_bananas(s_two)
 
          #TODO  check that the backup file age file is created
@@ -692,7 +692,7 @@ EOS
          do_backup(s_three)
 
          #"create_master_from_slave_backup"
-         # this also calles do backup.. so we dont need to call 
+         # this also calles do backup.. so we dont need to call
          cleanup_volumes  ## runs do_force_reset on ALL servers
          remove_master_tags
          do_restore_and_become_master(s_two)
@@ -718,7 +718,7 @@ EOS
          check_table_bananas(s_three)
          check_table_replication(s_three) # create a table in the  master that is not in slave for replication checks below
          check_slave_backup(s_three) # looks for a file that was written to the slave
- 
+
         #  promote a slave server with a dead master
         #  recreate a master slave setup (or use current?)
         #  backup the master
@@ -734,7 +734,7 @@ EOS
         check_slave_backup(s_two) # looks for a file that was written to the slave
 
       end
- 
+
       def create_table_secondary_backup(server)
         run_query("create database secondary_backup", server)
         run_query("use secondary_backup; create table secondary (some_cloud text)", server)
@@ -758,7 +758,7 @@ EOS
           create_table_secondary_backup(s_one)
           run_script("do_secondary_backup", s_one)
           wait_for_snapshots
- 
+
           run_script("do_secondary_restore", s_two)
           check_table_secondary_backup(s_two)
 
