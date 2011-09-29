@@ -9,8 +9,7 @@ set :runner, VirtualMonkey::Runner::MysqlChefHA
 
 # Terminates servers if there are any running
 hard_reset do
- stop_all
-
+  stop_all
 end
 
 before do
@@ -23,9 +22,6 @@ before do
    wait_for_all("operational")
 
    disable_db_reconverge # it is important to disable this if we want to verify what backup we are restoring from
-   #   Backups are not setup yet.  Need to figure out where this is needed cause we need backups disabled. Doing it
-   #   here on all 3 servers is inefficient
-   disable_all_backups
 
    # Need to setup a master from scratch to get the first backup for remaining tests
    #   tag/update dns for master
@@ -42,7 +38,6 @@ before do
    # This server is not a real master.  To create a real master the
    # restore_and_become_master recipe needs to be run on a new instance
    # This one should be re-launched before additional tests are run on it
-   #
    transaction { s_one.relaunch }
 end
 
@@ -59,14 +54,16 @@ end
 after "sequential_test" do
    #  reboot a slave, verify that it is operational, then add a table to master and verity replication
    #  reboot the master, verify opernational - " " ^
+   # looks for a file that was written to the slave
+
    check_monitoring
    check_mysql_monitoring
    run_reboot_operations
-   check_table_bananas(s_three) # also check if the banana table is there
-   check_table_replication(s_three) # also check if the replication table is there
+   check_table_bananas(s_three) 
+   check_table_replication(s_three) 
    check_table_bananas(s_two)
-   check_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
-   check_slave_backup(s_two) # looks for a file that was written to the slave
+   check_table_replication(s_two)
+   check_slave_backup(s_two)
    check_monitoring
    check_mysql_monitoring
 
