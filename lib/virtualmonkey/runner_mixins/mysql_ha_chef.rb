@@ -36,6 +36,8 @@ module VirtualMonkey
                    [ 'do_restore_and_become_master', 'db_mysql::do_restore_and_become_master' ],
                    [ 'do_tag_as_master',             'db_mysql::do_tag_as_master' ],
                    [ 'setup_replication_privileges', 'db_mysql::setup_replication_privileges' ],
+                   [ 'setup_master_backup',          'db::do_backup_schedule_enable' ],
+                   [ 'setup_slave_backup',           'db::do_backup_schedule_enable' ],
                    ['disable_backups',              'db::do_backup_schedule_disable' ],
                    ['do_secondary_backup',              'db::do_secondary_backup'       ],
                    ['do_secondary_restore',            'db::do_secondary_restore'      ]
@@ -305,7 +307,7 @@ module VirtualMonkey
 
       def do_backup(server)
         puts "BACKUP"
-        delete_backup_file(server) 
+        delete_backup_file(server)
         run_script("do_backup", server)
         wait_for_snapshots(server)
       end
@@ -613,29 +615,28 @@ EOS
       def do_force_reset(server)
         run_script("do_force_reset", server)
       end
-   
+
       def do_restore_and_become_master(server)
-        delete_backup_file(server) 
+        delete_backup_file(server)
         run_script("do_restore_and_become_master",server)
         wait_for_snapshots(server)
         run_script('disable_backups',server)
-      
       end
 
       def do_init_slave(server)
-        delete_backup_file(server) 
+        delete_backup_file(server)
         run_script("do_init_slave", server)
         wait_for_snapshots(server)
         run_script('disable_backups',server)
       end
 
       def do_promote_to_master(server)
-       delete_backup_file(server) 
+       delete_backup_file(server)
        run_script("do_promote_to_master",server)
        wait_for_snapshots(server)
        run_script('disable_backups',server)
       end
- 
+
       def sequential_test
 
         # deletes backup file, restores master, and becomes master and waits for snapshots
@@ -727,7 +728,7 @@ EOS
           create_table_secondary_backup(s_one)
           run_script("do_secondary_backup", s_one)
           wait_for_snapshots
- 
+
           run_script("do_secondary_restore", s_two)
           check_table_secondary_backup(s_two)
 
