@@ -10,6 +10,8 @@ module VirtualMonkey
   
       # pass in the instance server on which we want to check the backup on
       def wait_for_snapshots(server)
+        sleep(200)
+=begin
         done = false
         timeout=1500
         step=10
@@ -33,8 +35,8 @@ module VirtualMonkey
           end
         end
         raise "FATAL: timed out waiting for all snapshots in lineage #{@lineage} to complete" if timeout <= 0
+=end  
       end
-  
     end
   end
 end

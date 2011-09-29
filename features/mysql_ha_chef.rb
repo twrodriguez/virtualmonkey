@@ -9,10 +9,8 @@ set :runner, VirtualMonkey::Runner::MysqlChefHA
 
 # Terminates servers if there are any running
 hard_reset do
-  stop_all
-#  do_force_reset(s_one)
- # do_force_reset(s_two)
-  #do_force_reset(s_three)
+ stop_all
+
 end
 
 before do
@@ -45,8 +43,9 @@ before do
    # restore_and_become_master recipe needs to be run on a new instance
    # This one should be re-launched before additional tests are run on it
    #
-#   transaction { s_one.relaunch }
+   transaction { s_one.relaunch }
 end
+
 test  "sequential_test" do
   sequential_test
 end
@@ -62,7 +61,7 @@ after "sequential_test" do
    #  reboot the master, verify opernational - " " ^
    check_monitoring
    check_mysql_monitoring
-   run_HA_reboot_operations
+   run_reboot_operations
    check_table_bananas(s_three) # also check if the banana table is there
    check_table_replication(s_three) # also check if the replication table is there
    check_table_bananas(s_two)
@@ -73,8 +72,26 @@ after "sequential_test" do
 
 end
 
+test "secondary_backup_s3" do
+  test_secondary_backup_ha("S3")
+end
+
+test "secondary_backup_cloudfiles" do
+  test_secondary_backup_ha("CloudFiles")
+end
+
+after 'primary_backup', 'secondary_backup_s3', 'secondary_backup_cloudfiles', 'reboot' do
+  cleanup_volumes
+end
+
 after do
-#@runner.release_dns
+@runner.release_dns
 #  cleanup_volumes
 #  cleanup_snapshots
+end
+
+test "reboot" do
+   run_script("setup_block_device", s_one)
+   create_monkey_table(s_one)
+do_backup(s_one)
 end
