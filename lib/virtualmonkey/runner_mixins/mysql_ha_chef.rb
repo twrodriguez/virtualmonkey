@@ -35,9 +35,9 @@ module VirtualMonkey
                    [ 'do_lookup_master',             'db_mysql::do_lookup_master' ],
                    [ 'do_restore_and_become_master', 'db_mysql::do_restore_and_become_master' ],
                    [ 'do_tag_as_master',             'db_mysql::do_tag_as_master' ],
-                   [ 'setup_master_backup',          'db_mysql::setup_master_backup' ],
                    [ 'setup_replication_privileges', 'db_mysql::setup_replication_privileges' ],
-                   [ 'setup_slave_backup',           'db_mysql::setup_slave_backup' ],
+                   [ 'setup_master_backup',          'db::do_backup_schedule_enable' ],
+                   [ 'setup_slave_backup',           'db::do_backup_schedule_enable' ],
                    ['disable_backups',              'db::do_backup_schedule_disable' ],
                    ['do_secondary_backup',              'db::do_secondary_backup'       ],
                    ['do_secondary_restore',            'db::do_secondary_restore'      ]
