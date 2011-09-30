@@ -286,7 +286,7 @@ module VirtualMonkey
             @@st_inputs[st.rd_id] = McServerTemplate.find(st.rs_id.to_i).get_inputs
           end
         }
-        @@troop_config[:server_templates_ids] = st_ary.map { |st| st.rs_id.to_s }
+        @@troop_config[:server_template_ids] = st_ary.map { |st| st.rs_id.to_s }
       else
         # Interactively Build
         correct = false
