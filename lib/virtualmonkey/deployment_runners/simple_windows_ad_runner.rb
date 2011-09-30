@@ -26,7 +26,7 @@ module VirtualMonkey
         st = ServerTemplate.find(resource_id(server_ad.server_template_href))
         load_script_table(st,scripts)
         load_script('AD monkey test', RightScript.new('href' => "/api/acct/2901/right_scripts/438784"))
-        load_script('SYS Install AD Backup Policy CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/"))
+        load_script('SYS Install AD Backup Policy CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438867"))
         load_script('AD create a new user CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438800"))
         load_script('AD create a new group CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438798"))
         load_script('AD bulk add user CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438797"))
