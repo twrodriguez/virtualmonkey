@@ -29,13 +29,13 @@ module VirtualMonkey
                    [ 'do_list_rules',                'sys_firewall::do_list_rules' ],
                    [ 'do_reconverge_list_enable',    'sys::do_reconverge_list_enable' ],
                    [ 'do_reconverge_list_disable',   'sys::do_reconverge_list_disable' ],
-                   [ 'do_init_slave',                'db_mysql::do_init_slave'],
-                   [ 'do_promote_to_master',         'db_mysql::do_promote_to_master'],
-                   [ 'setup_master_dns',             'db_mysql::setup_master_dns'],
-                   [ 'do_lookup_master',             'db_mysql::do_lookup_master' ],
-                   [ 'do_restore_and_become_master', 'db_mysql::do_restore_and_become_master' ],
-                   [ 'do_tag_as_master',             'db_mysql::do_tag_as_master' ],
-                   [ 'setup_replication_privileges', 'db_mysql::setup_replication_privileges' ],
+                   [ 'do_init_slave',                'db::do_init_slave'],
+                   [ 'do_promote_to_master',         'db::do_promote_to_master'],
+                   [ 'setup_master_dns',             'db::setup_master_dns'],
+                   [ 'do_lookup_master',             'db::do_lookup_master' ],
+                   [ 'do_restore_and_become_master', 'db::do_restore_and_become_master' ],
+                   [ 'do_tag_as_master',             'db::do_tag_as_master' ],
+                   [ 'setup_replication_privileges', 'db::setup_replication_privileges' ],
                    [ 'setup_master_backup',          'db::do_backup_schedule_enable' ],
                    [ 'setup_slave_backup',           'db::do_backup_schedule_enable' ],
                    ['disable_backups',              'db::do_backup_schedule_disable' ],
@@ -395,11 +395,9 @@ module VirtualMonkey
   # Check for specific MySQL data.
       def check_mysql_monitoring
         mysql_plugins = [
-                          {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-delete"},
                           {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_db"},
                           {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_table"},
-                          {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-insert"},
-                          {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-show_databases"}
+                          {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-insert"}
                         ]
         @servers.each do |server|
           transaction {
@@ -487,7 +485,7 @@ EOS
       def verify_master(assumed_master_server)
 
         # sometimes the tags take a while to appear so wait a bit
-        sleep 60 
+        sleep 60
         assumed_master_server.reload
         current_max_master_timestamp = -5
         current_max_master_server = nil
@@ -510,8 +508,8 @@ EOS
         }
         raise "Theere is no master" unless current_max_master_server.is_a?ServerInterface
         raise "The actual master is #{current_max_master_server.nickname}" unless (assumed_master_server == current_max_master_server)
-        
-        # the dns can take 60 seconds to settle in so wait 60 seconds 
+
+        # the dns can take 60 seconds to settle in so wait 60 seconds
         sleep 60
 
         #TODO this errors - not sure why - know it works so skipping it
@@ -650,7 +648,7 @@ EOS
         # s_one is the manual setup master
         # s_two is master
         # s_three is un-init
-        verify_master(s_two) 
+        verify_master(s_two)
         check_table_bananas(s_two)
         create_table_replication(s_two)
 
@@ -669,7 +667,7 @@ EOS
         do_backup(s_three)
 
         #"create_master_from_slave_backup"
-        # this also calles do backup.. so we dont need to call 
+        # this also calles do backup.. so we dont need to call
         cleanup_volumes  ## runs do_force_reset on ALL servers
         remove_master_tags
         # s_one is reset
