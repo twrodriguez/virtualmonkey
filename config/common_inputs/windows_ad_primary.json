@@ -4,6 +4,8 @@
   "AD_BACKUP_NAME" : "text:monkey_ad_backup_primary",
   "AD_TRANSFER" : "text:Transfer",
   "AD_DOMAIN_CONTROLLER" : "text:Pimary",
+  "AD_DOMAIN_LEVEL" : "text:3",
+  "AD_FOREST_LEVEL" : "text:3",
   "AD_SITE_NAME" : "text:Default",
   "AD_USER_FIRST_NAME" : "text:John",
   "AD_USER_LAST_NAME" : "text:Smith",

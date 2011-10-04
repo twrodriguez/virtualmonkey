@@ -21,7 +21,6 @@ module VirtualMonkey
                    [ 'SYS Change to safe boot mode', 'SYS Change to safe boot mode' ],
                    [ 'SYS Change to normal boot mode', 'SYS Change to normal boot mode' ],
                    [ 'SYS Install AD backup policy', 'SYS Install AD backup policy' ],
-                   [ 'AD Install ADFS', 'AD Install ADFS' ],
                  ]
         st = ServerTemplate.find(resource_id(server_ad.server_template_href))
         load_script_table(st,scripts)
@@ -30,6 +29,7 @@ module VirtualMonkey
         load_script('AD create a new user CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438800"))
         load_script('AD create a new group CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438798"))
         load_script('AD bulk add user CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438797"))
+        load_script('AD Install ADFS', RightScript.new('href' => "/api/acct/2901/right_scripts/437698"))
         load_script('AD install ADFS CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438869"))
         load_script('SYS change to safe boot mode CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438905"))
         load_script('SYS change to normal boot mode CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438874"))
