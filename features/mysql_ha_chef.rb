@@ -59,8 +59,6 @@ after "sequential_test" do
    check_monitoring
    check_mysql_monitoring
    run_reboot_operations
-   check_table_bananas(s_three) 
-   check_table_replication(s_three) 
    check_table_bananas(s_two)
    check_table_replication(s_two)
    check_slave_backup(s_two)
