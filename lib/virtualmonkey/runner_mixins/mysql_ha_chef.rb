@@ -447,6 +447,10 @@ EOS
 
       def set_variation_dnschoice(dns_choice)
         @deployment.set_input("sys_dns/choice", "#{dns_choice}")
+        @servers.each do |server|
+           server.set_inputs({"sys_dns/choice" => "text:#{dns_choice}"})
+        end
+
       end
 
       def set_variation_http_only
@@ -641,11 +645,11 @@ EOS
         # deletes backup file, restores master, and becomes master and waits for snapshots
         # run monkey check that compares the master timestamps and checks dns entries
         # create a table in the  master that is not in slave for replication checks below
-        # s_one is the manual setup master
+        # s_one is reset
         # s_two is un-init
         # s_three is un-init
         do_restore_and_become_master(s_two)
-        # s_one is the manual setup master
+        # s_one is reset
         # s_two is master
         # s_three is un-init
         verify_master(s_two)
@@ -654,7 +658,7 @@ EOS
 
         #"create_slave_from_master_backup"
         do_init_slave(s_three)
-        # s_one is the manual setup master
+        # s_one is reset
         # s_two is master
         # s_three is slave
         check_table_bananas(s_three) # also check if the banana table is there
@@ -669,7 +673,8 @@ EOS
         #"create_master_from_slave_backup"
         # this also calles do backup.. so we dont need to call
         cleanup_volumes  ## runs do_force_reset on ALL servers
-        remove_master_tags
+       # remove_master_tags -- nolonger needed
+
         # s_one is reset
         # s_two is reset
         # s_three is reset
@@ -684,11 +689,10 @@ EOS
         # We have one master (s_two) and a bad slave (from different master and disks wipted).
         # VERIFY that a slave can be restored from a slave backup
 
-        # backup the slave
-        #do_backup(s_three) # there is no slave and s_three is reset
-        #run_script("do_force_reset", s_one) #Already reset
+        # create and  backup the slave
         do_init_slave(s_one)
         run_script("do_force_reset", s_one) # kill the slave
+
         # s_one is reset bbut we again have a snapshot from slave********************
         # s_two is master
         # s_three is reset
@@ -696,19 +700,20 @@ EOS
         check_table_bananas(s_three) # also check if the banana table is there
         check_table_replication(s_three) # also check if the replication table is there
         check_slave_backup(s_three, "monkey_slave") # looks for a file that was written to the slave
+        # s_one is reset
+        # s_two is master
+        # s_three is slave
 
         # "promote_slavy11e_to_master"
         #  this will vefify that there are no files etc.. that break promotion
-        #do_promote_to_master(s_three) # s_three is reset
-        do_promote_to_master(s_one)
-        # s_one is master
-        # s_two is slave
-        # s_three is reset
-        #verify_master(s_three) # run monkey check that compares the master timestamps # s_three is reset - s_one is master
-        verify_master(s_one) # run monkey check that compares the master timestamps
-        check_table_bananas(s_one)
-        check_table_replication(s_one) # create a table in the  master that is not in slave for replication checks below
-        check_slave_backup(s_one, "monkey_slave") # looks for a file that was written to the slave
+        do_promote_to_master(s_three)
+        # s_one is reset
+        # s_two is old master
+        # s_three is master
+        verify_master(s_three) # run monkey check that compares the master timestamps
+        check_table_bananas(s_three)
+        check_table_replication(s_three) # create a table in the  master that is not in slave for replication checks below
+        check_slave_backup(s_three, "monkey_slave") # looks for a file that was written to the slave
 
         #  promote a slave server with a dead master
         #  recreate a master slave setup (or use current?)
@@ -719,19 +724,26 @@ EOS
         # create a table in the  master that is not in slave for replication checks below
         # looks for a file that was written to the slave
 
-#        transaction { s_three.relaunch }
-        run_script("do_force_reset", s_one) # kill the master
         # s_one is reset
-        # s_two is slave
+        # s_two is old master
+        # s_three is master
+
+        do_init_slave(s_one)
+        run_script("do_force_reset", s_three) # kill the master
+        run_script("do_force_reset", s_two) # kill old master
+
+        # s_one is slave
+        # s_two is reset
         # s_three is reset
-        do_promote_to_master(s_two)
-        # s_one is reset
-        # s_two is master
+
+        do_promote_to_master(s_one)
+        # s_one is master
+        # s_two is reset
         # s_three is reset
-        verify_master(s_two)
-        check_table_bananas(s_two)
-        check_table_replication(s_two)
-        check_slave_backup(s_two, "monkey_slave")
+        verify_master(s_one)
+        check_table_bananas(s_one)
+        check_table_replication(s_one)
+        check_slave_backup(s_one, "monkey_slave")
       end
 
       def create_table_secondary_backup(server)
@@ -883,6 +895,9 @@ EOS
  
         
         run_script("do_force_reset", s_one) # kill the master
+        # s_one is reset
+        # s_two is unit
+        # s_three is slave
         do_promote_to_master(s_three)
         verify_master(s_three)
         check_table_bananas(s_three)
