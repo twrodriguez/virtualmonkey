@@ -579,6 +579,7 @@ module VirtualMonkey
            #to_return = input_value if (input_name.to_s.match(/#{inputname}/))
             @my_inputs[name] = input_value
           }
+          server.reload_as_next
         end
         return  @my_inputs
       end
