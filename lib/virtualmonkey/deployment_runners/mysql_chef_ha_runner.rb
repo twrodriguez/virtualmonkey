@@ -11,7 +11,7 @@ module VirtualMonkey
       # pass in the instance server on which we want to check the backup on
       def wait_for_snapshots(server)
         done = false
-        timeout=300 # 5 minutes is long engouh for our tests
+        timeout=600 # 5 minutes is long engouh for our tests
         step=10
         while (timeout > 0 && !done)
           probe(server, "test -e /var/run/db-backup") { |response,status|
@@ -23,7 +23,7 @@ module VirtualMonkey
 
          if(server.cloud_id <= 5)
            while timeout > 0
-              timeout=1500
+              timeout=300
               step=10
               snapshots =find_snapshots
               status = snapshots.map { |x| x.aws_status }
