@@ -11,7 +11,7 @@ module VirtualMonkey
       # pass in the instance server on which we want to check the backup on
       def wait_for_snapshots(server)
         done = false
-        timeout= 300 # 5 minutes is long engouh for our tests
+        timeout=600 # 10  minutes is long engouh for our tests
         step=10
         while (timeout > 0 && !done)
           probe(server, "test -e /var/run/db-backup") { |response,status|
