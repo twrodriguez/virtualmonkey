@@ -32,7 +32,6 @@ module VirtualMonkey
                    [ 'do_init_slave',                'db::do_init_slave'],
                    [ 'do_promote_to_master',         'db::do_promote_to_master'],
                    [ 'setup_master_dns',             'db::setup_master_dns'],
-                   [ 'do_lookup_master',             'db::do_lookup_master' ],
                    [ 'do_restore_and_become_master', 'db::do_restore_and_become_master' ],
                    [ 'do_tag_as_master',             'db::do_tag_as_master' ],
                    [ 'setup_replication_privileges', 'db::setup_replication_privileges' ],
@@ -346,10 +345,6 @@ module VirtualMonkey
 
       def make_master(server)
           run_script('do_tag_as_master', server)
-      end
-
-      def find_master(server)
-        run_script('do_lookup_master', server)
       end
 
       def run_reboot_operations
