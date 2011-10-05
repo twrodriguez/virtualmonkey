@@ -102,6 +102,7 @@ end
 
 after do
 @runner.release_dns
+puts "after_do I actually work ****************$$$$$$$$$$$$$$$$$$$$$$$$$$$"
 #  cleanup_volumes
 #  cleanup_snapshots
 end

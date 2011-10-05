@@ -448,7 +448,7 @@ EOS
       def set_variation_dnschoice(dns_choice)
         @deployment.set_input("sys_dns/choice", "#{dns_choice}")
         @servers.each do |server|
-           server.set_inputs({"sys_dns/choice" => "text:#{dns_choice}"})
+           server.set_inputs({"sys_dns/choice" => "#{dns_choice}"})
         end
 
       end
