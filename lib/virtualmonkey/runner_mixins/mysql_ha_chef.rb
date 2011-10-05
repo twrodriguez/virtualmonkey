@@ -35,11 +35,12 @@ module VirtualMonkey
                    [ 'do_restore_and_become_master', 'db::do_restore_and_become_master' ],
                    [ 'do_tag_as_master',             'db::do_tag_as_master' ],
                    [ 'setup_replication_privileges', 'db::setup_replication_privileges' ],
-                   [ 'setup_master_backup',          'db::do_backup_schedule_enable' ],
-                   [ 'setup_slave_backup',           'db::do_backup_schedule_enable' ],
-                   ['disable_backups',              'db::do_backup_schedule_disable' ],
-                   ['do_secondary_backup',              'db::do_secondary_backup'       ],
-                   ['do_secondary_restore',            'db::do_secondary_restore'      ]
+                   [ 'setup_master_backup',          'db::do_backup_schedule_enable'    ],
+                   [ 'setup_slave_backup',           'db::do_backup_schedule_enable'    ],
+                   ['disable_backups',              'db::do_backup_schedule_disable'   ],
+                   ['do_secondary_backup',              'db::do_secondary_backup'    ],
+                   ['do_secondary_restore',            'db::do_secondary_restore'    ],
+                   [ 'setup_privileges_admin',         'db::setup_privileges_admin'  ]
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless servers.size >= 1
 
@@ -245,7 +246,6 @@ module VirtualMonkey
       end
 
       def run_chef_checks
-        #TODO replicate the checks in the 11H1 tests.
         # check that mysql tmpdir is custom setup on all servers
           query = "show variables like 'tmpdir'"
           query_command = "echo -e \"#{query}\"| mysql"
@@ -347,37 +347,44 @@ module VirtualMonkey
           run_script('do_tag_as_master', server)
       end
 
-      def run_reboot_operations
-        # set up a database to test after we reboot
-        @engines = ['myisam', 'innodb']
-        @servers.each do |server|
-          run_query("create database monkey_database", server)
-          @engines.each do |engine|
-            run_query("use monkey_database; create table monkey_table_#{engine} (monkey_column text) engine = #{engine}; insert into monkey_table_#{engine} values ('Hello monkey!')", server)
-          end
-        end
-        # Duplicate code here because we need to wait between the master and the slave time
-        #reboot_all(true) # serially_reboot = true
-        @servers.each do |s|
-          s.reboot(true)
-          s.wait_for_state("operational")
+      # create master slave setup
+      # verify master and reboot each server in the deployment
+      def run_HA_reboot_operations
+
+        # s_one is un-init
+        # s_two is un-init
+        # s_three is un-init
+        do_restore_and_become_master(s_two)
+        # s_one is un-init
+        # s_two is master
+        # s_three is un-init
+        verify_master(s_two) 
+        do_init_slave(s_three)
+        # s_one is un-init
+        # s_two is master
+        # s_three is slave
+         
+       @servers.each do |s|
+         obj_behavior(s, :reboot, true)
+         obj_behavior(s, :wait_for_state, "operational")
         end
         wait_for_all("operational")
-        run_reboot_checks
+        run_HA_reboot_checks
       end
+     
+      # verify master is still master after the reboot
+      # check if reboot delete any tables on each server
+      # verify if the master slave setup is present by creating and checking for replication table
+      def run_HA_reboot_checks
+        # s_one is un-init
+        # s_two is master
+        # s_three is slave
+        verify_master(s_two) 
+        check_table_bananas(s_two)
+        check_table_bananas(s_three)
 
-      # This is where we perform multiple checks on the deployment after a reboot.
-      def run_reboot_checks
-        # test that the data we created is still there after the reboot
-        @servers.each do |server|
-          @engines.each do |engine|
-            run_query("use monkey_database; select monkey_column from monkey_table_#{engine}", server) do |result, status|
-              raise "Database reboot failed, data is missing: #{result}" unless result =~ /Hello monkey!/
-              true
-            end
-          end
-        end
-        #TODO one simple check we can do is the backup.  Backup can fail if anything is amiss
+        create_table_replication(s_two)
+        check_table_replication(s_three)
       end
 
   #    def run_restore_with_timestamp_override
@@ -390,9 +397,11 @@ module VirtualMonkey
   # Check for specific MySQL data.
       def check_mysql_monitoring
         mysql_plugins = [
+                         # {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-delete"},
                           {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_db"},
                           {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-create_table"},
                           {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-insert"}
+                         # {"plugin_name"=>"mysql", "plugin_type"=>"mysql_commands-show_databases"}
                         ]
         @servers.each do |server|
           transaction {
@@ -472,8 +481,6 @@ EOS
         run_script('setup_master_dns', server)
       end
 
-       #TODO tests should never call this.  This changes the variables in the node.
-       # REMOVE all usage
        ## checks if the server is in fact a master
 
        #checks if the server is in fact a master and if the dns is pointing to the master server
@@ -508,8 +515,8 @@ EOS
         sleep 60
 
         #TODO this errors - not sure why - know it works so skipping it
-        #db_fqdn = get_input_from_server(assumed_master_server)["db/fqdn"].to_s.split("text:")[1].delete("*")
-        #dns_ip = `dig +short "#{ db_fqdn}"`
+        db_fqdn = get_input_from_server(assumed_master_server)["db/fqdn"].to_s.split("text:")[1].delete("*")
+        dns_ip = `dig +short "#{ db_fqdn}"`
 
         #raise "DNS ip #{dns_ip.to_s} does not match private ip #{assumed_master_server.private_ip.to_s}" unless (dns_ip.to_s.strip == assumed_master_server.private_ip.to_s)
 
@@ -558,7 +565,6 @@ EOS
          }
       end
 
-      # TODO make names consisten
       def create_monkey_table(server)
         run_query("DROP DATABASE IF EXISTS bananas", server)
         run_query("create database bananas", server)
@@ -566,7 +572,6 @@ EOS
         run_query("use bananas; insert into bunches values ('yellow')", server)
       end
 
-      # TODO this test passes when it shouldn't
       def check_table_bananas(server)
         run_query("use bananas; select * from bunches;", server){|returned_from_query, returned|
           raise "The bananas table is corrupted" unless returned_from_query.to_s.match(/yellow/) # raise error if the regex does not match
@@ -683,14 +688,16 @@ EOS
         #do_backup(s_three) # there is no slave and s_three is reset
         #run_script("do_force_reset", s_one) #Already reset
         do_init_slave(s_one)
-        # s_one is slave
+        run_script("do_force_reset", s_one) # kill the slave
+        # s_one is reset bbut we again have a snapshot from slave********************
         # s_two is master
         # s_three is reset
-        check_table_bananas(s_one) # also check if the banana table is there
-        check_table_replication(s_one) # also check if the replication table is there
-        check_slave_backup(s_one, "monkey_slave") # looks for a file that was written to the slave
+        do_init_slave(s_three)
+        check_table_bananas(s_three) # also check if the banana table is there
+        check_table_replication(s_three) # also check if the replication table is there
+        check_slave_backup(s_three, "monkey_slave") # looks for a file that was written to the slave
 
-        # "promote_slave_to_master"
+        # "promote_slavy11e_to_master"
         #  this will vefify that there are no files etc.. that break promotion
         #do_promote_to_master(s_three) # s_three is reset
         do_promote_to_master(s_one)
@@ -717,7 +724,6 @@ EOS
         # s_one is reset
         # s_two is slave
         # s_three is reset
-        wait_for_all("operational")
         do_promote_to_master(s_two)
         # s_one is reset
         # s_two is master
@@ -736,7 +742,7 @@ EOS
 
       # raise error if the regex does not match
       def check_table_secondary_backup(server)
-        rul_query("use secondary_backup; select * from secondary;", server){|returned_from_query, returned|
+        run_query("use secondary_backup; select * from secondary;", server){|returned_from_query, returned|
           raise "The secondary table is corrupted" unless returned_from_query.to_s.match(/monkey_time/)
           true
         }
@@ -750,13 +756,137 @@ EOS
           set_secondary_backup_inputs(location)
           run_script("setup_block_device", s_one)
           create_table_secondary_backup(s_one)
+          run_script("setup_privileges_admin", s_one)
           run_script("do_secondary_backup", s_one)
-          wait_for_snapshots
+          wait_for_snapshots(s_one)
 
           run_script("do_secondary_restore", s_two)
           check_table_secondary_backup(s_two)
 
         end
+      end
+     
+       # verifies whatever is written to the master is written to the slave
+       # do backup on master
+       # write the replication table to master
+       # init slave from master backup
+       # write to master replication table again
+       # verify if everything that is in master is in slave
+      def verify_replication
+        # s_one is un-init
+        # s_two is un-init
+        # s_three is un-init
+        do_restore_and_become_master(s_two)
+        # s_one is un-init
+        # s_two is master
+        # s_three is un-init
+        verify_master(s_two) 
+        check_table_bananas(s_two)
+        create_table_replication(s_two)
+
+        #"create_slave_from_master_backup"
+        do_init_slave(s_three)
+        # s_one is the unit
+        # s_two is master
+        # s_three is slave
+        check_table_bananas(s_three) # also check if the banana table is there
+        check_table_replication(s_three) # checks if the replication table exists in the slave
+        
+      end
+
+      # creates master and slave from slave backup
+      def create_master_then_slave_from_slave_backup
+        # s_one is un-init
+        # s_two is un-init
+        # s_three is un-init
+        do_restore_and_become_master(s_two)
+        # s_one is un-init
+        # s_two is master
+        # s_three is un-init
+        verify_master(s_two) 
+        do_init_slave(s_three)
+        create_table_replication(s_two)
+
+        #"create_slave_from_master_backup"
+        #"backup_slave"
+        write_to_slave("monkey_slave",s_three) # write to slave file system so later we can verify if the backup came from a slave
+        do_backup(s_three)
+        # s_one is un-init
+        # s_two is master
+        # s_three is slave
+
+        cleanup_volumes  ## runs do_force_reset on ALL servers
+        # **********NOW WE HAVE A SLAVE BACKUP*****
+
+        do_restore_and_become_master(s_two)
+        # s_one is reset
+        # s_two is master
+        # s_three is reset
+        check_table_bananas(s_two)
+        check_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
+        check_slave_backup(s_two, "monkey_slave") # looks for a file that was written to the slave
+        verify_master(s_two) 
+
+        do_init_slave(s_one)  # this creates a slave backup
+        # s_one is slave
+        # s_two is master
+        # s_three is reset
+
+        # VERIFY that a slave can be restored from a slave backup
+        run_script("do_force_reset", s_one) # kill the slave
+        do_init_slave(s_three)
+        # s_one is init *************** but is has created aesnapshot
+        # s_two is master
+        # s_three is slave which has restore from  slave backup
+        check_table_bananas(s_three) # also check if the banana table is there
+        check_table_replication(s_three) # also check if the replication table is there
+        check_slave_backup(s_three, "monkey_slave") # looks for a file that was written to the slave
+      end
+ 
+      def promote_slave_to_master
+
+        do_restore_and_become_master(s_one)
+        verify_master(s_one)
+        create_table_replication(s_one)
+        # s_one is master
+        # s_two is reset
+        # s_three is reset
+
+        #"create_slave_from_master_backup"
+        do_init_slave(s_three)
+        # s_one is master
+        # s_two is unit
+        # s_three is slave
+ 
+        # "promote_slavy11e_to_master"
+        #  this will vefify that there are no files etc.. that break promotion
+        do_promote_to_master(s_three)
+        verify_master(s_three)
+        check_table_bananas(s_three)
+        check_table_replication(s_three)
+
+      end
+  
+      def promote_slave_with_dead_master
+        do_restore_and_become_master(s_one)
+        verify_master(s_one)
+        create_table_replication(s_one)
+        # s_one is master
+        # s_two is reset
+        # s_three is reset
+
+        #"create_slave_from_master_backup"
+        do_init_slave(s_three)
+        # s_one is the master
+        # s_two is unit
+        # s_three is slave
+ 
+        
+        run_script("do_force_reset", s_one) # kill the master
+        do_promote_to_master(s_three)
+        verify_master(s_three)
+        check_table_bananas(s_three)
+        check_table_replication(s_three)
       end
 
     end
