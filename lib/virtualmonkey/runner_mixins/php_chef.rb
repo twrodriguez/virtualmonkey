@@ -32,7 +32,7 @@ module VirtualMonkey
         }
         # Make sure the disabled server is still in the config
         # server disabled-server 127.0.0.1:1 disabled
-	probe(fe_servers, "grep -q 'server disabled-server 127.0.0.1:1 disabled' /home/haproxy/rightscale_lb.cfg") { |result, status|
+	probe(fe_servers, "grep -q 'server disabled-server 127.0.0.1:1' /home/haproxy/rightscale_lb.cfg") { |result, status|
 	  raise "Detach failed, disabled-server no longer in configuration" unless status == 0
 	  true
         }

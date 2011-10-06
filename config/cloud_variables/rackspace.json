@@ -1,15 +1,15 @@
 {
   "232":{
     "parameters":{
-      "block_device/rackspace_secret":"cred:RACKSPACE_AUTH_KEY",
-      "db_mysql/backup/rackspace_secret":"cred:RACKSPACE_AUTH_KEY",
       "db_mysql/dump/storage_account_provider":"text:rackspace",
+      "db_mysql/backup/rackspace_secret":"cred:RACKSPACE_AUTH_KEY",
+      "block_device/rackspace_secret":"cred:RACKSPACE_AUTH_KEY",
       "db_mysql/dump/storage_account_id":"cred:RACKSPACE_USERNAME",
-      "db_mysql/backup/rackspace_user":"cred:RACKSPACE_USERNAME",
       "block_device/rackspace_user":"cred:RACKSPACE_USERNAME",
-      "STORAGE_ACCOUNT_ID":"cred:RACKSPACE_USERNAME",
+      "db_mysql/backup/rackspace_user":"cred:RACKSPACE_USERNAME",
+      "db_mysql/dump/storage_account_secret":"cred:RACKSPACE_AUTH_KEY",
       "STORAGE_ACCOUNT_SECRET":"cred:RACKSPACE_AUTH_KEY",
-      "db_mysql/dump/storage_account_secret":"cred:RACKSPACE_AUTH_KEY"
+      "STORAGE_ACCOUNT_ID":"cred:RACKSPACE_USERNAME"
     }
   }
 }
