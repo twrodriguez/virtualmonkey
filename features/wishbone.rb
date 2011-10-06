@@ -25,7 +25,8 @@ before do
   @runner.launch_set(:app_servers)
   @runner.wait_for_all("operational")
   @runner.disable_fe_reconverge
- @runner.setup_block_device
+  @runner.setup_block_device
+  @runner.do_tag_as_master
   sleep(120)
 end
 
