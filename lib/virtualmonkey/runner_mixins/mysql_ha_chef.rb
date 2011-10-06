@@ -44,7 +44,7 @@ module VirtualMonkey
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless servers.size >= 1
 
-        st = ServerTemplate.find(resource_id(servers.first.server_template_href))
+        st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
         load_script_table(st,scripts,st)
       end
 
