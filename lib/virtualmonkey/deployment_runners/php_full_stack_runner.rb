@@ -7,7 +7,7 @@ module VirtualMonkey
       include VirtualMonkey::Mixin::Frontend
       include VirtualMonkey::Mixin::Chef
       include VirtualMonkey::Mixin::PhpChef
-      include VirtualMonkey::Mixin::ChefMysql
+      include VirtualMonkey::Mixin::ChefMysqlHA
 
 
       

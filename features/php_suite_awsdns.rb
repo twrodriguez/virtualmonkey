@@ -14,7 +14,6 @@ before do
 # Mysql variations
   @runner.set_variation_lineage
   @runner.set_variation_container
-  @runner.set_variation_storage_type
 
   @runner.launch_set(:mysql_servers)
   @runner.launch_set(:fe_servers)
