@@ -5,7 +5,7 @@ module VirtualMonkey
       include VirtualMonkey::Mixin::EBS
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
-  
+
       def mysql_servers
         res = []
         @servers.each do |server|
@@ -36,12 +36,13 @@ module VirtualMonkey
                    [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ],
                    [ 'do_reconverge_list_disable', 'sys::do_reconverge_list_disable' ],
                    [ 'do_force_reset', 'db::do_force_reset' ],
-                   [ 'do_init_slave', 'db_mysql::do_init_slave'], 
-                   [ 'do_promote_to_master', 'db_mysql::do_promote_to_master'],
-                   [ 'setup_master_dns', 'db_mysql::setup_master_dns']
+                   [ 'do_init_slave', 'db::do_init_slave'],
+                   [ 'do_promote_to_master', 'db::do_promote_to_master'],
+                   [ 'do_tag_as_master', 'db::do_tag_as_master'],
+                   [ 'setup_master_dns', 'db::setup_master_dns']
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
-   
+
         st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
         load_script_table(st,scripts,st)
       end
@@ -126,7 +127,7 @@ module VirtualMonkey
           server.set_inputs({"db/backup/lineage" => "text:#{@lineage}"})
         end
       end
-  
+
       def set_variation_container
         @container = "testlineage#{resource_id(@deployment)}"
         puts "Set variation CONTAINER: #{@container}"
@@ -135,7 +136,7 @@ module VirtualMonkey
           server.set_inputs({"block_device/storage_container" => "text:#{@container}"})
         end
       end
-      
+
       # sets the storage provider for the server
       # * kind<~String> can be "chef" or nil
       def set_variation_storage_account_provider(provider)
@@ -180,7 +181,7 @@ module VirtualMonkey
           true
         end
       end
-  
+
       def set_secondary_backup_inputs(location="S3")
         @secondary_container = "testsecondary#{resource_id(@deployment)}"
         puts "Set secondary backup CONTAINER: #{@secondary_container}"
@@ -195,7 +196,7 @@ module VirtualMonkey
           server.set_inputs({"db/backup/secondary_location" => "text:#{location}"})
         end
       end
-  
+
       def test_secondary_backup(location="S3")
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
         if cid == 232 && location == "CloudFiles"
@@ -233,11 +234,11 @@ module VirtualMonkey
        check_master(s_two) # check if s_two is now master
         obj_behavior(s_one, :wait_for_operational_with_dns)
        wait_for_snapshots
-       
+
        slave_init_server(s_one)
        check_slave(s_one)
        check_master(s_two)
-       
+
        promote_server(s_one)
         check_slave(s_two)
         check_master(s_one)
@@ -249,15 +250,15 @@ module VirtualMonkey
           query = "show variables like 'tmpdir'"
           query_command = "echo -e \"#{query}\"| mysql"
           probe(@servers, query_command) { |result,st| result.include?("/mnt/mysqltmp") }
-         
+
           # check that mysql cron script exits success
           @servers.each do |server|
             chk1 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
-         
+
             chk2 = probe(server, "/usr/local/bin/mysql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
-         
-            raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2) 
-          
+
+            raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2)
+
             # check that logrotate has mysqlslow in it
             probe(@servers, "logrotate --force -v /etc/logrotate.d/mysql-server") { |out,st| out =~ /mysqlslow/ and st == 0 }
           end
@@ -280,7 +281,7 @@ module VirtualMonkey
          run_script("do_backup", server)
          end
       end
-     
+
       def enable_db_reconverge
         run_script_on_set('do_reconverge_list_enable', mysql_servers)
       end
@@ -291,21 +292,21 @@ module VirtualMonkey
 
       # Runs a mysql query on specified server.
       # * query<~String> a SQL query string to execute
-      # * server<~Server> the server to run the query on 
+      # * server<~Server> the server to run the query on
       def run_query(query, server, &block)
         query_command = "echo -e \"#{query}\"| mysql"
         probe(server, query_command, &block)
       end
-  
+
       # Use the termination script to stop all the servers (this cleans up the volumes)
       def stop_all(wait=true)
         @servers.each { |s| s.stop }
-  
+
        wait_for_all("stopped") if wait
         # unset dns in our local cached copy..
-        @servers.each { |s| s.params['dns-name'] = nil } 
+        @servers.each { |s| s.params['dns-name'] = nil }
       end
-  
+
       # uses SharedDns to find an available set of DNS records and sets them on the deployment
       def setup_dns(domain)
         # TODO should we just use the ID instead of the full href?
@@ -314,32 +315,37 @@ module VirtualMonkey
         raise "Unable to reserve DNS" unless @dns.reserve_dns(owner)
         @dns.set_dns_inputs(@deployment)
       end
-     
+
+      def setup_block_device
+        puts "DO_TAG_AS_MASTER"
+        run_script("do_tag_as_master", s_one)
+      end
+
       def setup_block_device
         puts "SETUP_BLOCK_DEVICE"
         run_script("setup_block_device", s_one)
       end
-  
+
       def do_backup
         puts "BACKUP"
         run_script("do_backup", s_one)
       end
-  
+
       def do_restore
         puts "RESTORE"
         run_script("do_restore", s_one)
       end
-  
+
       def do_force_reset
         puts "RESET"
         run_script("do_force_reset", s_one)
       end
-  
+
       # releases records back into the shared DNS pool
       def release_dns
         @dns.release_dns
       end
-  
+
       def release_container
         set_variation_container
         ary = []
@@ -386,7 +392,7 @@ module VirtualMonkey
         wait_for_all("operational")
         run_reboot_checks
       end
-  
+
       # This is where we perform multiple checks on the deployment after a reboot.
       def run_reboot_checks
         # test that the data we created is still there after the reboot
@@ -403,14 +409,14 @@ module VirtualMonkey
           run_script("do_backup", server)
         end
       end
-  
+
   #    def run_restore_with_timestamp_override
   #      obj_behavior(s_one, :relaunch)
   #      s_one.dns_name = nil
   #      obj_behavior(s_one, :wait_for_operational_with_dns)
   #     run_script('restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
   #    end
-  
+
   # Check for specific MySQL data.
       def check_mysql_monitoring
         mysql_plugins = [
@@ -425,7 +431,7 @@ module VirtualMonkey
             #mysql commands to generate data for collectd to return
             50.times do |ii|
               query = <<EOS
-show databases; 
+show databases;
 create database test#{ii};
 use test#{ii};
 create table test#{ii}(test text);
@@ -461,11 +467,11 @@ EOS
           }
         end
       end
-  
+
       def set_variation_dnschoice(dns_choice)
         @deployment.set_input("sys_dns/choice", "#{dns_choice}")
       end
-      
+
       def set_variation_http_only
         @deployment.set_input("web_apache/ssl_enable", "text:false")
       end
@@ -481,74 +487,74 @@ EOS
         sleep 120
         run_script("do_backup", server)
       end
- 
+
       def slave_init_server(server)
         run_script("do_init_slave", server)
       end
-      
+
       def restore_server(server)
         run_script("do_restore ", server)
       end
-      
+
       def promote_server(server)
         run_script("do_promote_to_master", server)
       end
-      
+
       def set_master_dns(server)
         run_script('setup_master_dns', server)
       end
-      
+
       # checks if the server is infact a master
       def check_master(master_server)
         count_num_master_tags = 0  # this number should equal 2 otherwise it is not valid
         master_server.settings
         master_server.reload
-        
+
         # get all the tags and then do a regex
         Tag.search_by_href(master_server.current_instance_href).each{ |hash_output|
           hash_output.each{ |key, value|
-            if value.to_s.match(/master_active/)  
+            if value.to_s.match(/master_active/)
               count_num_master_tags+=1
             elsif value.to_s.match(/master_instance_uuid/)
               count_num_master_tags+=1
             end
-           }     
+           }
         }
-        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)          
+        raise "Less than 2 master tags found on #{master_server.current_instance_href}" unless (count_num_master_tags == 2)
       end
-      
+
       # checks if the server is infact a slave
       def check_slave(slave_server)
               count_num_slave_tags = 0  # this number should equal 2 otherwise it is not valid
               slave_server.settings
               slave_server.reload
-              
+
               # get all the tags and then do a regex
               Tag.search_by_href(slave_server.current_instance_href).each{ |hash_output|
                 hash_output.each{ |key, value|
-                  if value.to_s.match(/slave_active/)  
+                  if value.to_s.match(/slave_active/)
                     count_num_slave_tags+=1
                   elsif value.to_s.match(/slave_instance_uuid/)
                     count_num_slave_tags+=1
                   end
-                 }     
+                 }
               }
-              raise "Less than 2 slave tags found on #{slave_server.current_instance_href}" unless (count_num_slave_tags == 2)          
+              raise "Less than 2 slave tags found on #{slave_server.current_instance_href}" unless (count_num_slave_tags == 2)
        end
-       
+
       # creates a MySQL enabled EBS stripe on the server
       # * server<~Server> the server to create stripe on
       def create_stripe(server)
-        options = { "block_device/volume_size" => "text:1", 
-                    "db/application/user" => "text:someuser", 
+        options = { "block_device/volume_size" => "text:1",
+                    "db/application/user" => "text:someuser",
                     "block_device/aws_access_key_id" => "ignore:$ignore",
                     "block_device/aws_secret_access_key" => "ignore:$ignore",
-                    "db/application/password" => "text:somepass", 
+                    "db/application/password" => "text:somepass",
                     "block_device/volume_size" => "text:1",
                     "db/backup/lineage" => "text:#{@lineage}" }
-        run_script('setup_block_device', server, options) 
+        run_script('setup_block_device', server, options)
       end
-      
+
     end
   end
 end
