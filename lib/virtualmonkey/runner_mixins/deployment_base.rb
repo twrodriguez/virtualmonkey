@@ -63,6 +63,10 @@ module VirtualMonkey
           puts "Got \"Service Temporarily Unavailable\". Retrying...."
           sleep 10
           return true # Exception Handled
+        elsif e.message =~ /Bad Gateway/
+          puts "Got \"Bad Gateway\". Retrying...."
+          sleep 10
+          return true # Exception Handled
         else
           return false # Exception Not Handled
         end
