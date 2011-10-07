@@ -16,8 +16,8 @@ before do
    mysql_lookup_scripts
    set_variation_lineage
    set_variation_container
-   setup_dns("virtualmonkey_awsdns_new") # dnsmadeeasy
-   set_variation_dnschoice("text:Route53") # set variation choice
+   setup_dns("dnsmadeeasy_new") # dnsmadeeasy
+   set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
    launch_all
    wait_for_all("operational")
    disable_db_reconverge # it is important to disable this if we want to verify what backup we are restoring from

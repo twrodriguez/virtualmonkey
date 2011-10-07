@@ -234,7 +234,7 @@ module VirtualMonkey
 
     # Encapsulates the logic for releasing the DNS entries for a single deployment, no matter what DNS it used
     def self.release_all_dns_domains(deploy_href)
-      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
+      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns", "dnsmadeeasy_new", "virtualmonkey_awsdns_new", "virtualmonkey_dyndns_new"].each { |domain|
         begin
           dns = SharedDns.new(domain)
           raise "Unable to reserve DNS" unless dns.reserve_dns(deploy_href)

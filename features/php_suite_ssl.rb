@@ -75,3 +75,7 @@ test "reboot_operations" do
   @runner.run_reboot_operations
 end
 
+after do
+  @runner.release_dns
+end
+
