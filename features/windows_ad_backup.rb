@@ -6,12 +6,12 @@ end
 
 before do
   @runner.launch_all
-  @runner.wait_for_all("operational")
+  @runner.wait_for_all("operational",72000)
 end
 
 test "default" do
   @runner.check_monitoring
-  @runner.run_script_on_all("AD monkey test",30*60)
+  @runner.run_script_on_all("AD monkey test",60*60)
   @runner.run_script_on_all("AD Change Administrator password")
   @runner.run_script_on_all("SYS Install AD backup policy")
   @runner.run_script_on_all("SYS Install AD Backup Policy CHECK")
@@ -19,9 +19,9 @@ test "default" do
   @runner.run_script_on_all("AD create a new user CHECK")
   @runner.run_script_on_all("AD Create a new group")
   @runner.run_script_on_all("AD create a new group CHECK")
-  @runner.run_script_on_all("AD Bulk create new user",30*60)
+  @runner.run_script_on_all("AD Bulk create new user",60*60)
   @runner.run_script_on_all("AD bulk add user CHECK")
-  @runner.run_script_on_all("AD Install ADFS",480*60)
+  @runner.run_script_on_all("AD Install ADFS",4800*60)
   @runner.run_script_on_all("AD install ADFS CHECK")
   @runner.run_script_on_all("AD Create system state backup",180*60)
 #  @runner.run_script_on_all("SYS Change to safe boot mode")
