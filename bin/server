@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'daemons'
+
+# Control by running:
+#  bin/server start
+#  bin/server restart
+#  bin/server stop
+#
+# Testing in-process:
+#  bin/server run
+
+Daemons.run(File.join("..", "lib", "web_app", "sinatra_app.rb"))

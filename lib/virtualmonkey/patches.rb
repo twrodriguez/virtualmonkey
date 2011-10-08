@@ -112,6 +112,8 @@ module RightScale
   module Api
     module Base
 #      include VirtualMonkey::TestCaseInterface
+      alias_method :old_inspect, :inspect
+
       # test_case_interface hook for nice printing
       def trace_inspect
         inspect
@@ -137,6 +139,14 @@ class String
   # test_case_interface hook for nice printing
   def trace_inspect
     inspect
+  end
+
+  def uncolorize
+    self.gsub(/\e\[0[;0-9]*m/, "")
+  end
+
+  def colorized?
+    !(self =~ /\e\[0[;0-9]*m/).nil?
   end
 end
 
@@ -165,5 +175,21 @@ class ServerInterface
   # test_case_interface hook for nice printing
   def trace_inspect
     @impl.trace_inspect
+  end
+end
+
+class Object
+  def raise(*args, &block)
+    if args.first.is_a?(String)
+      args[0] = args[0].red
+    elsif args.first.is_a?(Exception)
+      args[0] = args[0].class.new(args[0].to_str.red)
+    else
+      super(*args, &block)
+    end
+  end
+
+  def just_my_methods
+    self.methods - self.class.superclass.new.methods
   end
 end

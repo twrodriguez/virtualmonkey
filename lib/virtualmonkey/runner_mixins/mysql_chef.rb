@@ -227,7 +227,7 @@ module VirtualMonkey
        config_master_from_scratch(s_one)
        check_master(s_one) ## check is the server sone is a master
         obj_behavior(s_one, :relaunch)
-        s_one.dns_name = nil
+        s_one['dns_name'] = nil
         wait_for_snapshots
         # need to wait for ebs snapshot, otherwise this could easily fail
        restore_server(s_two)
@@ -316,7 +316,7 @@ module VirtualMonkey
         @dns.set_dns_inputs(@deployment)
       end
 
-      def setup_block_device
+      def do_tag_as_master
         puts "DO_TAG_AS_MASTER"
         run_script("do_tag_as_master", s_one)
       end
@@ -412,7 +412,7 @@ module VirtualMonkey
 
   #    def run_restore_with_timestamp_override
   #      obj_behavior(s_one, :relaunch)
-  #      s_one.dns_name = nil
+  #      s_one['dns_name'] = nil
   #      obj_behavior(s_one, :wait_for_operational_with_dns)
   #     run_script('restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
   #    end

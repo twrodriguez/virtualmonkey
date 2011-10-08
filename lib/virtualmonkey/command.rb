@@ -5,24 +5,6 @@ require 'highline/import'
 require 'uri'
 require 'pp'
 
-# Auto-require Section
-some_not_included = true
-files = Dir.glob(File.join(VirtualMonkey::COMMAND_DIR, "**"))
-retry_loop = 0
-while some_not_included and retry_loop < (files.size ** 2) do
-  begin
-    some_not_included = false
-    for f in files do
-      some_not_included ||= require f.chomp(".rb") if f =~ /\.rb$/
-    end
-  rescue NameError => e
-    raise e unless e.message =~ /uninitialized constant/i
-    some_not_included = true
-    files.push(files.shift)
-  end
-  retry_loop += 1
-end
-
 module VirtualMonkey
   module Command
     AvailableCommands = {
@@ -61,25 +43,52 @@ module VirtualMonkey
     }
 
     Flags = {
-      :terminate      => "opt :terminate, 'Terminate if tests successfully complete. (No destroy)',         :short => '-a', :type => :boolean",
-      :common_inputs  => "opt :common_inputs, 'Input JSON files to be set at Deployment AND Server levels', :short => '-c', :type => :strings",
-      :deployment     => "opt :deployment, 'regex string to use for matching deployment',                   :short => '-d', :type => :string",
-      :config_file    => "opt :config_file, 'Troop Config JSON File',                                       :short => '-f', :type => :string",
-      :clouds         => "opt :clouds, 'Space-separated list of cloud_ids to use',                          :short => '-i', :type => :integers",
-      :keep           => "opt :keep, 'Do not delete servers or deployments after terminating',              :short => '-k', :type => :boolean",
-      :use_mci        => "opt :use_mci, 'List of MCI hrefs to substitute for the ST-attached MCIs',         :short => '-m', :type => :string, :multi => true",
-      :n_copies       => "opt :n_copies, 'Number of clones to make',                                        :short => '-n', :type => :integer, :default => 1",
-      :only           => "opt :only, 'Regex string to use for subselection matching on MCIs',               :short => '-o', :type => :string",
-      :no_spot        => "opt :no_spot, 'do not use spot instances',                                        :short => '-p', :type => :boolean, :default => true",
-      :no_resume      => "opt :no_resume, 'Do not use trace info to resume a previous test',                :short => '-r', :type => :boolean",
-      :tests          => "opt :tests, 'List of test names to run across Deployments (default is all)',      :short => '-t', :type => :strings",
-      :verbose        => "opt :verbose, 'Print all output to STDOUT as well as the log files',              :short => '-v', :type => :boolean",
-      :revisions      => "opt :revisions, 'Specify a list of revision numbers for templates (0 = HEAD)',    :short => '-w', :type => :integers",
-      :prefix         => "opt :prefix, 'Prefix of the Deployments',                                         :short => '-x', :type => :string",
-      :yes            => "opt :yes, 'Turn off confirmation',                                                :short => '-y', :type => :boolean",
-      :one_deploy     => "opt :one_deploy, 'Load all variations of a single ST into one Deployment',        :short => '-z', :type => :boolean"
+      :terminate       => "opt :terminate, 'Terminate if tests successfully complete. (No destroy)',         :short => '-a', :type => :boolean",
+      :common_inputs   => "opt :common_inputs, 'Input JSON files to be set at Deployment AND Server levels', :short => '-c', :type => :strings",
+      :deployment      => "opt :deployment, 'regex string to use for matching deployment',                   :short => '-d', :type => :string",
+      :config_file     => "opt :config_file, 'Troop Config JSON File',                                       :short => '-f', :type => :string",
+      :clouds          => "opt :clouds, 'Space-separated list of cloud_ids to use',                          :short => '-i', :type => :integers",
+      :keep            => "opt :keep, 'Do not delete servers or deployments after terminating',              :short => '-k', :type => :boolean",
+      :use_mci         => "opt :use_mci, 'List of MCI hrefs to substitute for the ST-attached MCIs',         :short => '-m', :type => :string, :multi => true",
+      :n_copies        => "opt :n_copies, 'Number of clones to make',                                        :short => '-n', :type => :integer, :default => 1",
+      :only            => "opt :only, 'Regex string to use for subselection matching on MCIs',               :short => '-o', :type => :string",
+      :no_spot         => "opt :no_spot, 'do not use spot instances',                                        :short => '-p', :type => :boolean, :default => true",
+      :no_resume       => "opt :no_resume, 'Do not use trace info to resume a previous test',                :short => '-r', :type => :boolean",
+      :tests           => "opt :tests, 'List of test names to run across Deployments (default is all)',      :short => '-t', :type => :strings",
+      :verbose         => "opt :verbose, 'Print all output to STDOUT as well as the log files',              :short => '-v', :type => :boolean",
+      :revisions       => "opt :revisions, 'Specify a list of revision numbers for templates (0 = HEAD)',    :short => '-w', :type => :integers",
+      :prefix          => "opt :prefix, 'Prefix of the Deployments',                                         :short => '-x', :type => :string",
+      :yes             => "opt :yes, 'Turn off confirmation',                                                :short => '-y', :type => :boolean",
+      :one_deploy      => "opt :one_deploy, 'Load all variations of a single ST into one Deployment',        :short => '-z', :type => :boolean",
+
+      :report_metadata => "opt :report_metadata, 'Report metadata to SimpleDB',                              :short => '-R', :type => :boolean",
+      :report_tags     => "opt :report_tags, 'Additional tags to help database sorting (e.g. -T sprint28)',  :short => '-T', :type => :strings"
     }
 
+    @@command_flags ||= {}
+  end
+end
+
+# Auto-require Section
+some_not_included = true
+files = Dir.glob(File.join(VirtualMonkey::COMMAND_DIR, "**"))
+retry_loop = 0
+while some_not_included and retry_loop < (files.size ** 2) do
+  begin
+    some_not_included = false
+    for f in files do
+      some_not_included ||= require f.chomp(".rb") if f =~ /\.rb$/
+    end
+  rescue NameError => e
+    raise e unless e.message =~ /uninitialized constant/i
+    some_not_included = true
+    files.push(files.shift)
+  end
+  retry_loop += 1
+end
+
+module VirtualMonkey
+  module Command
     def self.init(*args)
       @@global_state_dir = VirtualMonkey::TEST_STATE_DIR
       @@features_dir = VirtualMonkey::FEATURE_DIR
@@ -120,6 +129,21 @@ module VirtualMonkey
       elsif args.length == 1
         ARGV.replace args.first.split(/ /)
       end
+
+      reset()
+    end
+
+    # Reset class variables to nil
+    def self.reset
+      @@dm = nil
+      @@gm = nil
+      @@remaining_jobs = nil
+      @@do_these = nil
+      @@command = nil
+      @@st_table = nil
+      @@individual_server_inputs = nil
+      @@st_inputs = nil
+      @@common_inputs = nil
     end
 
     # Parses the initial command string, removing it from ARGV, then runs command.
@@ -131,18 +155,18 @@ module VirtualMonkey
       elsif @@command == "-h" or @@command == "--help"
         VirtualMonkey::Command.help
       else
-        STDERR.puts "Invalid command #{@@command}\n\n#{@@usage_msg}"
+        warn "Invalid command #{@@command}".yellow + "\n\n#{@@usage_msg}"
         exit(1)
       end
     end
 
-    def self.use_options(*args)
-      ret = args.sort { |a,b| a.to_s <=> b.to_s }.map { |op| @@flags[op] }
-#      ret << "version '#{VirtualMonkey::VERSION}'"
-      return ret.join(";")
+    def self.use_options
+      ("text #{@@available_commands[@@command.to_sym]};" +
+      @@command_flags["#{@@command}"].sort { |a,b| a.to_s <=> b.to_s }.map { |op| @@flags[op] }.join(";"))
     end
 
     # Help command
+    (@@command_flags ||= {}).merge("help" => [])
     def self.help(*args)
       self.init(*args)
       if subcommand = ARGV.shift
@@ -154,6 +178,7 @@ module VirtualMonkey
     end
 
     # Version command
+    (@@command_flags ||= {}).merge("version" => [])
     def self.version(*args)
       self.init(*args)
       puts @@version_string

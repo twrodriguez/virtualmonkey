@@ -20,8 +20,8 @@ module VirtualMonkey
 
       def unified_application_exception_handle(e)
         if e.message =~ /UnifiedApplication Error/
-          STDERR.puts "Got \"UnifiedApplication Error\". Retrying...."
-          STDERR.puts e.message
+          warn "Got \"UnifiedApplication Error\". Retrying...."
+          warn e.message
           sleep 6
           return true # Exception Handled
         else
@@ -38,7 +38,7 @@ module VirtualMonkey
                       ]
         run_on = select_set(set)
         http_checks.each { |expect_str,rel_path|
-          url_set = run_on.map { |s| "#{port==443?"https://":""}#{s.dns_name}:#{port}#{rel_path}" }
+          url_set = run_on.map { |s| "#{port==443?"https://":""}#{s.reachable_ip}:#{port}#{rel_path}" }
           test_http_responses(url_set, expect_str)
         }
       end

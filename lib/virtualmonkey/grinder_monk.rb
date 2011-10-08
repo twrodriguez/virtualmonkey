@@ -6,6 +6,35 @@ require 'right_popen'
 
 class GrinderJob
   attr_accessor :status, :output, :logfile, :deployment, :rest_log, :other_logs, :no_resume, :verbose, :err_log
+  # Metadata is a hash containing the following fields:
+  #   user => { "email" => `git config user.email`.chomp,
+  #             "name" => `git config user.name`.chomp }
+  #   multicloudimage => { "name" => MultiCloudImage.name,
+  #                        "href" => MultiCloudImage.href,
+  #                        "os" => "CentOS|Ubuntu|Windows",
+  #                        "os_version" => "5.4|5.6|10.04|2008R2|2003",
+  #                        "arch" => "i386|x64",
+  #                        "rightlink" => "5.6.32|5.7.14",
+  #                        "rev" => 14,
+  #                        "id" => 41732 }
+  #   servertemplates => [{ "name" => ServerTemplate.nickname,
+  #                         "href" => ServerTemplate.href,
+  #                         "id" => 432672,
+  #                         "rev" => 10 },
+  #                       ...]
+  #   cloud => { "name" => Cloud.name,
+  #              "id" => Cloud.cloud_id }
+  #   feature => ["base.rb", ...]
+  #   instancetype => { "href" => InstanceType.href,
+  #                     "name" => InstanceType.name }
+  #   datacenter => { "name" => Datacenter.name,
+  #                   "href" => Datacenter.href }
+  #   troop => "base.json"
+  #   report => nil until finished
+  #   tags => ["sprint28", "regression", ...] (From @@options[:report_tags])
+  #   time => GrinderMonk.log_started
+  #   status => "pending|running|failed|passed" (or, manually, "blocked" or "willnotdo")
+  attr_accessor :metadata
 
   def link_to_rightscale
 #    i = deployment.href.split(/\//).last
@@ -19,9 +48,9 @@ class GrinderJob
     data_ary = data.split("\n")
     data_ary.each_index do |i|
       data_ary[i] = timestamp + data_ary[i]
-      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n") if @verbose
+      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n".uncolorize) if @verbose
     end
-    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
+    File.open(@logfile, "a") { |f| f.write("#{data_ary.join("\n")}\n".uncolorize) }
   end
 
   # stderr hook for popen3
@@ -29,10 +58,10 @@ class GrinderJob
     data_ary = data.split("\n")
     data_ary.each_index do |i|
       data_ary[i] = timestamp + data_ary[i]
-      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n")
+      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n".uncolorize.yellow)
     end
-    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
-    File.open(@err_log, "a") { |f| f.write(data_ary.join("\n") + "\n") }
+    File.open(@logfile, "a") { |f| f.write("#{data_ary.join("\n")}\n".uncolorize) }
+    File.open(@err_log, "a") { |f| f.write("#{data_ary.join("\n")}\n".uncolorize) }
   end
 
   def timestamp
@@ -43,21 +72,6 @@ class GrinderJob
   def deploy_id
     @id = deployment.rs_id
   end
-
-  # Could be deprecated...
-#  def receive_data(data)
-#    data_ary = data.split("\n")
-#    data_ary.each_index do |i|
-#      data_ary[i] = timestamp + data_ary[i]
-#      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n") if @verbose
-#    end
-#    File.open(@logfile, "a") { |f| f.write(data_ary.join("\n") + "\n") }
-#  end
-
-  # unbind hook for popen3
-#  def unbind
-#    @status = get_status.exitstatus
-#  end
 
   # on_exit hook for popen3
   def on_exit(status)
@@ -87,6 +101,20 @@ class GrinderMonk
     File.join(VirtualMonkey::FEATURE_DIR, features.map { |feature| File.basename(feature, ".rb") }.join("_") + ".combo.rb")
   end
 
+  def determine_rightlink_version(mci, regex)
+    mci.find_and_flatten_settings
+    settings_ary = mci.multi_cloud_image_cloud_settings
+    settings_ary.each { |setting|
+      if setting.is_a?(MultiCloudImageCloudSettingInternal)
+        return (setting.image_name =~ regex; $3)
+      elsif setting.is_a?(McMultiCloudImageCloudSetting)
+        if image = McImage.find(setting.image)
+          return (image.name =~ regex; $3)
+        end
+      end
+    }
+  end
+
   # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
   # * feature<~String> the feature filename
@@ -100,9 +128,136 @@ class GrinderMonk
     }
     new_job.deployment = deployment
     new_job.verbose = true if @options[:verbose]
-    cmd = "bin/grinder -f \"#{feature}\" -d \"#{deployment.nickname}\" -g -l \"#{new_job.logfile}\" -t "
+    cmd = "bin/grinder -f \"#{feature}\" -d \"#{deployment.nickname}\" -g -t "
     test_ary.each { |test| cmd += " \"#{test}\" " }
     cmd += " -r " if @options[:no_resume]
+
+    # Build Job Metadata
+    puts "\nBuilding Job Metadata...\n\n"
+    data = {}
+
+    ###################
+    # Filterable Data #
+    ###################
+
+    # User Data
+    puts "\nGathering User Data...\n\n"
+    describe_metadata_fields("user").each { |f| data["user_#{f}"] = `git config user.#{f}`.chomp }
+
+    # MultiCloudImage Data
+    puts "\nGathering MultiCloudImage Data...\n\n"
+    describe_metadata_fields("mci").each { |f| data["mci_#{f}"] = [] }
+    deployment.get_info_tags["self"].each { |key,val|
+      if key =~ /mci_id/
+        mci = MultiCloudImage.find(val.to_i)
+        data["mci_name"] |= [mci.name]
+        data["mci_href"] |= [mci.href]
+        data["mci_rev"] |= [mci.version]
+        data["mci_id"] |= [mci.rs_id]
+
+        # Extra Info
+        regex = /(.)*/
+        if mci.name =~ /CentOS/i
+          data["mci_os"] |= ["CentOS"]
+          #        CentOS  Version   Arch    RightLink
+          regex = /CentOS_([.0-9]*)_([^_]*)_v([.0-9]*)/i
+        elsif mci.name =~ /Ubuntu/i
+          data["mci_os"] |= ["Ubuntu"]
+          #        Ubuntu  Version Nickname    Arch    RightLink
+          regex = /Ubuntu_([.0-9]*)[_a-zA-Z]*_([^_]*)_v([.0-9]*)/i
+        elsif mci.name =~ /Windows/i
+          data["mci_os"] |= ["Windows"]
+          #        Windows  Version   ServicePack  Arch    App    RightLink
+          regex = /Windows_([0-9A-Za-z]*[_SP0-9]*)_([^_]*)[\w.]*_v([.0-9]*)/i
+        end
+        data["mci_os_version"] |= [(mci.name =~ regex; $1)]
+        data["mci_arch"] |= [(mci.name =~ regex; $2)]
+        data["mci_rightlink"] |= [determine_rightlink_version(mci, regex)]
+      end
+    }
+
+    # ServerTemplate Data
+    puts "\nGathering ServerTemplate Data...\n\n"
+    describe_metadata_fields("servertemplate").each { |f| data["servertemplate_#{f}"] = [] }
+    deployment.servers.each { |server|
+      server.settings
+      st = ServerTemplate.find(server.server_template_href)
+      data["servertemplate_name"] |= [st.nickname]
+      data["servertemplate_href"] |= [st.href]
+      data["servertemplate_rev"] |= [st.version]
+      data["servertemplate_id"] |= [st.rs_id]
+    }
+
+    # Cloud Data
+    puts "\nGathering Cloud Data...\n\n"
+    describe_metadata_fields("cloud").each { |f| data["cloud_#{f}"] = [] }
+    cloud_id = deployment.get_info_tags["self"]["cloud"]
+    clouds = VirtualMonkey::Toolbox.get_available_clouds
+    if cloud_id != "multicloud"
+      data["cloud_id"] |= [cloud_id.to_i]
+      data["cloud_name"] |= [clouds.detect { |hsh| hsh["cloud_id"] == cloud_id.to_i }["name"]]
+    else
+      deployment.servers_no_reload.each { |server|
+        scid = server.cloud_id.to_i
+        data["cloud_id"] |= [scid]
+        data["cloud_name"] |= [clouds.detect { |hsh| hsh["cloud_id"] == scid.to_i }["name"]]
+      }
+    end
+
+    # InstanceType Data
+    puts "\nGathering InstanceType Data...\n\n"
+    describe_metadata_fields("instancetype").each { |f| data["instancetype_#{f}"] = [] }
+    deployment.servers_no_reload.each { |server|
+      if server.multicloud
+        if server.current_instance
+          data["instancetype_href"] |= [server.current_instance.instance_type]
+          data["instancetype_name"] |= [McInstanceType.find(server.current_instance.instance_type).name]
+        else
+          data["instancetype_href"] |= [server.next_instance.instance_type]
+          data["instancetype_name"] |= [McInstanceType.find(server.next_instance.instance_type).name]
+        end
+      else
+        data["instancetype_name"] |= [server.ec2_instance_type]
+      end
+    }
+
+    # Datacenter Data
+    puts "\nGathering Datacenter Data...\n\n"
+    deployment.servers_no_reload.each { |server|
+      if server.multicloud
+        describe_metadata_fields("datacenter").each { |f| data["datacenter_#{f}"] ||= [] }
+        data["datacenter_href"] |= [server.datacenter]
+        data["datacenter_name"] |= [Datacenter.find(server.datacenter).name]
+      end
+    }
+
+    # Troop File Data
+    puts "\nGathering Troop Data...\n\n"
+    data["troop"] = [@options[:config_file]]
+
+    # Run Tags Data
+    data["tag"] = @options[:report_tags] || []
+
+    # Date Data
+    data["date"] = @started_at.strftime("%Y/%m/%d")
+
+    #####################
+    # Extra Report Data #
+    #####################
+
+    # Feature File Data
+    data["status"] = "running" # status => "pending|running|failed|passed" (or, manually, "blocked" or "willnotdo")
+    data["report_page"] = nil # nil until first upload
+    data["time"] = @started_at.strftime("%H:%M:%S")
+    data["feature"] = [feature] # TODO: Gather runner info and runner option info?
+    data["command_create"] = deployment.get_info_tags["self"]["command"]
+    data.delete("command_create") unless data["command_create"]
+    data["command_run"] = VirtualMonkey::Command::reconstruct_command_line
+
+    # Unique JobID
+    data["job_id"] = "#{@started_at.strftime("%Y_%m_%d_%H_%M_%S")}_#{deployment.rs_id}"
+
+    new_job.metadata = data
     @jobs << new_job
     puts "running #{cmd}"
     new_job.run(cmd)
@@ -114,7 +269,7 @@ class GrinderMonk
     @passed = []
     @failed = []
     @running = []
-    dirname = Time.now.strftime(File.join("%Y", "%m", "%d", "%H-%M-%S"))
+    dirname = @started_at.strftime(File.join("%Y", "%m", "%d", "%H-%M-%S"))
     @log_dir = File.join(VirtualMonkey::ROOTDIR, "log", dirname)
     @log_started = dirname
     FileUtils.mkdir_p(@log_dir)
@@ -179,9 +334,11 @@ class GrinderMonk
     @failed = @jobs.select { |s| s.status != 0 && s.status != nil }
     @running = @jobs.select { |s| s.status == nil }
     new_sum = @passed.size + @failed.size + @running.size
-    puts "#{@passed.size} features passed.  #{@failed.size} features failed.  #{@running.size} features running for #{Time.now - @started_at}"
+    puts(" #{@passed.size} features passed. ".green +
+         " #{@failed.size} features failed. ".red +
+         " #{@running.size} features running for #{Time.now - @started_at}")
     if new_sum < old_sum and new_sum < @jobs.size
-      puts "WARNING: Jobs Lost! Finding..."
+      warn "WARNING: Jobs Lost! Finding...".yellow
       report_lost_deployments({ :old_passed => old_passed, :passed => @passed,
                                 :old_failed => old_failed, :failed => @failed,
                                 :old_running => old_running, :running => @running })
@@ -206,49 +363,14 @@ class GrinderMonk
 
   # Generates monkey reports and uploads to S3
   def generate_reports
-    passed = @jobs.select { |s| s.status == 0 }
-    failed = @jobs.select { |s| s.status == 1 }
-    running = @jobs.select { |s| s.status == nil }
-    report_on = @jobs.select { |s| s.status == 0 || s.status == 1 }
-    index = ERB.new  File.read(File.join(VirtualMonkey::LIB_DIR, "index.html.erb"))
-    bucket_name = (Fog.credentials[:s3_bucket] ? Fog.credentials[:s3_bucket] : "virtual_monkey")
-
-    ## upload to s3
-    # setup credentials in ~/.fog
-    s3 = Fog::Storage.new(:provider => 'AWS', :aws_access_key_id => Fog.credentials[:aws_access_key_id_test], :aws_secret_access_key => Fog.credentials[:aws_secret_access_key_test])
-    if directory = s3.directories.detect { |d| d.key == bucket_name }
-      puts "found directory, re-using"
-    else
-      directory = s3.directories.create(:key => bucket_name)
-    end
-    raise 'could not create directory' unless directory
-    s3.put_object(bucket_name, "#{@log_started}/index.html", index.result(binding), 'x-amz-acl' => 'public-read', 'Content-Type' => 'text/html')
-
-    report_on.each do |j|
-      begin
-        done = false
-        s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.logfile)}", IO.read(j.logfile), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
-        s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.rest_log)}", IO.read(j.rest_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
-        if File.exists?(j.err_log)
-          s3.put_object(bucket_name, "#{@log_started}/#{File.basename(j.err_log)}", IO.read(j.err_log), 'Content-Type' => 'text/plain', 'x-amz-acl' => 'public-read')
-        end
-        j.other_logs.each { |log|
-          if File.exists?(log)
-            content = `file -ib #{log}`.split(/;/).first
-            s3.put_object(bucket_name, "#{@log_started}/#{File.basename(log)}", IO.read(log), 'x-amz-acl' => 'public-read', 'Content-Type' => content)
-          end
-        }
-        done = true
-      rescue Exception => e
-        raise e unless e.message =~ /Bad file descriptor|no such file or directory/i
-        sleep 1
-      end while not done
-    end
-
-    msg = <<END_OF_MESSAGE
-    new results avilable at http://s3.amazonaws.com/#{bucket_name}/#{@log_started}/index.html\n-OR-\nin #{@log_dir}/index.html"
-END_OF_MESSAGE
-    puts msg
+    report_url = VirtualMonkey::Report.update_s3(@jobs, @log_started)
+    puts "    new results available at #{report_url}"
+    @jobs.each { |job|
+      job.metadata["report_page"] = report_url
+      job.metadata["status"] = (job.status == 0 ? "passed" : "failed") if job.status
+    }
+    VirtualMonkey::Report.update_sdb(@jobs)
+    puts "SimpleDB updated"
   end
 
   # Prints information on jobs that didn't have an exit code of 0 or 1
@@ -258,14 +380,33 @@ END_OF_MESSAGE
     failed_change = jobs[:failed] - jobs[:old_failed]
     lost_jobs = running_change - passed_change - failed_change
     lost_jobs.each do |j|
-      puts "LOST JOB---------------------------------"
-      puts "Deployment Name: #{j.deployment.nickname}"
-      puts "Status Code: #{j.status}"
-      puts "Audit Entries: #{j.link_to_rightscale}"
-      puts "Log File: #{j.logfile}"
-      puts "Rest_Connection Log File: #{j.rest_log}"
-      puts "-----------------------------------------"
+      warn "LOST JOB---------------------------------".yellow
+      warn "Deployment Name: #{j.deployment.nickname}".yellow
+      warn "Status Code: #{j.status}".yellow
+      warn "Audit Entries: #{j.link_to_rightscale}".yellow
+      warn "Log File: #{j.logfile}".yellow
+      warn "Rest_Connection Log File: #{j.rest_log}".yellow
+      warn "-----------------------------------------".yellow
     end
   end
-end
 
+  def describe_metadata_fields(type=nil)
+     fields = {
+      "user" => ["email", "name"],
+      "mci" => ["name", "href", "os", "os_version", "arch", "rightlink", "rev", "id"],
+      "servertemplate" => ["name", "href", "id", "rev"],
+      "cloud" => ["name", "id"],
+      "feature" => [],
+      "instancetype" => ["name", "href"],
+      "datacenter" => ["name", "href"],
+      "troop" => [],
+      "report_page" => [],
+      "tag" => [],
+      "time" => [],
+      "date" => [],
+      "command" => ["create", "run"],
+      "status" => [],
+    }
+    (type ? fields[type] : fields.keys)
+  end
+end

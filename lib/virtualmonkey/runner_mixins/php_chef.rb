@@ -3,14 +3,14 @@ module VirtualMonkey
     module PhpChef
 
       def set_mysql_fqdn
-        the_name = mysql_servers.first.dns_name
+        the_name = mysql_servers.first.reachable_ip
         @deployment.set_input("db_mysql/fqdn", "text:#{the_name}")
         @deployment.set_input("db/fqdn", "text:#{the_name}")
       end
 
       def set_private_mysql_fqdn
-        the_name = mysql_servers.first.private_ip 
-        the_name = mysql_servers.first.dns_name unless the_name
+        the_name = mysql_servers.first.private_ip
+        the_name = mysql_servers.first.reachable_ip unless the_name
         @deployment.set_input("db_mysql/fqdn", "text:#{the_name}")
         @deployment.set_input("db/fqdn", "text:#{the_name}")
         @servers.each { |s| s.set_input("db/fqdn", "text:#{the_name}") }
@@ -32,9 +32,9 @@ module VirtualMonkey
         }
         # Make sure the disabled server is still in the config
         # server disabled-server 127.0.0.1:1 disabled
-	probe(fe_servers, "grep -q 'server disabled-server 127.0.0.1:1' /home/haproxy/rightscale_lb.cfg") { |result, status|
-	  raise "Detach failed, disabled-server no longer in configuration" unless status == 0
-	  true
+  probe(fe_servers, "grep -q 'server disabled-server 127.0.0.1:1' /home/haproxy/rightscale_lb.cfg") { |result, status|
+    raise "Detach failed, disabled-server no longer in configuration" unless status == 0
+    true
         }
       end
 
@@ -51,7 +51,7 @@ module VirtualMonkey
         fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
         load_script_table(fe_st,recipes)
       end
-  
+
       def php_chef_app_lookup_scripts
         recipes = [
                     [ 'attach', 'lb_haproxy::do_attach_request' ],
@@ -61,20 +61,20 @@ module VirtualMonkey
         app_st = ServerTemplate.find(resource_id(app_servers.first.server_template_href))
         load_script_table(app_st,recipes)
       end
-  
+
       def test_detach
         run_script_on_set('detach', app_servers)
         detach_checks
       end
-  
+
       def test_attach_all
         run_script_on_set('attach_all', fe_servers)
       end
-  
-      def test_attach_request 
+
+      def test_attach_request
         run_script_on_set('attach', app_servers)
       end
-  
+
       def set_variation_http_only
         @deployment.set_input("web_apache/ssl_enable", "text:false")
       end
@@ -116,7 +116,7 @@ module VirtualMonkey
 
       def set_variation_ssl_chain
         s = fe_servers.first
-	s.set_info_tags({'ssl_chain' => 'true'})
+  s.set_info_tags({'ssl_chain' => 'true'})
         s.set_inputs({"web_apache/ssl_certificate_chain" => "cred:virtual_monkey_certificate_chain"})
       end
 
@@ -132,9 +132,9 @@ module VirtualMonkey
       end
 
       def set_variation_dnschoice(dns_choice)
-	 @deployment.set_input("sys_dns/choice", "#{dns_choice}")
+   @deployment.set_input("sys_dns/choice", "#{dns_choice}")
       end
-     
+
       def ssl_chain_server
         fe_servers.detect { |s| s.get_info_tags('ssl_chain')['self']['ssl_chain'] == 'true' }
       end
@@ -144,10 +144,10 @@ module VirtualMonkey
       end
 
       def test_ssl_chain
-        puts `openssl s_client -showcerts -connect "#{ssl_chain_server.dns_name}:443" < /dev/null |grep Equifax`
-	raise "FATAL: no certificate chain for Equifax detected." unless $?.success?
+        puts `openssl s_client -showcerts -connect "#{ssl_chain_server.reachable_ip}:443" < /dev/null |grep Equifax`
+  raise "FATAL: no certificate chain for Equifax detected." unless $?.success?
       end
- 
+
     end
-  end 
+  end
 end

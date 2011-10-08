@@ -241,7 +241,7 @@ module VirtualMonkey
         `touch #{priv_key_file}`
         File.chmod(0700, priv_key_file)
         # Configure rest_connection config
-        rest_settings[:ssh_keys] << priv_key_file unless rest_settings[:ssh_keys].include?(priv_key_file)
+        rest_settings[:ssh_keys] |= [priv_key_file]
       }
 
       keys_out = keys.to_json(:indent => "  ",
@@ -308,11 +308,14 @@ module VirtualMonkey
     # be a string, or nil.
     def populate_security_groups(cloud_id_set = nil, use_this_sec_group = nil, overwrite = false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
+      cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
+=begin
       if cloud_id_set.is_a?(Array)
         cloud_ids.reject! { |i| !cloud_id_set.include?(i) } unless cloud_id_set.empty?
       else
         cloud_ids.reject! { |i| i != cloud_id_set } unless cloud_id_set
       end
+=end
 
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {})
 

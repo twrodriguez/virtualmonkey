@@ -7,8 +7,14 @@ class DeploymentMonk
   attr_accessor :deployments
 
   # Returns an Array of Deployment objects whose nicknames start with @prefix
-  def from_prefix
-    variations = Deployment.find_by_tags("info:prefix=#{@prefix}")
+  def from_prefix_tag(prefix = @prefix)
+    variations = Deployment.find_by_tags("info:prefix=#{prefix}")
+    puts "loading #{variations.size} deployments matching your prefix"
+    return variations
+  end
+
+  def self.from_name(prefix = @prefix)
+    variations = Deployment.find_by(:nickname) { |n| n =~ Regexp.new("^#{Regexp.escape(prefix)}") }
     puts "loading #{variations.size} deployments matching your prefix"
     return variations
   end
@@ -36,7 +42,7 @@ class DeploymentMonk
     @clouds = []
     @single_deployment = single_deployment
     @prefix = prefix
-    @deployments = from_prefix
+    @deployments = from_prefix_tag
     @server_templates = []
     @common_inputs = {}
     @variables_for_cloud = {}
@@ -98,7 +104,7 @@ class DeploymentMonk
     multi_cloud_images
   end
 
-  def generate_variations(options = {})
+  def generate_variations(options = {}, create_command=nil)
     # Count the max number of images that we can select from (@image_count)
     # Get list of supported clouds (@clouds)
     dep_image_names = nil  # This variable holds the names of the images in the deployment
@@ -144,11 +150,11 @@ class DeploymentMonk
         end
       }
     }
-    
+
     dep_tempname = ""
     new_deploy = nil
-    nick_name_holder = [] # this variable is used when we want to create a single deployment and we use it to name the deployment properly 
-    deployment_created = false # this variable is used to control creating a single deployment 
+    nick_name_holder = [] # this variable is used when we want to create a single deployment and we use it to name the deployment properly
+    deployment_created = false # this variable is used to control creating a single deployment
     @image_count.times do |index|
       @clouds.each do |cloud|
 
@@ -190,8 +196,13 @@ class DeploymentMonk
           @deployments << new_deploy
         end
 
+        tags = {"cloud" => (@clouds.length > 1 ? "multicloud" : cloud),
+                "troop" => options[:config_file],
+                "command" => VirtualMonkey::Command::reconstruct_command_line}
+        deployment.set_info_tags(tags)
+
         dep_image_list = []
-        @server_templates.each do |st|
+        @server_templates.each_with_index do |st,index|
           nick_name_holder << st.nickname.gsub(/ /,'_')  ## place the nickname into the array
           #Select an MCI to use
           if @mci_order[index][st.href]
@@ -255,20 +266,34 @@ class DeploymentMonk
             end
           end
 
+          # Create Server
           begin
             server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
           rescue Exception => e
-            msg = "#\n# GOT EXCEPTION: #{e.message}\n#\n"
+            msg = "#\n# GOT EXCEPTION: #{e.message}\n#\n".yellow
             STDERR.print(msg)
             next
           end
+
+          # Set info tags on deployment
+          tags = {}
+          tags["server_#{server.rs_id}-servertemplate_id"] = "#{st.rs_id}"
+          unless @single_deployment
+            # MCI info isn't available from RightScale Server API
+            if options[:use_mci] && !options[:use_mci].empty?
+              tags["mci_id"] = options[:use_mci].split(/\//).last
+            else
+              tags["server_#{server.rs_id}-mci_id"] = use_this_image.split(/\//).last
+            end
+          end
+          deployment.set_info_tags(tags)
 
           # AWS Cloud-specific Code XXX LEGACY XXX
           if cloud.to_i < 10
             # since the create call does not set the parameters, we need to set them separate
             server.set_inputs(@variables_for_cloud[cloud]['parameters'])
 
-            # WHY WE NEED THIS? create maybe already does this 
+            # WHY WE NEED THIS? create maybe already does this
             # uses a special internal call for setting the MCI on the server
             sint = ServerInternal.new(:href => server.href)
             sint.set_multi_cloud_image(use_this_image) unless options[:use_mci] && !options[:use_mci].empty?
@@ -277,7 +302,7 @@ class DeploymentMonk
             unless options[:no_spot]
               server.reload
               server.settings
-              if server.ec2_instance_type =~ /small/ 
+              if server.ec2_instance_type =~ /small/
                 server.max_spot_price = "0.085"
               elsif server.ec2_instance_type =~ /large/
                 server.max_spot_price = "0.38"

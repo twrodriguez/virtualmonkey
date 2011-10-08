@@ -4,7 +4,7 @@ module VirtualMonkey
       # returns an Array of the Front End servers in the deployment
       def fe_servers
         res = []
-        @servers.each do |server| 
+        @servers.each do |server|
           st = ServerTemplate.find(resource_id(server.server_template_href))
           if st.nickname =~ /Front End/ || st.nickname =~ /FrontEnd/ || st.nickname =~ /Apache with HAproxy/ || st.nickname =~ /Load Balancer/
             res << server
@@ -34,12 +34,12 @@ module VirtualMonkey
         end
         lb_hostname_input
       end
-  
+
       def frontend_checks(fe_port=80)
         detect_os
-  
+
         run_unified_application_checks(fe_servers, fe_port)
-  
+
         # check that all application servers exist in the haproxy config file on all fe_servers
         server_ips = Array.new
 
@@ -47,9 +47,9 @@ module VirtualMonkey
            if app.private_ip
              puts "TEST: private - using #{app.private_ip}"
              server_ips << app.private_ip
-           elsif app.dns_name
-             puts "TEST: dns - using #{app.dns_name}"
-             server_ips << app.dns_name
+           elsif app.reachable_ip
+             puts "TEST: dns - using #{app.reachable_ip}"
+             server_ips << app.reachable_ip
            else
              raise "FATAL: no private_ip or dns_name for app servers"
            end
@@ -66,12 +66,12 @@ module VirtualMonkey
             end
           end
         end
-  
+
         # restart haproxy and check that it succeeds
         fe_servers.each_with_index do |server,i|
           response = probe(server, 'service haproxy stop')
           raise "Haproxy stop command failed" unless response
-  
+
           stopped = false
           count = 0
           until response || count > 3 do
@@ -81,7 +81,7 @@ module VirtualMonkey
             count += 1
             sleep 10
           end
-  
+
           response = probe(server, 'service haproxy start')
           raise "Haproxy start failed" unless response
         end
@@ -93,7 +93,7 @@ module VirtualMonkey
           count = 0
           until response || count > 3 do
             response = probe(server, server.apache_check)
-            break if response	
+            break if response
             count += 1
             sleep 10
           end
@@ -101,7 +101,7 @@ module VirtualMonkey
         end
 =end
       end
-  
+
       def cross_connect_frontends
         options = { :LB_HOSTNAME =>get_lb_hostname_input }
        run_script_on_set('connect', fe_servers, true, options)
@@ -110,18 +110,18 @@ module VirtualMonkey
       def setup_https_vhost
        run_script_on_set(fe_servers, 'https_vhost')
         fe_servers.each_with_index do |server,i|
-         test_http_response("html serving succeeded", "https://" + server.dns_name + "/index.html", "443")
+         test_http_response("html serving succeeded", "https://" + server.reachable_ip + "/index.html", "443")
         end
       end
-  
+
       # Run spot checks for FE servers in the deployment
       def run_fe_tests
       end
-  
+
       # Special startup sequence for an FE deployment
       def startup
       end
-  
+
     end
   end
 end

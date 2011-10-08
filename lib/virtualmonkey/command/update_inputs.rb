@@ -1,12 +1,13 @@
 module VirtualMonkey
   module Command
+    # Command Flags for update_inputs
+    (@@command_flags ||= {}).merge!("update_inputs" => [:common_inputs, :prefix, :config_file, :clouds])
 
-# monkey update_inputs --common_inputs blah.json --tag unique_name --cloud_variables blah.json
+    # monkey update_inputs --common_inputs blah.json --tag unique_name --cloud_variables blah.json
     def self.update_inputs(*args)
       self.init(*args)
       @@options = Trollop::options do
-        text @@available_commands[:update_inputs]
-        eval(VirtualMonkey::Command::use_options(:common_inputs, :prefix, :config_file, :clouds))
+        eval(VirtualMonkey::Command::use_options)
       end
 
       load_config_file if @@options[:config_file]

@@ -1,10 +1,13 @@
 module VirtualMonkey
   module Command
+    # Command Flags for "new_runner"
+    (@@command_flags ||= {}).merge!("new_runner" => [])
+
     # This command does all the steps create/run/conditionaly destroy
     def self.new_runner(*args)
       self.init(*args)
       @@options = Trollop::options do
-        text @@available_commands[:new_runner]
+        eval(VirtualMonkey::Command::use_options)
       end
 
       build_scenario_names()

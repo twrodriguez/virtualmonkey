@@ -44,7 +44,7 @@ module VirtualMonkey
 
       def elb_exception_handle(e)
         if e.message =~ /throttling/i
-          STDERR.puts "Rescuing ELB error: #{e.message}"
+          warn "Rescuing ELB error: #{e.message}"
           sleep (rand(60))
           return true # Exception Handled
         else

@@ -11,7 +11,7 @@ module VirtualMonkey
         return @current_file
       end
       if @file_stack.include? file
-        puts "WARNING: Recursive mixin detected. Skipping."
+        warn "WARNING: Recursive mixin detected. Skipping."
         return @current_file
       end
       @file_stack.push(file)
@@ -64,7 +64,7 @@ module VirtualMonkey
           unless @options[:no_resume]
             puts "INFO: Resuming previous testcase..."
             if File.mtime(@options[:resume_file]) < File.mtime(@main_feature)
-              puts "WARNING: testcase has been changed since state file." unless @main_feature =~ /\.combo\.rb$/
+              warn "WARNING: testcase has been changed since state file." unless @main_feature =~ /\.combo\.rb$/
             end
           else
             puts "INFO: Scrapping previous testcase; Starting over..."
@@ -210,7 +210,7 @@ module VirtualMonkey
           if args.first.is_a?(Hash)
             @options[var] ||= {}
             args.each { |key,val|
-              puts "WARNING: overwriting runner_options '#{key}'" if @options[var][key]
+              warn "WARNING: overwriting runner_options '#{key}'" if @options[var][key]
               @options[var][key] = val
             }
           else
@@ -219,28 +219,28 @@ module VirtualMonkey
         when :allow_meta_monkey
           @options[var] = true
         else
-          puts "#{var} is not a valid option!"
+          warn "#{var} is not a valid option!"
         end
       when "String"
         @options[:runner_options] ||= {}
-        puts "WARNING: overwriting runner_options '#{var}'" if @options[:runner_options][var]
+        warn "WARNING: overwriting runner_options '#{var}'" if @options[:runner_options][var]
         if args.length > 1
           @options[:runner_options][var] = args
         else
           @options[:runner_options][var] = args.first
         end
       else
-        puts "#{var} is not a valid option!"
+        warn "#{var} is not a valid option!"
       end
     end
 
     def hard_reset(&block)
-      puts "WARNING: overwriting hard_reset for feature '#{@current_file}'" if @blocks[:hard_reset][@current_file]
+      warn "WARNING: overwriting hard_reset for feature '#{@current_file}'" if @blocks[:hard_reset][@current_file]
       @blocks[:hard_reset][@current_file] = block
     end
 
     def soft_reset(&block)
-      puts "WARNING: overwriting soft_reset for feature '#{@current_file}'" if @blocks[:soft_reset][@current_file]
+      warn "WARNING: overwriting soft_reset for feature '#{@current_file}'" if @blocks[:soft_reset][@current_file]
       @blocks[:soft_reset][@current_file] = block
     end
 
@@ -251,14 +251,14 @@ module VirtualMonkey
     def before(*args, &block)
       @blocks[:before][@current_file] ||= {}
       if args.empty?
-        puts "WARNING: overwriting universal before for feature '#{@current_file}'" if @blocks[:before][@current_file][:all]
+        warn "WARNING: overwriting universal before for feature '#{@current_file}'" if @blocks[:before][@current_file][:all]
         @blocks[:before][@current_file][:all] = block
       elsif args.length == 1 && args.first == :once
-        puts "WARNING: overwriting run_once before for feature '#{@current_file}'" if @blocks[:before][@current_file][:once]
+        warn "WARNING: overwriting run_once before for feature '#{@current_file}'" if @blocks[:before][@current_file][:once]
         @blocks[:before][@current_file][:once] = block
       else
         args.each { |test|
-          puts "WARNING: overwriting before '#{test}' for feature '#{@current_file}'" if @blocks[:before][@current_file][test]
+          warn "WARNING: overwriting before '#{test}' for feature '#{@current_file}'" if @blocks[:before][@current_file][test]
           @blocks[:before][@current_file][test] = block if test.is_a?(String)
         }
       end
@@ -267,7 +267,7 @@ module VirtualMonkey
     def test(*args, &block)
       @blocks[:test][@current_file] ||= {}
       args.each { |test|
-        puts "WARNING: overwriting test '#{test}' for feature '#{@current_file}'" if @blocks[:test][@current_file][test]
+        warn "WARNING: overwriting test '#{test}' for feature '#{@current_file}'" if @blocks[:test][@current_file][test]
         @blocks[:test][@current_file][test] = block if test.is_a?(String)
       }
     end
@@ -275,11 +275,11 @@ module VirtualMonkey
     def after(*args, &block)
       @blocks[:after][@current_file] ||= {}
       if args.empty?
-        puts "WARNING: overwriting universal after for feature '#{@current_file}'" if @blocks[:after][@current_file][:all]
+        warn "WARNING: overwriting universal after for feature '#{@current_file}'" if @blocks[:after][@current_file][:all]
         @blocks[:after][@current_file][:all] = block
       else
         args.each { |test|
-          puts "WARNING: overwriting after '#{test}' for feature '#{@current_file}'" if @blocks[:after][@current_file][test]
+          warn "WARNING: overwriting after '#{test}' for feature '#{@current_file}'" if @blocks[:after][@current_file][test]
           @blocks[:after][@current_file][test] = block if test.is_a?(String)
         }
       end

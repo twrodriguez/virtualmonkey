@@ -1,7 +1,16 @@
 module VirtualMonkey
   module Command
     def self.load_config_file
-      raise "--config_file is required!" unless @@options[:config_file]
+      if @@options[:prefix] and not @@options[:config_file] and @@command =~ /run|destroy/
+        # Try loading from deployment tag
+        deployments = DeploymentMonk.from_name(@@options[:prefix])
+        if deployments.unanimous? { |d| d.get_info_tags["self"]["troop"] }
+          @@options[:config_file] = deployments.first.get_info_tags["self"]["troop"]
+        else
+          raise "FATAL: Inconsistent 'info:troop=...' tags on deployments"
+        end
+      end
+      raise "FATAL: --config_file is required!" unless @@options[:config_file]
       config = JSON::parse(IO.read(@@options[:config_file]))
       @@options[:prefix] += "-" if @@options[:prefix]
       @@options[:prefix] = "" unless @@options[:prefix]
@@ -24,7 +33,7 @@ module VirtualMonkey
         }.to_h
         unless @@options[:yes]
           unless ask("Are these the correct revisions that should be used?", lambda { |ans| ans =~ /^[yY]/ })
-            STDERR.puts "Aborting."
+            warn "Aborting.".red
             exit(1)
           end
         end
@@ -69,7 +78,7 @@ module VirtualMonkey
       end
       unless @@options[:yes] or @@command == "troop"
         unless ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| ans =~ /^[yY]/ })
-          STDERR.puts "Aborting."
+          warn "Aborting.".red
           exit(1)
         end
       end
@@ -78,7 +87,7 @@ module VirtualMonkey
     # Encapsulates the logic for loading the necessary variables to create a set of deployments
     def self.create_logic
       unless VirtualMonkey::Toolbox::api0_1?
-        STDERR.puts "Need Internal Testing API access to use this command."
+        warn "Need Internal Testing API access to use this command.".red
         exit(1)
       end
       if @@options[:clouds]
@@ -97,7 +106,7 @@ module VirtualMonkey
     # running "successful" servers through the log auditor/trainer.
     def self.run_logic
       unless VirtualMonkey::Toolbox::api0_1?
-        STDERR.puts "Need Internal Testing API access to use this command."
+        warn "Need Internal Testing API access to use this command.".red
         exit(1)
       end
       @@options[:runner] ||= get_runner_class
@@ -128,20 +137,23 @@ module VirtualMonkey
                 end
               end
             end
-          rescue Interrupt
-            exit(1)
+=begin
+            # TODO
+            if @@options[:list_trainer] or @@options[:qa]
+              @@remaining_jobs.each do |job|
+                if job.status == 0
+                  audit_log_deployment_logic(job.deployment, :interactive)
+                  destroy_job_logic(job) if @@options[:terminate]
+                end
+              end
+            end
+=end
+          rescue Interrupt, NameError, ArgumentError, TypeError => e
+            raise e
           rescue Exception => e
-            puts "WARNING: Got #{e.message} from #{e.backtrace.first}"
+            warn "WARNING: Got #{e.message} from #{e.backtrace.first}".yellow
           end
         }
-        if @@options[:list_trainer] or @@options[:qa]
-          @@remaining_jobs.each do |job|
-            if job.status == 0
-              audit_log_deployment_logic(job.deployment, :interactive)
-              destroy_job_logic(job) if @@options[:terminate]
-            end
-          end
-        end
       }
       exit(1) unless @@gm.jobs.unanimous? { |job| job.status == 0 } and @@gm.jobs.first.status == 0
     end
@@ -175,7 +187,7 @@ module VirtualMonkey
     # Encapsulates the logic for destroying all matched deployments
     def self.destroy_all_logic
       unless VirtualMonkey::Toolbox::api0_1?
-        STDERR.puts "Need Internal Testing API access to use this command."
+        warn "Need Internal Testing API access to use this command.".red
         exit(1)
       end
       @@options[:runner] ||= get_runner_class
@@ -184,7 +196,6 @@ module VirtualMonkey
       @@do_these.each do |deploy|
         runner = @@options[:runner].new(deploy.nickname)
         runner.stop_all(false)
-        complete = false
         begin
           state_dir = File.join(@@global_state_dir, deploy.nickname)
           if File.directory?(state_dir)
@@ -213,13 +224,13 @@ module VirtualMonkey
           if runner.respond_to?(:cleanup_snapshots) and not @@options[:keep]
             runner.cleanup_snapshots
           end
-          complete = true
-        rescue Interrupt
-          exit(1)
+        rescue Interrupt, NameError, ArgumentError, TypeError => e
+          raise e
         rescue Exception => e
-          puts "WARNING: Got #{e.message} from #{e.backtrace.first}"
+          warn "WARNING: Got #{e.message} from #{e.backtrace.first}".yellow
           sleep 5
-        end while not complete
+          retry
+        end
       end
 
       unless @@options[:keep]
@@ -234,7 +245,8 @@ module VirtualMonkey
 
     # Encapsulates the logic for releasing the DNS entries for a single deployment, no matter what DNS it used
     def self.release_all_dns_domains(deploy_href)
-      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns", "dnsmadeeasy_new", "virtualmonkey_awsdns_new", "virtualmonkey_dyndns_new"].each { |domain|
+      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns",
+       "dnsmadeeasy_new", "virtualmonkey_awsdns_new", "virtualmonkey_dyndns_new"].each { |domain|
         begin
           dns = SharedDns.new(domain)
           raise "Unable to reserve DNS" unless dns.reserve_dns(deploy_href)
@@ -271,6 +283,16 @@ module VirtualMonkey
       @@options[:allow_meta_monkey] = test_cases.first.options[:allow_meta_monkey]
       @@options[:runner] = test_cases.first.options[:runner]
       @@options[:feature] = features
+    end
+
+    def self.reconstruct_command_line()
+      cmd_line = "#{@@command}"
+      @@command_flags["#{@@command}"].each { |flag|
+        if @@options["#{flag}_given".to_sym]
+          cmd_line += " --#{flag} #{[@@options[flag]].flatten.map { |arg| arg.inspect }.join(" ")}"
+        end
+      }
+      return cmd_line
     end
 
     ##################################
@@ -398,7 +420,7 @@ before "script_#{index}" do
 end
 
 test "script_#{index}" do
-  run_script_on_set("script_#{index}", server_templates.detect { |st| st.nickname =~ /#{Regexp.escape(st.nickname)}/ }, true, {})
+  run_script_on_set("script_#{index}", server_templates.detect { |st| st.nickname =~ #{Regexp.new(Regexp.escape(st.nickname)).inspect} }, true, {})
 end
 
 after "script_#{index}" do
@@ -450,10 +472,12 @@ EOS
         mixin_tpl += "        #{comment_string}\n"
         mixin_tpl += "        #{"#" * comment_string.length}\n"
         mixin_tpl += "        scripts = [\n"
-        script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{Regexp.escape(script)}']" }
+        script_array = st_script_table.map { |index,script,st|
+          "                   ['script_#{index}', #{Regexp.new(Regexp.escape(script)).inspect}]"
+        }
         mixin_tpl += "#{script_array.join(",\n")}\n"
         mixin_tpl += "                  ]\n"
-        mixin_tpl += "        st_ref = @server_templates.detect { |st| st.nickname =~ /#{Regexp.escape(st_ref.nickname)}/ }\n"
+        mixin_tpl += "        st_ref = @server_templates.detect { |st| st.nickname =~ #{Regexp.new(Regexp.escape(st_ref.nickname)).inspect} }\n"
         mixin_tpl += "        load_script_table(st_ref, scripts, st_ref)\n\n"
       }
       mixin_tpl += "      end\n"
@@ -476,11 +500,11 @@ EOS
       # handled the exception, or return false otherwise.
       def #{@@underscore_name}_exception_handle(e)
         if e.message =~ /INSERT YOUR RETRY-ABLE ERROR HERE/
-          STDERR.puts "Got 'RETRY-ABLE ERROR'. Retrying..."
+          warn "Got 'RETRY-ABLE ERROR'. Retrying..."
           sleep 30
           return true # Exception Handled
         elsif e.message =~ /INSERT YOUR IGNORE-ABLE ERROR HERE/
-          STDERR.puts "Got 'IGNORE-ABLE ERROR'. Continuing tests..."
+          warn "Got 'IGNORE-ABLE ERROR'. Continuing tests..."
           continue_test
           return true # Exception Handled
         else
@@ -564,7 +588,7 @@ EOS
           runner_tpl += "      def set_inputs\n"
           input_ref.each { |st_id,ary|
             st = @@st_table.select { |s,st| st.rs_id.to_i == st_id }.first.last
-            runner_tpl += "        server_array = select_set(@server_templates.detect { |st| st.nickname =~ /#{Regexp.escape(st.nickname)}/ })\n"
+            runner_tpl += "        server_array = select_set(@server_templates.detect { |st| st.nickname =~ #{Regexp.new(Regexp.escape(st.nickname)).inspect} })\n"
             ary.each_with_index { |input_hsh,idx|
               runner_tpl += "        server_array[#{idx}].set_inputs(#{input_hsh.inspect})\n"
             }

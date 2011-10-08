@@ -41,6 +41,10 @@ module VirtualMonkey
       write_readable_log("#{args}")
     end
 
+    def warn(*args)
+      write_readable_log("#{args}".uncolorize.yellow, STDERR)
+    end
+
     def sleep(time)
       write_readable_log("sleep(#{time})")
       super(time) if @done_resuming
@@ -261,12 +265,12 @@ module VirtualMonkey
       result
     end
 
-    def write_readable_log(data)
+    def write_readable_log(data, io=STDOUT)
       data_ary = data.split("\n")
       data_ary.each_index do |i|
         data_ary[i] = ("  " * @rerun_last_command.length) + data_ary[i]
       end
-      print "#{data_ary.join("\n")}\n"
+      io.puts "#{data_ary.join("\n")}"
     end
 
     def write_trace_log(call=nil)
@@ -288,7 +292,7 @@ module VirtualMonkey
     private
 
     def obj_behavior(obj, sym, *args)
-      puts "#{@deprecation_error.upcase} occured!  You are using a deprecated method called 'obj_behavior'"
+      warn "#{@deprecation_error.upcase} occured!  You are using a deprecated method called 'obj_behavior'"
       transaction { obj.__send__(sym, *args) }
     end
 
@@ -456,11 +460,11 @@ EOS
         unless @done_resuming
           # Check Length & Depth Expectations
           if @stack_objects.length < @expected_stack_depths.length
-            STDERR.puts "Expected Stack Depth not met, cancelling resume."
+            warn "Expected Stack Depth not met, cancelling resume."
             @done_resuming = true
           end
           if @iterating_stack.length < @expected_stack_depths.last
-            STDERR.puts "Expected number of sub-function calls not met, cancelling resume."
+            warn "Expected number of sub-function calls not met, cancelling resume."
             @done_resuming = true
           end
         end
@@ -471,7 +475,7 @@ EOS
       unless @done_resuming
         # Check Depth Expectations
         if @stack_objects.length < @expected_stack_depths.length
-          STDERR.puts "Expected Stack Depth not met, cancelling resume."
+          warn "Expected Stack Depth not met, cancelling resume."
           @done_resuming = true
         end
       end
@@ -530,9 +534,9 @@ EOS
             # Number of functions called from previous run in this scope is less than number of functions called in current run
             # Check that they're at the end of the resume stack
             msg = "Number of functions called from previous run in this scope is less than number of functions called in current run"
-            STDERR.puts "#{__FILE__}::#{__LINE__}: #{msg}"
-            STDERR.puts "resume_log: #{resume_log.pretty_inspect}"
-            STDERR.puts "trace_log: #{VirtualMonkey::trace_log.pretty_inspect}"
+            warn "#{__FILE__}::#{__LINE__}: #{msg}"
+            warn "resume_log: #{resume_log.pretty_inspect}"
+            warn "trace_log: #{VirtualMonkey::trace_log.pretty_inspect}"
             return @done_resuming = true
           else
             @expected_stack_depths << next_ary.length
@@ -545,9 +549,9 @@ EOS
             # Number of functions called from previous run in this scope is less than number of functions called in current run
             # Check that they're at the end of the resume stack
             msg = "Number of functions called from previous run in this scope is less than number of functions called in current run"
-            STDERR.puts "#{__FILE__}::#{__LINE__}: #{msg}"
-            STDERR.puts "resume_log: #{resume_log.pretty_inspect}"
-            STDERR.puts "trace_log: #{VirtualMonkey::trace_log.pretty_inspect}"
+            warn "#{__FILE__}::#{__LINE__}: #{msg}"
+            warn "resume_log: #{resume_log.pretty_inspect}"
+            warn "trace_log: #{VirtualMonkey::trace_log.pretty_inspect}"
             return @done_resuming = true
           else
             @expected_stack_depths << resume_log.length
@@ -571,9 +575,9 @@ EOS
       }
       unless fn_signatures_equal
         msg = "Function Signature mismatch!"
-        STDERR.puts "#{__FILE__}::#{__LINE__}: #{msg}"
-        STDERR.puts "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
-        STDERR.puts "trace_stack:\n#{@stack_objects.pretty_inspect}"
+        warn "#{__FILE__}::#{__LINE__}: #{msg}"
+        warn "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
+        warn "trace_stack:\n#{@stack_objects.pretty_inspect}"
         return @done_resuming = true
       end
 
@@ -587,24 +591,24 @@ EOS
           if @expected_stack_depths.length > 1
             if @index_stack[-2] < @expected_stack_depths[@index_stack.length - 2]
               msg = "Current scope has executed more lines than expected"
-              STDERR.puts "#{__FILE__}::#{__LINE__}: #{msg}"
-              STDERR.puts "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
-              STDERR.puts "trace_stack:\n#{@stack_objects.pretty_inspect}"
+              warn "#{__FILE__}::#{__LINE__}: #{msg}"
+              warn "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
+              warn "trace_stack:\n#{@stack_objects.pretty_inspect}"
               return @done_resuming = true
             else
               # Should never get here...
               msg = "Unaccounted-for anomaly while checking resume"
-              STDERR.puts "#{__FILE__}::#{__LINE__}: #{msg}"
-              STDERR.puts "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
-              STDERR.puts "trace_stack:\n#{@stack_objects.pretty_inspect}"
+              warn "#{__FILE__}::#{__LINE__}: #{msg}"
+              warn "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
+              warn "trace_stack:\n#{@stack_objects.pretty_inspect}"
               return @done_resuming = true
             end
           else
             # Should never get here...
             msg = "Unaccounted-for anomaly while checking resume"
-            STDERR.puts "#{__FILE__}::#{__LINE__}: #{msg}"
-            STDERR.puts "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
-            STDERR.puts "trace_stack:\n#{@stack_objects.pretty_inspect}"
+            warn "#{__FILE__}::#{__LINE__}: #{msg}"
+            warn "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
+            warn "trace_stack:\n#{@stack_objects.pretty_inspect}"
             return @done_resuming = true
           end
         end
@@ -612,16 +616,16 @@ EOS
         # Have gone farther than the resume
         if @index_stack[@expected_stack_depths.length - 1] < @expected_stack_depths[-1]
           msg = "Current stack is deeper than expected"
-          STDERR.puts "#{__FILE__}::#{__LINE__}: #{msg}"
-          STDERR.puts "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
-          STDERR.puts "trace_stack:\n#{@stack_objects.pretty_inspect}"
+          warn "#{__FILE__}::#{__LINE__}: #{msg}"
+          warn "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
+          warn "trace_stack:\n#{@stack_objects.pretty_inspect}"
           return @done_resuming = true
         else
           # Should never get here...
           msg = "Unaccounted-for anomaly while checking resume"
-          STDERR.puts "#{__FILE__}::#{__LINE__}: #{msg}"
-          STDERR.puts "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
-          STDERR.puts "trace_stack:\n#{@stack_objects.pretty_inspect}"
+          warn "#{__FILE__}::#{__LINE__}: #{msg}"
+          warn "resume_stack:\n#{resume_stack_objects.pretty_inspect}"
+          warn "trace_stack:\n#{@stack_objects.pretty_inspect}"
           return @done_resuming = true
         end
       end

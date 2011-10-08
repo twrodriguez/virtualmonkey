@@ -18,10 +18,9 @@ self_deployment = ENV['MONKEY_SELF_DEPLOYMENT_NAME'] if VirtualMonkey::Toolbox::
 self_deployment ||= "nil"
 
 options = Trollop::options do
-  opt :deployment, "Full deployment name",                                  :short => "-d", :type => :string,  :default => self_deployment, :required => true
+  opt :deployment, "Full deployment name",                                  :short => "-d", :type => :string,  :default => self_deployment
   opt :features, "Feature file names",                                      :short => "-f", :type => :strings, :required => true
   opt :no_debug, "Disable all debugging",                                   :short => "-g", :type => :boolean
-  opt :log, "Log file name",                                                :short => "-l", :type => :string,  :default => default_log_file, :required => true
   opt :no_resume, "Do not resume; start test from scratch",                 :short => "-r", :type => :boolean
   opt :post_mortem, "Enable Post Mortem debugging",                         :short => "-s", :type => :boolean
   opt :tests, "Space-separated strings of tests to execute (default: all)", :short => "-t", :type => :strings

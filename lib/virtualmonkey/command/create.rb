@@ -1,17 +1,18 @@
 module VirtualMonkey
   module Command
+    # Command Flags for Create
+    (@@command_flags ||= {}).merge!("create" => [:config_file, :clouds, :only, :no_spot, :one_deploy, :prefix,
+                                                 :yes, :verbose, :use_mci, :revisions])
 
-# monkey create --server_template_ids 123,123 --common_inputs blah.json --feature simple.feature --tag unique_name --TBD:filter?
+    # monkey create --server_template_ids 123,123 --common_inputs blah.json --feature simple.feature --tag unique_name --TBD:filter?
     def self.create(*args)
       unless VirtualMonkey::Toolbox::api0_1?
-        STDERR.puts "Need Internal Testing API access to use this command."
+        warn "Need Internal Testing API access to use this command.".red
         exit(1)
       end
       self.init(*args)
       @@options = Trollop::options do
-        text @@available_commands[:create]
-        eval(VirtualMonkey::Command::use_options( :config_file, :clouds, :only, :no_spot, :one_deploy, :prefix,
-                                                  :yes, :verbose, :use_mci, :revisions))
+        eval(VirtualMonkey::Command::use_options)
       end
 
       raise "--config_file is required" unless @@options[:config_file]

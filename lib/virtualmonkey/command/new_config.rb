@@ -1,10 +1,13 @@
 module VirtualMonkey
   module Command
+    # Command Flags for new_config
+    (@@command_flags ||= {}).merge!("new_config" => [])
+
     # This command does all the steps create/run/conditionaly destroy
     def self.new_config(*args)
       self.init(*args)
       @@options = Trollop::options do
-        text @@available_commands[:new_config]
+        eval(VirtualMonkey::Command::use_options)
       end
       #raise "You must select a single cloud id to create a singe deployment" if( @@options[:single_deployment] && (@@options[:cloud_override] == nil || @@options[:cloud_override].length != 1))  # you must select at most and at minimum 1 cloud to work on when the -z is selected
       # PATHs SETUP
@@ -35,13 +38,13 @@ module VirtualMonkey
         end
 
       # TODO: Multiple feature files
-      @@troop_config[:feature] = 
+      @@troop_config[:feature] =
         choose do |menu|
           menu.prompt = "Which feature file?"
           menu.index = :number
           menu.choices(*features_glob)
         end
-      
+
       write_troop_file()
       say("Created config file: #{@@troop_file}")
       say("Done.")

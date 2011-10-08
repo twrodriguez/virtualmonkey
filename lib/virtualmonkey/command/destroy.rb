@@ -1,16 +1,15 @@
 module VirtualMonkey
   module Command
-  
-# monkey destroy --tag unique_tag
+    # Command Flags for Destroy
+    (@@command_flags ||= {}).merge!("destroy" => [:config_file, :only, :keep, :prefix, :yes, :clouds, :verbose])
+
+    # monkey destroy --tag unique_tag
     def self.destroy(*args)
       self.init(*args)
       @@options = Trollop::options do
-        text @@available_commands[:destroy]
-        eval(VirtualMonkey::Command::use_options( :config_file, :only, :keep, :prefix, :yes, :clouds,
-                                                  :verbose))
+        eval(VirtualMonkey::Command::use_options)
       end
 
-      raise "--config_file is required" unless @@options[:config_file]
       load_config_file
       @@dm = DeploymentMonk.new(@@options[:prefix], [], [], @@options[:allow_meta_monkey])
       select_only_logic("Really destroy")

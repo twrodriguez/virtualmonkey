@@ -8,16 +8,16 @@ module VirtualMonkey
       elsif @@command == "-h" or @@command == "--help"
         VirtualMonkey::Command.help
       else
-        STDERR.puts "Invalid command #{@@command}\n\n#{@@usage_msg}"
+        warn "Invalid command #{@@command}\n\n#{@@usage_msg}".red
         exit(1)
       end
     end
 
     def self.qa_audit_logs(*args)
       self.qa_init(*args)
+      #@@command_flags = [:prefix, :only, :config_file]
       @@options = Trollop::options do
-        text @@available_commands[:audit_logs]
-        eval(VirtualMonkey::Command::use_options(:prefix, :only, :config_file))
+        eval(VirtualMonkey::Command::use_options)
       end
 
       raise "--config_file is required" unless @@options[:config_file]

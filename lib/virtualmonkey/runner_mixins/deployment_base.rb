@@ -17,14 +17,30 @@ module VirtualMonkey
 
       # Select a server based on the info tags attached to it
       # If a hash of tags is passed, the server needs to match all of them by value
-      # If a block is passed, all info tags will be passed to the block as an array
-      def server_by_info_tag(tags = {}, &block)
+      # If a block is passed, all info tags will be passed to the block as a hash
+      def server_by_info_tags(tags = {}, &block)
         set = @servers
         if block
           set = set.select { |s| yield(s.get_info_tags["self"]) }
         else
           tags.each { |key,val|
             set = set.select { |s| s.get_info_tags(key)["self"][key] == val }
+          }
+        end
+        set.first
+      end
+
+      # Select a server based on the tags in a namespace attached to it
+      # e.g. "namespace:key=value"
+      # If a hash of tags is passed, the server needs to match all of them by value
+      # If a block is passed, all info tags will be passed to the block as a hash
+      def server_by_namespace_tags(namespace, tags = {}, &block)
+        set = @servers
+        if block
+          set = set.select { |s| yield(s.get_tags_by_namespace(namespace)["self"]) }
+        else
+          tags.each { |key,val|
+            set = set.select { |s| s.get_tags_by_namespace(namespace)["self"][key] == val }
           }
         end
         set.first
@@ -52,15 +68,15 @@ module VirtualMonkey
       # Makes this exception_handle available for all runners
       def deployment_base_exception_handle(e)
         if e.message =~ /Insufficient capacity/
-          STDERR.puts "Got \"Insufficient capacity\". Retrying...."
+          warn "Got \"Insufficient capacity\". Retrying...."
           sleep 60
           return true # Exception Handled
         elsif e.message =~ /execution expired/i
-          STDERR.puts "Got \"execution expired...\". Retrying...."
+          warn "Got \"execution expired...\". Retrying...."
           sleep 5
           return true # Exception Handled
         elsif e.message =~ /Service Unavailable|Service Temporarily Unavailable/
-          STDERR.puts "Got \"Service Temporarily Unavailable\". Retrying...."
+          warn "Got \"Service Temporarily Unavailable\". Retrying...."
           sleep 10
           return true # Exception Handled
         elsif e.message =~ /Bad Gateway/
@@ -101,7 +117,7 @@ module VirtualMonkey
           table.each { |a|
             st_id = resource_id(st)
             @scripts_to_run[st_id] ||= {}
-            puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id][ a[0] ]
+            warn "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id][ a[0] ]
             @scripts_to_run[st_id][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
             raise "FATAL: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[st_id][ a[0] ]
           }
@@ -172,13 +188,7 @@ module VirtualMonkey
 
       # Launch all servers in the deployment.
       def launch_all
-        @servers.each { |s|
-          begin
-            s.start
-          rescue Exception => e
-            raise e unless e.message =~ /AlreadyLaunchedError/
-          end
-        }
+        launch_set(@servers)
       end
 
       # sets the MASTER_DB_DNSNAME to this machine's ip address
@@ -190,10 +200,9 @@ module VirtualMonkey
         @deployment.set_input("db/fqdn", the_name)
       end
 
-      # Launch server(s) that match nickname_substr
-      # * nickname_substr<~String> - regex compatible string to match
-      def launch_set(nickname_substr)
-        set = select_set(nickname_substr)
+      # Launch a set of server(s)
+      def launch_set(set = @servers)
+        set = select_set(set)
         set.each { |s|
           begin
             transaction { s.start }
@@ -203,9 +212,15 @@ module VirtualMonkey
         }
       end
 
-      # Re-Launch all server
+      # Re-Launch all servers
       def relaunch_all
-        @servers.each { |s|
+        relaunch_set(@servers)
+      end
+
+      # Re-Launch a set of servers
+      def relaunch_set(set=@servers)
+        set = select_set(set)
+        set.each { |s|
           begin
             transaction { s.relaunch }
           rescue Exception => e
@@ -253,7 +268,7 @@ module VirtualMonkey
         @servers.each { |s| transaction { s.start_ebs } }
         wait_for_all("operational") if wait
         @servers.each { |s|
-          s.dns_name = nil
+          s['dns_name'] = nil
           s.private_dns_name = nil
         }
       end
@@ -262,7 +277,7 @@ module VirtualMonkey
         @servers.each { |s| transaction { s.stop_ebs } }
         wait_for_all("stopped") if wait
         @servers.each { |s|
-          s.dns_name = nil
+          s['dns_name'] = nil
           s.private_dns_name = nil
         }
       end
@@ -271,7 +286,7 @@ module VirtualMonkey
         @servers.each { |s| s.stop }
         wait_for_all("stopped") if wait
         @servers.each { |s|
-          s.dns_name = nil
+          s['dns_name'] = nil
           s.private_dns_name = nil
         }
       end
@@ -371,7 +386,7 @@ module VirtualMonkey
           else
             friendly_name_ary = key_arys.map { |key_ary|
               val = key_ary.detect { |key| key =~ /#{Regexp.escape(friendly_name)}/i }
-              STDERR.puts "Found case-insensitive match for script friendly name. Searched for '#{friendly_name}', registered name was '#{key}'" if val
+              warn "Found case-insensitive match for script friendly name. Searched for '#{friendly_name}', registered name was '#{key}'" if val
               val
             }
             friendly_name_ary.each_with_index { |name,index|
@@ -387,7 +402,7 @@ module VirtualMonkey
               ret = friendly_name
             else
               ret = @scripts_to_run[resource_id(server.server_template_href)].keys.detect { |key| key =~ /#{Regexp.escape(friendly_name)}/i }
-              STDERR.puts "Found case-insensitive match for script friendly name. Searched for '#{friendly_name}', registered name was '#{key}'" if ret
+              warn "Found case-insensitive match for script friendly name. Searched for '#{friendly_name}', registered name was '#{key}'" if ret
               raise "No script registered with friendly_name #{friendly_name} for server_template #{match_st_by_server(server).inspect}" unless ret
             end
           else
@@ -501,9 +516,13 @@ module VirtualMonkey
 
       def check_monitoring_exception_handle(e)
         if e.message =~ /CPU idle time is|No cpu idle data/i
-          STDERR.puts "Got \"#{e.message}\". Adjusting monitoring window and retrying...."
+          warn "Got \"#{e.message}\". Adjusting monitoring window and retrying...."
           @monitor_start -= 45
           @monitor_end -= 45
+          return true # Exception Handled
+        elsif e.message =~ /MonitoringDataError/i
+          warn "Got \"#{e.message}\". Waiting for monitoring to become active...."
+          sleep 30
           return true # Exception Handled
         else
           return false # Exception Not Handled
@@ -588,7 +607,7 @@ module VirtualMonkey
           servers[counter].tags(true)
         }
       end
-      
+
       #
       def get_input_from_server(server)
         @my_inputs = {} ## initialize a hash
@@ -607,7 +626,7 @@ module VirtualMonkey
         end
         return  @my_inputs
       end
-    
+
     end
   end
 end
