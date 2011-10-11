@@ -4,10 +4,10 @@
   "common_inputs":["php_suite.json", "php_suite_ssl.json", "chef_swap.json"],
   "prefix":"PHP_SSL",
   "server_template_ids":[
-    "137321",
-    "137321",
-    "137039",
-    "137039",
-    "137161"
+    "27958",
+    "27958",
+    "120077",
+    "120077",
+    "107666"
   ]
 }
