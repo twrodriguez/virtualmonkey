@@ -67,6 +67,10 @@ module VirtualMonkey
           puts "Got \"Bad Gateway\". Retrying...."
           sleep 10
           return true # Exception Handled
+        elsif e.message =~ /Internal error/i  #for mysql deadlocks only
+          puts "Internal Error"
+          sleep 10
+          return true # Exception Handled
         else
           return false # Exception Not Handled
         end
