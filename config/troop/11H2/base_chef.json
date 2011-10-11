@@ -1,7 +1,7 @@
 {
 
   "server_template_ids":[
-    "104181"
+    "137016"
   ],
   "feature":"base_linux.rb",
   "cloud_variables":"all_clouds.json",
