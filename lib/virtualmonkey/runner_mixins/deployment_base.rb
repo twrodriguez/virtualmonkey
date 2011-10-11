@@ -63,6 +63,10 @@ module VirtualMonkey
           puts "Got \"Service Temporarily Unavailable\". Retrying...."
           sleep 10
           return true # Exception Handled
+        elsif e.message =~ /Bad Gateway/
+          puts "Got \"Bad Gateway\". Retrying...."
+          sleep 10
+          return true # Exception Handled
         else
           return false # Exception Not Handled
         end
@@ -564,6 +568,26 @@ module VirtualMonkey
           servers[counter].tags(true)
         }
       end
+      
+      #
+      def get_input_from_server(server)
+        @my_inputs = {} ## initialize a hash
+        if server.multicloud && server.current_instance
+          server.current_instance.inputs.each { |hsh|
+            @my_inputs[hsh["name"]] = hsh["value"]
+          }
+        elsif server.current_instance_href
+          server.reload_as_current
+          server.settings
+          server.parameters.each { |name , input_value|
+           #to_return = input_value if (input_name.to_s.match(/#{inputname}/))
+            @my_inputs[name] = input_value
+          }
+          server.reload_as_next
+        end
+        return  @my_inputs
+      end
+    
     end
   end
 end

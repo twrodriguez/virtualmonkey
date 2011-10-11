@@ -95,6 +95,7 @@ module VirtualMonkey
         
        run_script_on_set('iptable_rules', mysql_servers.first)
 
+        run_script("do_tag_as_master", mysql_servers.first)
        run_script("do_backup", mysql_servers.first)
        sleep(120)
        run_unified_application_checks(fe_servers, 80)

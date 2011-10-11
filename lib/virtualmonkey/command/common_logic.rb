@@ -112,6 +112,7 @@ module VirtualMonkey
           end
         end
       }
+      exit(1) unless @@gm.jobs.unanimous? { |job| job.status == 0 } and @@gm.jobs.first.status == 0
     end
 
     # Encapsulates the logic for running through the log auditor/trainer on a single deployment
@@ -192,7 +193,7 @@ module VirtualMonkey
 
     # Encapsulates the logic for releasing the DNS entries for a single deployment, no matter what DNS it used
     def self.release_all_dns_domains(deploy_href)
-      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns"].each { |domain|
+      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns", "dnsmadeeasy_new", "virtualmonkey_awsdns_new", "virtualmonkey_dyndns_new"].each { |domain|
         begin
           dns = SharedDns.new(domain)
           raise "Unable to reserve DNS" unless dns.reserve_dns(deploy_href)
@@ -286,7 +287,7 @@ module VirtualMonkey
             @@st_inputs[st.rd_id] = McServerTemplate.find(st.rs_id.to_i).get_inputs
           end
         }
-        @@troop_config[:server_templates_ids] = st_ary.map { |st| st.rs_id.to_s }
+        @@troop_config[:server_template_ids] = st_ary.map { |st| st.rs_id.to_s }
       else
         # Interactively Build
         correct = false

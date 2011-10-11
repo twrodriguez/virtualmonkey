@@ -7,8 +7,8 @@ end
 before do
 # PHP/FE variations
 
-  @runner.setup_dns("dnsmadeeasy_new") # dnsmadeeasy
-  @runner.set_variation_dnschoice("text:DNSMadeEasy") # set variation choice
+  @runner.setup_dns("virtualmonkey_awsdns_new") # AWSDNS 
+  @runner.set_variation_dnschoice("text:Route53") # set variation choice
   @runner.set_variation_http_only
 #  @runner.tag_all_servers("rs_agent_dev:package=5.7.14")
 # Mysql variations
@@ -25,7 +25,7 @@ before do
   @runner.launch_set(:app_servers)
   @runner.wait_for_all("operational")
   @runner.disable_fe_reconverge
- @runner.setup_block_device
+  @runner.setup_block_device
   sleep(120)
 end
 
