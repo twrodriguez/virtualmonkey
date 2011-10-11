@@ -4,6 +4,6 @@
   "common_inputs":"windows_ad_primary.json",
   "prefix":"AD",
   "server_template_ids":[
-    "114918"
+    "131420"
   ]
 }

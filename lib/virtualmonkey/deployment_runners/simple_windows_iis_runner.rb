@@ -9,6 +9,11 @@ module VirtualMonkey
         st = @server_templates.detect{ |st| st.nickname =~ /Microsoft IIS App/i } 
         match_servers_by_st(st).first
       end
+
+      def set_no_volumes
+        @deployment.set_input("APP_VOLUME_SIZE", "ignore:$ignore")
+        @deployment.set_input("LOG_VOLUME_SIZE", "ignore:$ignore")
+      end       
   
       def oleg_windows_iis_lookup_scripts
        scripts = [
@@ -30,6 +35,7 @@ module VirtualMonkey
         load_script('IIS Monkey tests', RightScript.new('href' => "/api/acct/2901/right_scripts/435044"))
         load_script('SYS Install ASP.NET MVC 3 check', RightScript.new('href' => "/api/acct/2901/right_scripts/434989"))
         load_script('SYS Install .NET Framework 4 check', RightScript.new('href' => "/api/acct/2901/right_scripts/434993"))
+        load_script('IIS web server check', RightScript.new('href' => "/api/acct/2901/right_scripts/450177"))
       end
     end
   end
