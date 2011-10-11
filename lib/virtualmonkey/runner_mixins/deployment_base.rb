@@ -572,7 +572,7 @@ module VirtualMonkey
           servers[counter].tags(true)
         }
       end
-      
+
       #
       def get_input_from_server(server)
         @my_inputs = {} ## initialize a hash
@@ -591,7 +591,7 @@ module VirtualMonkey
         end
         return  @my_inputs
       end
-    
+
     end
   end
 end

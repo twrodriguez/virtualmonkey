@@ -358,12 +358,12 @@ module VirtualMonkey
         # s_one is un-init
         # s_two is master
         # s_three is un-init
-        verify_master(s_two) 
+        verify_master(s_two)
         do_init_slave(s_three)
         # s_one is un-init
         # s_two is master
         # s_three is slave
-         
+
        @servers.each do |s|
          obj_behavior(s, :reboot, true)
          obj_behavior(s, :wait_for_state, "operational")
@@ -371,7 +371,7 @@ module VirtualMonkey
         wait_for_all("operational")
         run_HA_reboot_checks
       end
-     
+
       # verify master is still master after the reboot
       # check if reboot delete any tables on each server
       # verify if the master slave setup is present by creating and checking for replication table
@@ -379,7 +379,7 @@ module VirtualMonkey
         # s_one is un-init
         # s_two is master
         # s_three is slave
-        verify_master(s_two) 
+        verify_master(s_two)
         check_table_bananas(s_two)
         check_table_bananas(s_three)
 
@@ -777,7 +777,7 @@ EOS
 
         end
       end
-     
+
        # verifies whatever is written to the master is written to the slave
        # do backup on master
        # write the replication table to master
@@ -792,7 +792,7 @@ EOS
         # s_one is un-init
         # s_two is master
         # s_three is un-init
-        verify_master(s_two) 
+        verify_master(s_two)
         check_table_bananas(s_two)
         create_table_replication(s_two)
 
@@ -803,7 +803,7 @@ EOS
         # s_three is slave
         check_table_bananas(s_three) # also check if the banana table is there
         check_table_replication(s_three) # checks if the replication table exists in the slave
-        
+
       end
 
       # creates master and slave from slave backup
@@ -815,7 +815,7 @@ EOS
         # s_one is un-init
         # s_two is master
         # s_three is un-init
-        verify_master(s_two) 
+        verify_master(s_two)
         do_init_slave(s_three)
         create_table_replication(s_two)
 
@@ -837,7 +837,7 @@ EOS
         check_table_bananas(s_two)
         check_table_replication(s_two) # create a table in the  master that is not in slave for replication checks below
         check_slave_backup(s_two, "monkey_slave") # looks for a file that was written to the slave
-        verify_master(s_two) 
+        verify_master(s_two)
 
         do_init_slave(s_one)  # this creates a slave backup
         # s_one is slave
@@ -854,7 +854,7 @@ EOS
         check_table_replication(s_three) # also check if the replication table is there
         check_slave_backup(s_three, "monkey_slave") # looks for a file that was written to the slave
       end
- 
+
       def promote_slave_to_master
 
         do_restore_and_become_master(s_one)
@@ -869,7 +869,7 @@ EOS
         # s_one is master
         # s_two is unit
         # s_three is slave
- 
+
         # "promote_slavy11e_to_master"
         #  this will vefify that there are no files etc.. that break promotion
         do_promote_to_master(s_three)
@@ -878,7 +878,7 @@ EOS
         check_table_replication(s_three)
 
       end
-  
+
       def promote_slave_with_dead_master
         do_restore_and_become_master(s_one)
         verify_master(s_one)
@@ -892,8 +892,8 @@ EOS
         # s_one is the master
         # s_two is unit
         # s_three is slave
- 
-        
+
+
         run_script("do_force_reset", s_one) # kill the master
         # s_one is reset
         # s_two is unit
