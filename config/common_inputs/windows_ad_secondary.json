@@ -4,7 +4,7 @@
   "AD_BACKUP_NAME" : "text:monkey_ad_backup_primary",
   "AD_TRANSFER" : "text:Transfer",
   "AD_DOMAIN_CONTROLLER" : "text:Secondary",
-  "AD_SITE_NAME" : "env:DATACENTER",
+  "AD_SITE_NAME" : "text:Default",
   "AD_USER_FIRST_NAME" : "text:John",
   "AD_USER_LAST_NAME" : "text:Smith",
   "AD_USER_LOGIN" : "text:John.Smith",
