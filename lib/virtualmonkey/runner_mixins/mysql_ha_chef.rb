@@ -904,6 +904,8 @@ EOS
         # s_two is unit
         # s_three is slave
 
+        #check if the replication table is present before the reset 
+        check_table_replication(s_three)
 
         run_script("do_force_reset", s_one) # kill the master
         # s_one is reset
@@ -914,7 +916,6 @@ EOS
         check_table_bananas(s_three)
         check_table_replication(s_three)
       end
-
     end
   end
 end
