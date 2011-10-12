@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+ENV['ENTRY_COMMAND'] ||= File.basename(__FILE__, ".rb")
+
 require 'rubygems'
 require 'daemons'
 

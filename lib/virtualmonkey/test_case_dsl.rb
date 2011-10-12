@@ -4,7 +4,7 @@ module VirtualMonkey
     attr_reader :features
     STAGES = [:hard_reset, :soft_reset, :before, :test, :after]
 
-    def mixin_feature(file, reset_before_feature = false)
+    def mixin_feature(file, isolate_feature_set = false)
       file = File.join(VirtualMonkey::FEATURE_DIR, File.basename(file))
       if @features.keys.include? file
         puts "NOTE: Feature #{file} already mixed in. Skipping."
@@ -17,8 +17,10 @@ module VirtualMonkey
       @file_stack.push(file)
       @current_file = file
       ruby = IO.read(file)
+      # Setting this to true will isolate the tests and call reset between feature sets
+      @features[file] = isolate_feature_set
+      # TODO Do actual mixins with the ability to enqueue a set of before/after stuff
       eval(ruby)
-      @features[file] = reset_before_feature
       @file_stack.pop
       @current_file = @file_stack.last
     end

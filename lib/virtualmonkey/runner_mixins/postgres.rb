@@ -6,6 +6,10 @@ module VirtualMonkey
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
 
+      after_destroy do
+        SharedDns.release_from_all_domains(@deployment.href)
+      end
+
       # sets the lineage for the deployment
       # * kind<~String> can be "chef" or nil
       def set_variation_lineage(kind = nil)

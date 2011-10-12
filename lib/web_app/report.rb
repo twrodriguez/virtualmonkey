@@ -1,7 +1,10 @@
 module VirtualMonkey
   module Report
     # Amazon SimpleDB Connection
-    @@domain = "virtualmonkey_test_metadata"
+    BASE_DOMAIN = "virtualmonkey_test_metadata"
+    @@domain = "#{BASE_DOMAIN}_#{Time.now.strftime("%Y_%m")}"
+    @@last_month_domain = "#{BASE_DOMAIN}_#{Time.now.year}_#{"%02d" % Time.now.month}"
+    @@jobs_domain = "virtualmonkey_jobs"
 
     def new_sdb_connection
       Fog::AWS::SimpleDB.new()
@@ -92,10 +95,10 @@ module VirtualMonkey
       end
     end
 
-    def self.ensure_domain_exists
+    def self.ensure_domain_exists(domain=@@domain)
       # If domain doesn't exist, create domain
       @@sdb ||= new_sdb_connection
-      @@sdb.create_domain(@@domain) unless @@sdb.list_domains.body["Domains"].include?(@@domain)
+      @@sdb.create_domain(domain) unless @@sdb.list_domains.body["Domains"].include?(domain)
     end
 
 =begin
@@ -124,7 +127,12 @@ var data = [{
     def self.get_data(request_body)
       @@sdb ||= new_sdb_connection
       ret = {"autocomplete_values" => {}, "raw_data" => []}
-      # TODO Return in the above format
+      domains = [@@domain]
+      domains.unshift(@@last_month_domain) if @@sdb.list_domains.body["Domains"].include?(@@last_month_domain)
+      domains.each do |domain|
+        # TODO Return in the above format
+      end
+      return ret
     end
   end
 end

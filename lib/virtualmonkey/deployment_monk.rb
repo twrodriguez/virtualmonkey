@@ -181,6 +181,17 @@ class DeploymentMonk
           next
         end
 
+        # Before Create Hooks?
+        if not options[:runner].before_destroy.empty?
+          puts "Executing before_create hooks..."
+          runner_class = options[:runner]
+          runner_class.assert_integrity!
+          runner_class.before_create.each { |fn|
+            (fn.is_a?(Proc) ? runner_class.instance_eval(&fn) : runner_class.__send__(fn))
+          }
+          puts "Finished executing before_create hooks."
+        end
+
         # Create Deployment for this MCI and cloud
         if @single_deployment && !deployment_created
           dep_tempname = "#{@prefix}-cloud_#{cloud}-#{rand(1000000)}-"
@@ -319,12 +330,33 @@ class DeploymentMonk
 
           # Set the inputs at the deployment level
           new_deploy.set_inputs(@common_inputs.deep_merge(@variables_for_cloud[cloud]['parameters']))
+        end # @server_templates.each_with_index do |st,index|
+
+        # After Create Hooks for multiple deployments?
+        if not options[:runner].before_destroy.empty? and not @single_deployment
+          puts "Executing after_create hooks..."
+          runner = options[:runner].new(new_deploy.href)
+          options[:runner].after_create.each { |fn|
+            (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
+          }
+          puts "Finished executing after_create hooks."
         end
-      end
-    end
+      end # @clouds.each do |cloud|
+    end # @image_count.times do |index|
+
     if @single_deployment
       new_deploy.nickname = dep_tempname + nick_name_holder.uniq.join("_AND_") + "-ALL_IN_ONE"
       new_deploy.save
+
+      # After Create Hooks for single deployment?
+      if not options[:runner].before_destroy.empty?
+        puts "Executing after_create hooks..."
+        runner = options[:runner].new(new_deploy.href)
+        options[:runner].after_create.each { |fn|
+          (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
+        }
+        puts "Finished executing after_create hooks."
+      end
     end
   end
 

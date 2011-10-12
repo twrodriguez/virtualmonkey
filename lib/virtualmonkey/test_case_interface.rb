@@ -1,6 +1,6 @@
 require 'irb'
 if require 'ruby-debug'
-  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true"
+  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['ENTRY_COMMAND'] == "grinder"
 end
 
 module VirtualMonkey
@@ -244,11 +244,13 @@ module VirtualMonkey
           continue_test
         rescue VirtualMonkey::TestCaseInterface::Retry
         rescue VirtualMonkey::TestCaseInterface::UnhandledException => e
-          orig_raise e
+          orig_raise e.exception
         rescue Exception => e
           begin
             raise e # Need to use the internal raise
           rescue VirtualMonkey::TestCaseInterface::Retry
+          rescue VirtualMonkey::TestCaseInterface::UnhandledException => e
+            orig_raise e.exception
           end
         end while @rerun_last_command.pop
 

@@ -3,6 +3,8 @@
 
 $LOAD_PATH.unshift(File.expand_path(File.join(File.dirname(__FILE__), "..")))
 
+ENV['ENTRY_COMMAND'] ||= File.basename(__FILE__, ".rb")
+
 require 'rubygems'
 require File.join('..', 'web_app.rb')
 require 'sinatra'

@@ -2,6 +2,17 @@ module VirtualMonkey
   module Mixin
     module DrToolbox
 
+      before_destroy do
+        release_container
+        set_variation_lineage
+        cleanup_volumes
+        cleanup_snapshots
+      end
+
+      after_destroy do
+        SharedDns.release_from_all_domains(@deployment.href)
+      end
+
       # Stolen from ::EBS need to consolidate or dr_toolbox needs a terminate script to include ::EBS instead
       # take the lineage name, find all snapshots and sleep until none are in the pending state.
       def wait_for_snapshots

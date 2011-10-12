@@ -6,6 +6,17 @@ module VirtualMonkey
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
 
+      before_destroy do
+        release_container
+        set_variation_lineage
+        cleanup_volumes
+        cleanup_snapshots
+      end
+
+      after_destroy do
+        SharedDns.release_from_all_domains(@deployment.href)
+      end
+
       def mysql_servers
         res = []
         @servers.each do |server|

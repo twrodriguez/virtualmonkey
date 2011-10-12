@@ -1,12 +1,32 @@
+STDERR.print "loading dependencies" if ENV['ENTRY_COMMAND'] == "monkey"
 require 'rubygems'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'rest_connection'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'right_popen'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'fog'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'fileutils'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'parse_tree'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'parse_tree_extensions'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'ruby2ruby'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'colorize'
+
+
+STDERR.print "\nloading virtualmonkey" if ENV['ENTRY_COMMAND'] == "monkey"
 
 module VirtualMonkey
   ROOTDIR = File.expand_path(File.join(File.dirname(__FILE__), ".."))
@@ -27,22 +47,64 @@ module VirtualMonkey
   @@rest_yaml = File.join("", "etc", "rest_connection", "rest_api_config.yaml") unless File.exists?(@@rest_yaml)
   REST_YAML = @@rest_yaml
 
-  VERSION = (`cat "#{File.join(ROOTDIR, "VERSION")}"`.chomp +
-            ((`git branch | grep \\*`.chomp =~ /\* ([^ ]+)/; branch = $1) == "master" ? "" : " #{branch.upcase}"))
+  branch = (`git branch 2> /dev/null | grep \\*`.chomp =~ /\* ([^ ]+)/; $1) || "master"
+  VERSION = (`cat "#{File.join(ROOTDIR, "VERSION")}"`.chomp + (branch == "master" ? "" : " #{branch.upcase}"))
+
+  def self.auto_require(full_path)
+    some_not_included = true
+    files = Dir.glob(File.join(File.expand_path(full_path), "**"))
+    retry_loop = 0
+    while some_not_included and retry_loop < (files.size ** 2) do
+      begin
+        some_not_included = false
+        for f in files do
+          val = require f.chomp(".rb") if f =~ /\.rb$/
+          STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey" && val
+          some_not_included ||= val
+        end
+      rescue NameError => e
+        raise e unless e.message =~ /uninitialized constant/i
+        some_not_included = true
+        files.push(files.shift)
+      end
+      retry_loop += 1
+    end
+  end
 end
 
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/patches'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/deployment_monk'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/grinder_monk'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/shared_dns'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/message_check'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/test_case_interface'
+
+STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/test_case_dsl'
+
+STDERR.print "\nloading commands" if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/command'
 require 'virtualmonkey/toolbox'
+
+STDERR.print "\nloading mixins" if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/runner_mixins'
+
+STDERR.print "\nloading runners" if ENV['ENTRY_COMMAND'] == "monkey"
 require 'virtualmonkey/deployment_runners'
+
+STDERR.print "\nloading web_app..." if ENV['ENTRY_COMMAND'] == "monkey"
 require 'web_app.rb'
 
-#puts "$stderr = #{$stderr.inspect}"
-#puts "STDERR = #{STDERR.inspect}"
+STDERR.print "\nComplete!\n" if ENV['ENTRY_COMMAND'] == "monkey"

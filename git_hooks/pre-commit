@@ -33,9 +33,21 @@ done
 if [[ -n "$whitespace" ]]; then exit 1; fi
 
 # Check that project metadata files exist
-for FILE in "LICENSE" "README.rdoc" "VERSION" "Gemfile" "Gemfile.lock" ".gitignore"; do
+for FILE in "LICENSE" "README.rdoc" "VERSION" "Gemfile" "Gemfile.lock" ".gitignore" "Rakefile"; do
   if test ! -e $FILE; then
     echo "$FILE not present. Aborting commit"
     exit 1
   fi
 done
+
+# Check that username and user emails are filled properly
+username=`git config --get user.name`
+useremail=`git config --get user.email`
+emaildomain=`echo $useremail | grep -o "[^@]*$"`
+if [[ "$username" == "Put Your Name Here" || "$username" == "" ]]; then
+  echo "Please set your git user.name by running 'git config user.name <your github username>'"
+  exit 1
+elif [[ "$useremail" == "setyouremail@rightscale.com" || "$useremail" == "" ]] || ! host "$emaildomain" &> /dev/null; then
+  echo "Please set your git user.email by running 'git config user.email <your github email>'"
+  exit 1
+fi

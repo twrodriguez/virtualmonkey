@@ -132,132 +132,135 @@ class GrinderMonk
     test_ary.each { |test| cmd += " \"#{test}\" " }
     cmd += " -r " if @options[:no_resume]
 
-    # Build Job Metadata
-    puts "\nBuilding Job Metadata...\n\n"
-    data = {}
+    if @options[:report_metadata]
+      # Build Job Metadata
+      puts "\nBuilding Job Metadata...\n\n"
+      data = {}
 
-    ###################
-    # Filterable Data #
-    ###################
+      ###################
+      # Filterable Data #
+      ###################
 
-    # User Data
-    puts "\nGathering User Data...\n\n"
-    describe_metadata_fields("user").each { |f| data["user_#{f}"] = `git config user.#{f}`.chomp }
+      # User Data
+      puts "\nGathering User Data...\n\n"
+      describe_metadata_fields("user").each { |f| data["user_#{f}"] = `git config user.#{f}`.chomp }
 
-    # MultiCloudImage Data
-    puts "\nGathering MultiCloudImage Data...\n\n"
-    describe_metadata_fields("mci").each { |f| data["mci_#{f}"] = [] }
-    deployment.get_info_tags["self"].each { |key,val|
-      if key =~ /mci_id/
-        mci = MultiCloudImage.find(val.to_i)
-        data["mci_name"] |= [mci.name]
-        data["mci_href"] |= [mci.href]
-        data["mci_rev"] |= [mci.version]
-        data["mci_id"] |= [mci.rs_id]
+      # MultiCloudImage Data
+      puts "\nGathering MultiCloudImage Data...\n\n"
+      describe_metadata_fields("mci").each { |f| data["mci_#{f}"] = [] }
+      deployment.get_info_tags["self"].each { |key,val|
+        if key =~ /mci_id/
+          mci = MultiCloudImage.find(val.to_i)
+          data["mci_name"] |= [mci.name]
+          data["mci_href"] |= [mci.href]
+          data["mci_rev"] |= [mci.version]
+          data["mci_id"] |= [mci.rs_id]
 
-        # Extra Info
-        regex = /(.)*/
-        if mci.name =~ /CentOS/i
-          data["mci_os"] |= ["CentOS"]
-          #        CentOS  Version   Arch    RightLink
-          regex = /CentOS_([.0-9]*)_([^_]*)_v([.0-9]*)/i
-        elsif mci.name =~ /Ubuntu/i
-          data["mci_os"] |= ["Ubuntu"]
-          #        Ubuntu  Version Nickname    Arch    RightLink
-          regex = /Ubuntu_([.0-9]*)[_a-zA-Z]*_([^_]*)_v([.0-9]*)/i
-        elsif mci.name =~ /Windows/i
-          data["mci_os"] |= ["Windows"]
-          #        Windows  Version   ServicePack  Arch    App    RightLink
-          regex = /Windows_([0-9A-Za-z]*[_SP0-9]*)_([^_]*)[\w.]*_v([.0-9]*)/i
+          # Extra Info
+          regex = /(.)*/
+          if mci.name =~ /CentOS/i
+            data["mci_os"] |= ["CentOS"]
+            #        CentOS  Version   Arch    RightLink
+            regex = /CentOS_([.0-9]*)_([^_]*)_v([.0-9]*)/i
+          elsif mci.name =~ /Ubuntu/i
+            data["mci_os"] |= ["Ubuntu"]
+            #        Ubuntu  Version Nickname    Arch    RightLink
+            regex = /Ubuntu_([.0-9]*)[_a-zA-Z]*_([^_]*)_v([.0-9]*)/i
+          elsif mci.name =~ /Windows/i
+            data["mci_os"] |= ["Windows"]
+            #        Windows  Version   ServicePack  Arch    App    RightLink
+            regex = /Windows_([0-9A-Za-z]*[_SP0-9]*)_([^_]*)[\w.]*_v([.0-9]*)/i
+          end
+          data["mci_os_version"] |= [(mci.name =~ regex; $1)]
+          data["mci_arch"] |= [(mci.name =~ regex; $2)]
+          data["mci_rightlink"] |= [determine_rightlink_version(mci, regex)]
         end
-        data["mci_os_version"] |= [(mci.name =~ regex; $1)]
-        data["mci_arch"] |= [(mci.name =~ regex; $2)]
-        data["mci_rightlink"] |= [determine_rightlink_version(mci, regex)]
-      end
-    }
-
-    # ServerTemplate Data
-    puts "\nGathering ServerTemplate Data...\n\n"
-    describe_metadata_fields("servertemplate").each { |f| data["servertemplate_#{f}"] = [] }
-    deployment.servers.each { |server|
-      server.settings
-      st = ServerTemplate.find(server.server_template_href)
-      data["servertemplate_name"] |= [st.nickname]
-      data["servertemplate_href"] |= [st.href]
-      data["servertemplate_rev"] |= [st.version]
-      data["servertemplate_id"] |= [st.rs_id]
-    }
-
-    # Cloud Data
-    puts "\nGathering Cloud Data...\n\n"
-    describe_metadata_fields("cloud").each { |f| data["cloud_#{f}"] = [] }
-    cloud_id = deployment.get_info_tags["self"]["cloud"]
-    clouds = VirtualMonkey::Toolbox.get_available_clouds
-    if cloud_id != "multicloud"
-      data["cloud_id"] |= [cloud_id.to_i]
-      data["cloud_name"] |= [clouds.detect { |hsh| hsh["cloud_id"] == cloud_id.to_i }["name"]]
-    else
-      deployment.servers_no_reload.each { |server|
-        scid = server.cloud_id.to_i
-        data["cloud_id"] |= [scid]
-        data["cloud_name"] |= [clouds.detect { |hsh| hsh["cloud_id"] == scid.to_i }["name"]]
       }
+
+      # ServerTemplate Data
+      puts "\nGathering ServerTemplate Data...\n\n"
+      describe_metadata_fields("servertemplate").each { |f| data["servertemplate_#{f}"] = [] }
+      deployment.servers.each { |server|
+        server.settings
+        st = ServerTemplate.find(server.server_template_href)
+        data["servertemplate_name"] |= [st.nickname]
+        data["servertemplate_href"] |= [st.href]
+        data["servertemplate_rev"] |= [st.version]
+        data["servertemplate_id"] |= [st.rs_id]
+      }
+
+      # Cloud Data
+      puts "\nGathering Cloud Data...\n\n"
+      describe_metadata_fields("cloud").each { |f| data["cloud_#{f}"] = [] }
+      cloud_id = deployment.get_info_tags["self"]["cloud"]
+      clouds = VirtualMonkey::Toolbox.get_available_clouds
+      if cloud_id != "multicloud"
+        data["cloud_id"] |= [cloud_id.to_i]
+        data["cloud_name"] |= [clouds.detect { |hsh| hsh["cloud_id"] == cloud_id.to_i }["name"]]
+      else
+        deployment.servers_no_reload.each { |server|
+          scid = server.cloud_id.to_i
+          data["cloud_id"] |= [scid]
+          data["cloud_name"] |= [clouds.detect { |hsh| hsh["cloud_id"] == scid.to_i }["name"]]
+        }
+      end
+
+      # InstanceType Data
+      puts "\nGathering InstanceType Data...\n\n"
+      describe_metadata_fields("instancetype").each { |f| data["instancetype_#{f}"] = [] }
+      deployment.servers_no_reload.each { |server|
+        if server.multicloud
+          if server.current_instance
+            data["instancetype_href"] |= [server.current_instance.instance_type]
+            data["instancetype_name"] |= [McInstanceType.find(server.current_instance.instance_type).name]
+          else
+            data["instancetype_href"] |= [server.next_instance.instance_type]
+            data["instancetype_name"] |= [McInstanceType.find(server.next_instance.instance_type).name]
+          end
+        else
+          data["instancetype_name"] |= [server.ec2_instance_type]
+        end
+      }
+
+      # Datacenter Data
+      puts "\nGathering Datacenter Data...\n\n"
+      deployment.servers_no_reload.each { |server|
+        if server.multicloud
+          describe_metadata_fields("datacenter").each { |f| data["datacenter_#{f}"] ||= [] }
+          data["datacenter_href"] |= [server.datacenter]
+          data["datacenter_name"] |= [Datacenter.find(server.datacenter).name]
+        end
+      }
+
+      # Troop File Data
+      puts "\nGathering Troop Data...\n\n"
+      data["troop"] = [@options[:config_file]]
+
+      # Run Tags Data
+      data["tag"] = @options[:report_tags] || []
+
+      # Date Data
+      data["date"] = @started_at.strftime("%Y_%m_%d")
+
+      #####################
+      # Extra Report Data #
+      #####################
+
+      # Feature File Data
+      data["status"] = "running" # status => "pending|running|failed|passed" (or, manually, "blocked" or "willnotdo")
+      data["report_page"] = nil # nil until first upload
+      data["time"] = @started_at.strftime("%H:%M:%S")
+      data["feature"] = [feature] # TODO: Gather runner info and runner option info?
+      data["command_create"] = deployment.get_info_tags["self"]["command"]
+      data.delete("command_create") unless data["command_create"]
+      data["command_run"] = VirtualMonkey::Command::reconstruct_command_line
+
+      # Unique JobID
+      data["job_id"] = "#{@started_at.strftime("%Y_%m_%d_%H_%M_%S")}_#{deployment.rs_id}"
+
+      new_job.metadata = data
     end
 
-    # InstanceType Data
-    puts "\nGathering InstanceType Data...\n\n"
-    describe_metadata_fields("instancetype").each { |f| data["instancetype_#{f}"] = [] }
-    deployment.servers_no_reload.each { |server|
-      if server.multicloud
-        if server.current_instance
-          data["instancetype_href"] |= [server.current_instance.instance_type]
-          data["instancetype_name"] |= [McInstanceType.find(server.current_instance.instance_type).name]
-        else
-          data["instancetype_href"] |= [server.next_instance.instance_type]
-          data["instancetype_name"] |= [McInstanceType.find(server.next_instance.instance_type).name]
-        end
-      else
-        data["instancetype_name"] |= [server.ec2_instance_type]
-      end
-    }
-
-    # Datacenter Data
-    puts "\nGathering Datacenter Data...\n\n"
-    deployment.servers_no_reload.each { |server|
-      if server.multicloud
-        describe_metadata_fields("datacenter").each { |f| data["datacenter_#{f}"] ||= [] }
-        data["datacenter_href"] |= [server.datacenter]
-        data["datacenter_name"] |= [Datacenter.find(server.datacenter).name]
-      end
-    }
-
-    # Troop File Data
-    puts "\nGathering Troop Data...\n\n"
-    data["troop"] = [@options[:config_file]]
-
-    # Run Tags Data
-    data["tag"] = @options[:report_tags] || []
-
-    # Date Data
-    data["date"] = @started_at.strftime("%Y/%m/%d")
-
-    #####################
-    # Extra Report Data #
-    #####################
-
-    # Feature File Data
-    data["status"] = "running" # status => "pending|running|failed|passed" (or, manually, "blocked" or "willnotdo")
-    data["report_page"] = nil # nil until first upload
-    data["time"] = @started_at.strftime("%H:%M:%S")
-    data["feature"] = [feature] # TODO: Gather runner info and runner option info?
-    data["command_create"] = deployment.get_info_tags["self"]["command"]
-    data.delete("command_create") unless data["command_create"]
-    data["command_run"] = VirtualMonkey::Command::reconstruct_command_line
-
-    # Unique JobID
-    data["job_id"] = "#{@started_at.strftime("%Y_%m_%d_%H_%M_%S")}_#{deployment.rs_id}"
-
-    new_job.metadata = data
     @jobs << new_job
     puts "running #{cmd}"
     new_job.run(cmd)
@@ -365,12 +368,14 @@ class GrinderMonk
   def generate_reports
     report_url = VirtualMonkey::Report.update_s3(@jobs, @log_started)
     puts "    new results available at #{report_url}"
-    @jobs.each { |job|
-      job.metadata["report_page"] = report_url
-      job.metadata["status"] = (job.status == 0 ? "passed" : "failed") if job.status
-    }
-    VirtualMonkey::Report.update_sdb(@jobs)
-    puts "SimpleDB updated"
+    if @options[:report_metadata]
+      @jobs.each { |job|
+        job.metadata["report_page"] = report_url
+        job.metadata["status"] = (job.status == 0 ? "passed" : "failed") if job.status
+      }
+      VirtualMonkey::Report.update_sdb(@jobs)
+      puts "SimpleDB updated"
+    end
   end
 
   # Prints information on jobs that didn't have an exit code of 0 or 1

@@ -1,10 +1,61 @@
 # Uses Amazon SimpleDB to managed shared resources
+require 'rest_connection'
+
 class SharedDns
   attr_accessor :reservation
   attr_accessor :owner
 
+  def self.new_sdb_connection
+    Fog::AWS::SimpleDB.new(:aws_access_key_id => Fog.credentials[:aws_access_key_id_test],
+                           :aws_secret_access_key => Fog.credentials[:aws_secret_access_key_test])
+  end
+
+  def self.release_from_all_domains(deploy_href)
+    sdb = new_sdb_connection
+    domains = sdb.list_domains.body["Domains"].select do |domain|
+      domain =~ /dns/i || domain == "virtualmonkey_shared_resources"
+    end
+    domains.each do |domain|
+      dns = SharedDns.new(domain)
+      dns.reserve_dns(deploy_href)
+      dns.release_dns
+    end
+  end
+
+  def self.release_all_unused_domains
+    sdb = new_sdb_connection
+    domains = sdb.list_domains.body["Domains"].select do |domain|
+      domain =~ /dns/i || domain == "virtualmonkey_shared_resources"
+    end
+    domains.each do |domain|
+      sdb.select("SELECT * from #{domain}").body["Items"].each { |k,v|
+        begin
+          print "Checking #{k.inspect} from domain #{domain.inspect}..."
+          if v["owner"].first != "available"
+            Deployment.find(v["owner"].first)
+            puts "Deployment exists."
+          else
+            puts "already available."
+          end
+        rescue Exception => rest_exception
+          if rest_exception.message =~ /404/
+            begin
+              sdb.put_attributes(domain, k, {"owner" => "available"}, :replace => ["owner"])
+            rescue Excon::Errors::ServiceUnavailable
+              print "being throttled..."
+              sleep 5
+              retry
+            end
+            puts "Freed #{k.inspect} from domain #{domain.inspect}."
+            sleep 1
+          end
+        end
+      }
+    end
+  end
+
   def initialize(domain = "virtualmonkey_shared_resources")
-    @sdb = Fog::AWS::SimpleDB.new(:aws_access_key_id => Fog.credentials[:aws_access_key_id_test], :aws_secret_access_key => Fog.credentials[:aws_secret_access_key_test])
+    @sdb = self.class.new_sdb_connection
     @domain = domain
     @reservation = nil
   end

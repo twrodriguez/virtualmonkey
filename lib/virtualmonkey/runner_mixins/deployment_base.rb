@@ -13,6 +13,7 @@ module VirtualMonkey
         raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
         test_case_interface_init(opts)
         populate_settings
+        assert_integrity!
       end
 
       # Select a server based on the info tags attached to it
@@ -108,8 +109,8 @@ module VirtualMonkey
         end
       end
 
-      # Loads a table of [friendly_name, script/recipe regex] from reference_template, attaching them to all templates in the deployment unless add_only_to_this_st is set
-      def load_script_table(reference_template, table, add_only_to_this_st = nil)
+      # Loads a table of [friendly_name, script/recipe regex] from ref_template, attaching them to all templates in the deployment unless add_only_to_this_st is set
+      def load_script_table(ref_template, table, add_only_to_this_st = nil)
         if add_only_to_this_st.is_a?(ServerInterface) or add_only_to_this_st.is_a?(Server)
           sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
         elsif add_only_to_this_st.is_a?(ServerTemplate)
@@ -121,9 +122,18 @@ module VirtualMonkey
           table.each { |a|
             st_id = resource_id(st)
             @scripts_to_run[st_id] ||= {}
-            warn "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id][ a[0] ]
-            @scripts_to_run[st_id][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
-            raise "FATAL: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[st_id][ a[0] ]
+            warn "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id][a[0]]
+            exec = ref_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
+            if exec
+              if exec.recipe =~ /#{a[1]}/i
+                # Recipes can only be run on the template they are attached to
+                @scripts_to_run[st_id][a[0]] = exec if resource_id(ref_template) == st_id
+              else
+                @scripts_to_run[st_id][a[0]] = exec
+              end
+            else
+              raise "FATAL: Executable #{a[1]} not found for #{st.nickname}"
+            end
           }
         }
       end
@@ -631,6 +641,64 @@ module VirtualMonkey
         return  @my_inputs
       end
 
+      #
+      # Monkey Create/Destroy API Hooks
+      #
+
+      def self.before_create(*args, &block)
+        @@before_create ||= []
+        @@before_create |= args
+        @@before_create << block if block_given?
+        @@before_create
+      end
+
+      def self.before_destroy(*args, &block)
+        @@before_destroy ||= []
+        @@before_destroy |= args
+        @@before_destroy << block if block_given?
+        @@before_destroy
+      end
+
+      def self.after_create(*args, &block)
+        @@after_create ||= []
+        @@after_create |= args
+        @@after_create << block if block_given?
+        @@after_create
+      end
+
+      def self.after_destroy(*args, &block)
+        @@after_destroy ||= []
+        @@after_destroy |= args
+        @@after_destroy << block if block_given?
+        @@after_destroy
+      end
+
+      def self.description(desc="")
+        @@description ||= desc
+        raise "FATAL: Description must be a string" unless @@description.is_a?(String)
+        @@description
+      end
+
+      def assert_integrity!
+        raise "FATAL: Description not set for #{self.class}!" if self.class.description.empty?
+        hook_sets = [self.class.before_destroy, self.class.after_create, self.class.after_destroy]
+        hook_sets.each { |hook_set|
+          hook_set.each { |fn|
+            if not fn.is_a?(Proc)
+              raise "FATAL: #{self.class} does not have an instance method named #{fn}" unless self.respond_to?(fn)
+            end
+          }
+        }
+        self.class.assert_integrity!
+      end
+
+      def self.assert_integrity!
+        self.before_create.each { |fn|
+          if not fn.is_a?(Proc)
+            raise "FATAL: #{self.to_s} does not have a class method named #{fn}; before_create requires class methods" unless self.respond_to?(fn)
+          end
+        }
+      end
     end
   end
 end

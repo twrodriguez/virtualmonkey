@@ -172,15 +172,19 @@ module VirtualMonkey
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
       runner = @@options[:runner].new(job.deployment.nickname)
       puts "Destroying successful deployment: #{runner.deployment.nickname}"
-      runner.stop_all(false)
-      #Release DNS logic
-      if runner.respond_to?(:release_dns) and not @@options[:keep]
-        release_all_dns_domains(runner.deployment.href)
+
+      # Before Destroy Hooks? (Only executes in the troop command)
+      retry_block { before_destroy_logic(runner) } unless @@options[:keep] or @@command =~ /run|clone/
+
+      # Call stop_all
+      retry_block { runner.stop_all(false) }
+
+      # After Destroy Hooks? (Only executes in the troop command)
+      # TODO use threads to wait for servers to stop before destroying deployment
+      unless @@options[:keep] or @@command =~ /run|clone/
+        retry_block { runner.deployment.destroy }
+        retry_block { after_destroy_logic(runner) }
       end
-      if runner.respond_to?(:release_container) and not @@options[:keep]
-        runner.release_container
-      end
-      runner.deployment.destroy unless @@options[:keep] or @@command =~ /run|clone/
       @@remaining_jobs.delete(job)
     end
 
@@ -195,8 +199,11 @@ module VirtualMonkey
       @@do_these ||= @@dm.deployments
       @@do_these.each do |deploy|
         runner = @@options[:runner].new(deploy.nickname)
-        runner.stop_all(false)
-        begin
+
+        # Before Destroy Hooks?
+        retry_block { before_destroy_logic(runner) } unless @@options[:keep]
+        retry_block { runner.stop_all(false) }
+        retry_block do
           state_dir = File.join(@@global_state_dir, deploy.nickname)
           if File.directory?(state_dir)
             puts "Deleting state files for #{deploy.nickname}..."
@@ -207,54 +214,44 @@ module VirtualMonkey
             end
             FileUtils.rm_rf(state_dir)
           end
-          #Release DNS logic
-          if runner.respond_to?(:release_dns) and not @@options[:keep]
-            release_all_dns_domains(deploy.href)
-          end
-          if runner.respond_to?(:release_container) and not @@options[:keep]
-            runner.release_container
-          end
-          # Cleanup volumes and snapshots for runners that support it.
-          if runner.respond_to?(:set_variation_lineage) and not @@options[:keep]
-            runner.set_variation_lineage
-          end
-          if runner.respond_to?(:cleanup_volumes) and not @@options[:keep]
-            runner.cleanup_volumes
-          end
-          if runner.respond_to?(:cleanup_snapshots) and not @@options[:keep]
-            runner.cleanup_snapshots
-          end
-        rescue Interrupt, NameError, ArgumentError, TypeError => e
-          raise e
-        rescue Exception => e
-          warn "WARNING: Got #{e.message} from #{e.backtrace.first}".yellow
-          sleep 5
-          retry
         end
       end
 
       unless @@options[:keep]
-        @@do_these.each { |deploy|
-          deploy.servers.each { |s|
-            s.wait_for_state("stopped")
-          }
-          deploy.destroy
-        }
+        @@do_these.each do |deploy|
+          runner = @@options[:runner].new(deploy.nickname)
+          retry_block do
+            deploy.servers.each { |s|
+              s.wait_for_state("stopped")
+            }
+          end
+          retry_block { deploy.destroy }
+          # After Destroy Hooks?
+          retry_block { after_destroy_logic(runner) }
+        end
       end
     end
 
-    # Encapsulates the logic for releasing the DNS entries for a single deployment, no matter what DNS it used
-    def self.release_all_dns_domains(deploy_href)
-      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns",
-       "dnsmadeeasy_new", "virtualmonkey_awsdns_new", "virtualmonkey_dyndns_new"].each { |domain|
-        begin
-          dns = SharedDns.new(domain)
-          raise "Unable to reserve DNS" unless dns.reserve_dns(deploy_href)
-          dns.release_dns
-        rescue Exception => e
-          raise e unless e.message =~ /Unable to reserve DNS/
-        end
-      }
+    # Encapsulates the logic for running the before_destroy hooks for a particular runner
+    def self.before_destroy_logic(runner)
+      if not @@options[:runner].before_destroy.empty?
+        puts "Executing before_destroy hooks..."
+        @@options[:runner].before_destroy.each { |fn|
+          retry_block { (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn)) }
+        }
+        puts "Finished executing vefore_destroy hooks."
+      end
+    end
+
+    # Encapsulates the logic for running the after_destroy hooks for a particular runner
+    def self.after_destroy_logic(runner)
+      if not @@options[:runner].after_destroy.empty?
+        puts "Executing after_destroy hooks..."
+        @@options[:runner].after_destroy.each { |fn|
+          retry_block { (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn)) }
+        }
+        puts "Finished executing after_destroy hooks."
+      end
     end
 
     # Encapsulates the logic for detecting what runner is used in a test case file
@@ -293,6 +290,19 @@ module VirtualMonkey
         end
       }
       return cmd_line
+    end
+
+    def self.retry_block(max_retries=10, &block)
+      begin
+        yield()
+      rescue Interrupt, NameError, ArgumentError, TypeError => e
+        raise e
+      rescue Exception => e
+        warn "WARNING: Got #{e.message} from #{e.backtrace.first}".yellow
+        sleep 5
+        max_reties -= 1
+        (max_retries > 0) ? (retry) : (raise e)
+      end
     end
 
     ##################################
@@ -552,6 +562,27 @@ module VirtualMonkey
     class #{@@camel_case_name}
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::#{@@camel_case_name}
+
+      # Write a meaningful description of what this Runner tests
+      description ""
+
+      ########################
+      # Monkey Command Hooks #
+      ########################
+
+      # Uncomment the next line to enable the before_create hook. NOTE: Unlike the other hooks,
+      # this hook is executed BEFORE A DEPLOYMENT EXISTS, so any code placed in here will not be
+      # able to access typical Runner methods and attributes.
+      # before_create { puts "Happens before 'monkey create' creates a deployment" }
+
+      # Uncomment the next line to enable the before_destroy hook
+      # before_destroy { puts "Happens before 'monkey destroy' destroys a deployment" }
+
+      # Uncomment the next line to enable the after_create hook
+      # after_create { puts "Happens after 'monkey create' creates a deployment" }
+
+      # Uncomment the next line to enable the after_destroy hook
+      # after_destroy { puts "Happens after 'monkey destroy' destroys a deployment" }
 
       ###########################################
       # Override any functions from mixins here #
