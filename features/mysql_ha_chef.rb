@@ -9,7 +9,7 @@ set :runner, VirtualMonkey::Runner::MysqlChefHA
 
 # Terminates servers if there are any running
 hard_reset do
-  stop_all
+#  stop_all
 end
 
 before do
