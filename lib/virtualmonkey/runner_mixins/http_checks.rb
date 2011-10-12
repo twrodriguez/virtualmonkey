@@ -1,6 +1,6 @@
 module VirtualMonkey
   class HttpChecks
-  
+
     # Tests http response code against given url
     #
     # === Parameters
@@ -16,7 +16,7 @@ module VirtualMonkey
       begin
         status = Timeout::timeout(timeout) do
           while true
-            response = `#{cmd}` 
+            response = `#{cmd}`
             break if response.include?(expected_code)
             puts "Retrying..."
             sleep 5

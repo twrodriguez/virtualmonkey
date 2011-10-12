@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module Frontend
+      extend VirtualMonkey::Mixin::CommandHooks
       # returns an Array of the Front End servers in the deployment
       def fe_servers
         res = []

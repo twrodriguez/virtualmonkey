@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
-    module SimpleWindowsSQL 
+    module SimpleWindowsSQL
+      extend VirtualMonkey::Mixin::CommandHooks
       # Every instance method included in the runner class that has
       # "lookup_scripts" in its name is called when the Class is instantiated.
       # These functions help to create a hash table of RightScripts and/or
@@ -65,7 +66,7 @@ module VirtualMonkey
       def cleanup_snapshots
         find_snapshots.each do |snap|
           snap.destroy
-        end 
+        end
       end
 
     end

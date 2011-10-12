@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module PhpChef
+      extend VirtualMonkey::Mixin::CommandHooks
 
       def set_mysql_fqdn
         the_name = mysql_servers.first.reachable_ip

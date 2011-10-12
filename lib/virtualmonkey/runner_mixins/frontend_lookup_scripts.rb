@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module FrontEndLookupScripts
+      extend VirtualMonkey::Mixin::CommandHooks
       def frontend_lookup_scripts
         fe_scripts = [
                       [ 'apache_restart', 'WEB apache \(re\)start' ],
@@ -13,7 +14,7 @@ module VirtualMonkey
         load_script_table(st,fe_scripts)
         st = ServerTemplate.find(resource_id(app_servers.first.server_template_href))
         load_script_table(st,app_scripts)
-      end 
+      end
     end
   end
 end

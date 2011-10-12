@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module DeploymentBase
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::TestCaseInterface
       attr_accessor :deployment, :servers, :server_templates
       attr_accessor :scripts_to_run
@@ -641,44 +642,6 @@ module VirtualMonkey
         return  @my_inputs
       end
 
-      #
-      # Monkey Create/Destroy API Hooks
-      #
-
-      def self.before_create(*args, &block)
-        @@before_create ||= []
-        @@before_create |= args
-        @@before_create << block if block_given?
-        @@before_create
-      end
-
-      def self.before_destroy(*args, &block)
-        @@before_destroy ||= []
-        @@before_destroy |= args
-        @@before_destroy << block if block_given?
-        @@before_destroy
-      end
-
-      def self.after_create(*args, &block)
-        @@after_create ||= []
-        @@after_create |= args
-        @@after_create << block if block_given?
-        @@after_create
-      end
-
-      def self.after_destroy(*args, &block)
-        @@after_destroy ||= []
-        @@after_destroy |= args
-        @@after_destroy << block if block_given?
-        @@after_destroy
-      end
-
-      def self.description(desc="")
-        @@description ||= desc
-        raise "FATAL: Description must be a string" unless @@description.is_a?(String)
-        @@description
-      end
-
       def assert_integrity!
         raise "FATAL: Description not set for #{self.class}!" if self.class.description.empty?
         hook_sets = [self.class.before_destroy, self.class.after_create, self.class.after_destroy]
@@ -690,14 +653,6 @@ module VirtualMonkey
           }
         }
         self.class.assert_integrity!
-      end
-
-      def self.assert_integrity!
-        self.before_create.each { |fn|
-          if not fn.is_a?(Proc)
-            raise "FATAL: #{self.to_s} does not have a class method named #{fn}; before_create requires class methods" unless self.respond_to?(fn)
-          end
-        }
       end
     end
   end

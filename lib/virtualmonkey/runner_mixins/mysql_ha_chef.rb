@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module ChefMysqlHA
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
       attr_accessor :scripts_to_run
@@ -904,7 +905,7 @@ EOS
         # s_two is unit
         # s_three is slave
 
-        #check if the replication table is present before the reset 
+        #check if the replication table is present before the reset
         check_table_replication(s_three)
 
         run_script("do_force_reset", s_one) # kill the master

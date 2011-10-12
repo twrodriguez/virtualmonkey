@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module UnifiedApplication
+      extend VirtualMonkey::Mixin::CommandHooks
       # returns true if the http response contains the expected_string
       # * url<~String> url to perform http request
       # * expected_string<~String> regex compatible string used to match against the response output

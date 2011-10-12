@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module SimpleLinux
+      extend VirtualMonkey::Mixin::CommandHooks
 
       def swapspace_fe_lookup_scripts
         scripts = [

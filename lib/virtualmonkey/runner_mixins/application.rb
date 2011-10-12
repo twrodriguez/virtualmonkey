@@ -3,6 +3,7 @@ require 'timeout'
 module VirtualMonkey
   module Mixin
     module Application
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
 
       # returns an Array of the App Servers in the deployment

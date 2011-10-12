@@ -3,6 +3,7 @@ require "right_aws"
 module VirtualMonkey
   module Mixin
     module ELB
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::Application
       include VirtualMonkey::Mixin::UnifiedApplication

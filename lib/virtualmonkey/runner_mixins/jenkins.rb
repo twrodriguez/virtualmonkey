@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module Jenkins
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::UnifiedApplication
 
       # Stolen from ::EBS need to consolidate or dr_toolbox needs a terminate script to include ::EBS instead

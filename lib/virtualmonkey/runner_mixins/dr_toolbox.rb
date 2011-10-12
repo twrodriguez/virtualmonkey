@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module DrToolbox
+      extend VirtualMonkey::Mixin::CommandHooks
 
       before_destroy do
         release_container

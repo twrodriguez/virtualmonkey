@@ -63,7 +63,7 @@ module VirtualMonkey
           some_not_included ||= val
         end
       rescue NameError => e
-        raise e unless e.message =~ /uninitialized constant/i
+        raise e unless "#{e}" =~ /uninitialized constant/i
         some_not_included = true
         files.push(files.shift)
       end

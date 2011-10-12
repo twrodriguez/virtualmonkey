@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module SimpleWindows
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::Simple
 

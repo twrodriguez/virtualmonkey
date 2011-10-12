@@ -460,6 +460,7 @@ EOS
 module VirtualMonkey
   module Mixin
     module #{@@camel_case_name}
+      extend VirtualMonkey::Mixin::CommandHooks
 EOS
       # Lookup Scripts
       mixin_tpl += <<EOS
