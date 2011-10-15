@@ -28,14 +28,16 @@ module VirtualMonkey
 
   def self.config
     @@virtual_monkey_config = {}
-    if File.exists?(VirtualMonkey::SYS_CONFIG)
-      @@virtual_monkey_config.merge!(YAML::load(IO.read(VirtualMonkey::SYS_CONFIG)) || {})
-    end
-    if File.exists?(VirtualMonkey::USER_CONFIG)
-      @@virtual_monkey_config.merge!(YAML::load(IO.read(VirtualMonkey::USER_CONFIG)) || {})
-    end
-    if File.exists?(VirtualMonkey::ROOT_CONFIG)
-      @@virtual_monkey_config.merge!(YAML::load(IO.read(VirtualMonkey::ROOT_CONFIG)) || {})
+    [VirtualMonkey::SYS_CONFIG, VirtualMonkey::USER_CONFIG, VirtualMonkey::ROOT_CONFIG].each do |config_file|
+      if File.exists?(config_file)
+        @@virtual_monkey_config.merge!(YAML::load(IO.read(config_file)) || {})
+        if VirtualMonkey.const_defined?("Command")
+          config_ok = @@virtual_monkey_config.reduce(true) do |bool,ary|
+            bool && VirtualMonkey::Command::check_variable_value(ary[0], ary[1])
+          end
+          warn "WARNING: #{config_file} contains an invalid variable or value" unless config_ok
+        end
+      end
     end
     @@virtual_monkey_config
   end
@@ -49,6 +51,7 @@ def progress_require(file, progress=nil)
     end
     @current_progress = progress || @current_progress
   end
+  STDOUT.flush
 
   ret = require file
 
@@ -108,3 +111,4 @@ progress_require('virtualmonkey/deployment_runners', 'runners')
 
 progress_require('web_app.rb', 'web_app')
 puts "\n"
+VirtualMonkey::config

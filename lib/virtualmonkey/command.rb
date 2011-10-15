@@ -68,6 +68,31 @@ module VirtualMonkey
       :report_tags     => "opt :report_tags, 'Additional tags to help database sorting (e.g. -T sprint28)',     :short => '-T', :type => :strings"
     }
 
+    ConfigOptions = {
+      "set"     => "Set a configurable variable               'monkey config [-s|--set|set] name value'",
+      "edit"    => "Open config file in your git editor       'monkey config [-e|--edit|edit]'",
+      "unset"   => "Unset a configurable variable             'monkey config [-u|--unset|unset] name'",
+      "list"    => "List current config variables             'monkey config [-l|--list|list]'",
+      "catalog" => "List all possible configurable variables  'monkey config [-c|--catalog|catalog]'",
+      "get"     => "Get the value of one variable             'monkey config [-g|--get|get] name'",
+      "help"    => "Print this help message                   'monkey config [-h|--help|help]'"
+    }
+
+    ConfigVariables = {
+      "test_permutation"  => {"description" => "Controls how individual test cases in a feature file get assigned per deployment",
+                              "values" => ["distributed", "exhaustive"]},
+      "test_ordering"     => {"description" => "Controls how individual test cases in a feature file are ordered for execution",
+                              "values" => ["random", "strict"]},
+      "feature_mixins"    => {"description" => "Controls how multiple features are distributed amongst available deployments",
+                              "values" => ["mixed-in", "parallel"]},
+      "load_progress"     => {"description" => "Turns on/off the display of load progress info for 'monkey' commands",
+                              "values" => ["show", "hide"]},
+      "colorized_text"    => {"description" => "Turns on/off colorized console text",
+                              "values" => ["show", "hide"]},
+      "max_retries"       => {"description" => "Controls how many retries to attempt in a scope stack before giving up",
+                              "values" => Integer}
+    }
+
     @@command_flags ||= {}
 
     def self.init(*args)
@@ -200,35 +225,10 @@ EOS
       self.init(*args)
       @@command = "config"
 
-      @@config_options ||= {
-        "set"     => "Set a configurable variable               'monkey config [-s|--set|set] name value'",
-        "edit"    => "Open config file in your git editor       'monkey config [-e|--edit|edit]'",
-        "unset"   => "Unset a configurable variable             'monkey config [-u|--unset|unset] name'",
-        "list"    => "List current config variables             'monkey config [-l|--list|list]'",
-        "catalog" => "List all possible configurable variables  'monkey config [-c|--catalog|catalog]'",
-        "get"     => "Get the value of one variable             'monkey config [-g|--get|get] name'",
-        "help"    => "Print this help message                   'monkey config [-h|--help|help]'"
-      }
-
-      @@config_variables ||= {
-        "test_permutation"  => {"description" => "Controls how individual test cases in a feature file get assigned per deployment",
-                                "values" => ["distributed", "exhaustive"]},
-        "test_ordering"     => {"description" => "Controls how individual test cases in a feature file are ordered for execution",
-                                "values" => ["random", "strict"]},
-        "feature_mixins"    => {"description" => "Controls how multiple features are distributed amongst available deployments",
-                                "values" => ["mixed-in", "parallel"]},
-        "load_progress"     => {"description" => "Turns on/off the display of load progress info for 'monkey' commands",
-                                "values" => ["show", "hide"]},
-        "colorized_text"    => {"description" => "Turns on/off colorized console text",
-                                "values" => ["show", "hide"]},
-        "max_retries"       => {"description" => "Controls how many retries to attempt in a scope stack before giving up",
-                                "values" => Integer}
-      }
-
       unless class_variable_defined?("@@config_help_message")
         @@config_help_message = @@available_commands[@@command.to_sym] + "\n"
-        max_width = @@config_options.keys.map { |k| k.to_s.length }.max
-        temp = @@config_options.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
+        max_width = ConfigOptions.keys.map { |k| k.to_s.length }.max
+        temp = ConfigOptions.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
         @@config_help_message += temp.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
       end
 
@@ -237,42 +237,14 @@ EOS
         exit(0)
       end
 
-      convert_value = lambda do |val,values|
-        if values.is_a?(Array)
-          return convert_value.call(val, values.first.class)
-        elsif values.is_a?(Class) # Integer, String, Symbol
-          case values.to_s
-          when "Integer" then return val.to_i
-          when "String" then return val.to_s
-          when "Symbol" then return val.to_s.to_sym
-          else
-            raise TypeError.new("can't convert #{val.class} into #{values}")
-          end
-        end
-      end
-
-      check_variable_value = lambda do |var,val|
-        key_exists = @@config_variables.keys.include?("#{var}")
-        val_valid = false
-        if key_exists
-          values = @@config_variables["#{var}"]["values"]
-          if values.is_a?(Array)
-            val_valid = values.include?(val)
-          elsif values.is_a?(Class) # Integer, String, Symbol
-            val_valid = convert_value.call(val, values).is_a?(values)
-          end
-        end
-        key_exists && val_valid
-      end
-
       config_file = VirtualMonkey::ROOT_CONFIG
       configuration = VirtualMonkey::config.dup
 
       case ARGV[0]
       when "set", "-s", "--set", "add", "-a", "--add"
         error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 3
-        if check_variable_value.call(ARGV[1], ARGV[2])
-          configuration[ARGV[1].to_sym] = convert_value.call(ARGV[2], @@config_variables[ARGV[1].to_s]["values"])
+        if check_variable_value(ARGV[1], ARGV[2])
+          configuration[ARGV[1].to_sym] = convert_value(ARGV[2], ConfigVariables[ARGV[1].to_s]["values"])
         else
           error "FATAL: Invalid variable or value. Run 'monkey config catalog' to view available variables."
         end
@@ -288,7 +260,7 @@ EOS
           begin
             temp_config = YAML::load(IO.read(config_file))
             config_ok = temp_config.reduce(exit_status) do |bool,ary|
-              bool && check_variable_value.call(ary[0], ary[1])
+              bool && check_variable_value(ary[0], ary[1])
             end
             raise "Invalid variable or variable value in config file" unless config_ok
           rescue Exception => e
@@ -299,7 +271,7 @@ EOS
 
       when "unset", "-u", "--unset"
         error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 2
-        if @@config_variables.keys.include?(ARGV[1])
+        if ConfigVariables.keys.include?(ARGV[1])
           configuration.delete(ARGV[1].to_sym)
         else
           error "FATAL: '#{ARGV[1]}' is an invalid variable. Run 'monkey config catalog' to view available variables."
@@ -315,15 +287,15 @@ EOS
 
       when "catalog", "-c", "--catalog"
         error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 1
-        max_key_width = @@config_variables.keys.map { |k| k.to_s.length }.max
-        max_desc_width = @@config_variables.values.map { |v| v["description"].to_s.length }.max
-        message = @@config_variables.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
+        max_key_width = ConfigVariables.keys.map { |k| k.to_s.length }.max
+        max_desc_width = ConfigVariables.values.map { |v| v["description"].to_s.length }.max
+        message = ConfigVariables.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
         message = message.map { |k,v| "  %#{max_key_width}s:   %-#{max_desc_width}s  Values: #{v["values"].inspect}" % [k, v["description"]] }
         puts "\n#{message.join("\n")}\n\n"
 
       when "get", "-g", "--get"
         error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 2
-        if @@config_variables.keys.include?(ARGV[1])
+        if ConfigVariables.keys.include?(ARGV[1])
           puts configuration[ARGV[1]]
         else
           error "FATAL: '#{ARGV[1]}' is an invalid variable. Run 'monkey config catalog' to view available variables."
@@ -334,6 +306,34 @@ EOS
       end
 
       reset()
+    end
+
+    def self.convert_value(val, values)
+      if values.is_a?(Array)
+        return convert_value(val, values.first.class)
+      elsif values.is_a?(Class) # Integer, String, Symbol
+        case values.to_s
+        when "Integer" then return val.to_i
+        when "String" then return val.to_s
+        when "Symbol" then return val.to_s.to_sym
+        else
+          raise TypeError.new("can't convert #{val.class} into #{values}")
+        end
+      end
+    end
+
+    def self.check_variable_value(var, val)
+      key_exists = ConfigVariables.keys.include?("#{var}")
+      val_valid = false
+      if key_exists
+        values = ConfigVariables["#{var}"]["values"]
+        if values.is_a?(Array)
+          val_valid = values.include?(val)
+        elsif values.is_a?(Class) # Integer, String, Symbol
+          val_valid = convert_value(val, values).is_a?(values)
+        end
+      end
+      key_exists && val_valid
     end
   end
 end
