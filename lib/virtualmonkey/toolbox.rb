@@ -191,7 +191,7 @@ module VirtualMonkey
     def generate_ssh_keys(cloud_id_set=nil, overwrite=false, force=false, ssh_key_id_ary=nil)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
-      return puts("Nothing to change") if cloud_ids.empty?
+      return puts("No clouds to generate ssh keys for") if cloud_ids.empty?
       puts "Generating SSH Keys for clouds: #{cloud_ids.join(", ")}"
 
       ssh_key_id_ary ||= {}
@@ -314,7 +314,7 @@ module VirtualMonkey
       # TODO: Remove "10" once API1.5 supports key material lookup
       cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
       cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
-      return puts("Nothing to change") if cloud_ids.empty?
+      return puts("No clouds to destroy ssh keys for") if cloud_ids.empty?
       puts "Destroying SSH Keys for clouds: #{cloud_ids.join(", ")}"
 
       rest_settings = YAML::load(IO.read(@@rest_yaml))
@@ -377,7 +377,7 @@ module VirtualMonkey
     def populate_security_groups(cloud_id_set=nil, use_this_sec_group=nil, overwrite=false, force=false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
-      return puts("Nothing to change") if cloud_ids.empty?
+      return puts("No clouds to populate security groups for") if cloud_ids.empty?
       puts "Populating Security Groups for clouds: #{cloud_ids.join(", ")}"
 
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {})
@@ -446,7 +446,7 @@ module VirtualMonkey
     def populate_datacenters(cloud_id_set=nil, overwrite=false, force=false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
-      return puts("Nothing to change") if cloud_ids.empty?
+      return puts("No clouds to populate datacenters for") if cloud_ids.empty?
       puts "Populating Datacenters for clouds: #{cloud_ids.join(", ")}"
 
       dcs = (File.exists?(@@dcs_file) ? JSON::parse(IO.read(@@dcs_file)) : {})

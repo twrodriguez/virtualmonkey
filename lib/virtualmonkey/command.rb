@@ -197,7 +197,7 @@ module VirtualMonkey
           end
 
           self.instance_eval(&(#{block.to_ruby}))
-          puts "\nCommand 'monkey " + cmd_line + "' finished successfully.".add_color(:green)
+          puts ("\nCommand 'monkey " + cmd_line + "' finished successfully.").apply_color(:green)
           reset()
         end
 EOS
