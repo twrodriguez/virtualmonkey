@@ -6,7 +6,12 @@ $LOAD_PATH.unshift(File.expand_path(File.join(File.dirname(__FILE__), "..")))
 ENV['ENTRY_COMMAND'] ||= File.basename(__FILE__, ".rb")
 
 require 'rubygems'
-require File.join('..', 'web_app.rb')
+require File.join('..', 'spidermonkey')
+
+module VirtualMonkey
+  PUBLIC_HOSTNAME = (VirtualMonkey::my_api_self ? VirtualMonkey::my_api_self.reachable_ip : ENV['REACHABLE_IP'])
+end
+
 require 'sinatra'
 
 # disable sinatra's auto-application starting

@@ -2,7 +2,6 @@ progress_require('sinatra/base')
 
 module VirtualMonkey
   API_PATH = "/api"
-  PUBLIC_HOSTNAME = (VirtualMonkey::my_api_self ? VirtualMonkey::my_api_self.reachable_ip : ENV['REACHABLE_IP'])
   LOCAL_PORT = 4567
   WEB_APP_PUBLIC_DIR = File.join(VirtualMonkey::WEB_APP_DIR, "virtualmonkey")
 

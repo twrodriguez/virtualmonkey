@@ -13,7 +13,7 @@ module VirtualMonkey
   COMMON_INPUT_DIR = File.join(CONFIG_DIR, "common_inputs")
   TROOP_DIR = File.join(CONFIG_DIR, "troop")
   LIST_DIR = File.join(CONFIG_DIR, "lists")
-  WEB_APP_DIR = File.join(ROOTDIR, "lib", "web_app")
+  WEB_APP_DIR = File.join(ROOTDIR, "lib", "spidermonkey")
 
   @@rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
   @@rest_yaml = File.join("", "etc", "rest_connection", "rest_api_config.yaml") unless File.exists?(@@rest_yaml)
@@ -109,6 +109,6 @@ progress_require('virtualmonkey/runner_mixins', 'mixins')
 
 progress_require('virtualmonkey/deployment_runners', 'runners')
 
-progress_require('web_app.rb', 'web_app')
+progress_require('spidermonkey.rb', 'spidermonkey')
 puts "\n"
 VirtualMonkey::config
