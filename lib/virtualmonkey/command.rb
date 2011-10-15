@@ -19,11 +19,11 @@ module VirtualMonkey
       :list                       => "List the full Deployment nicknames and Server statuses for a set of Deployments",
       :new_config                 => "Interactively create a new Troop Config JSON File",
       :new_runner                 => "Interactively create a new testing scenario and all necessary files",
-      :populate_all_cloud_vars    => "Calls 'generate_ssh_keys', 'populate_datacenters', and 'populate_security_groups' for all Clouds",
+      :populate_all_cloud_vars    => "Calls \"generate_ssh_keys\", \"populate_datacenters\", and \"populate_security_groups\" for all Clouds",
       :populate_datacenters       => "Populates datacenters.json with API 1.5 hrefs per Cloud",
       :populate_security_groups   => "Populates security_groups.json with appropriate hrefs per Cloud",
       :run                        => "Execute a set of feature tests across a set of Deployments in parallel",
-      :troop                      => "Calls 'create', 'run', and 'destroy' for a given troop config file",
+      :troop                      => "Calls \"create\", \"run\", and \"destroy\" for a given troop config file",
       :update_inputs              => "Updates the inputs and editable server parameters for a set of Deployments",
       :version                    => "Displays version and exits",
       :help                       => "Displays usage information"
@@ -80,11 +80,11 @@ module VirtualMonkey
 
     ConfigVariables = {
       "test_permutation"  => {"description" => "Controls how individual test cases in a feature file get assigned per deployment",
-                              "values" => ["distributed", "exhaustive"]},
+                              "values" => ["distributive", "exhaustive"]},
       "test_ordering"     => {"description" => "Controls how individual test cases in a feature file are ordered for execution",
                               "values" => ["random", "strict"]},
       "feature_mixins"    => {"description" => "Controls how multiple features are distributed amongst available deployments",
-                              "values" => ["mixed-in", "parallel"]},
+                              "values" => ["spanning", "parallel"]},
       "load_progress"     => {"description" => "Turns on/off the display of load progress info for 'monkey' commands",
                               "values" => ["show", "hide"]},
       "colorized_text"    => {"description" => "Turns on/off colorized console text",
@@ -173,7 +173,7 @@ module VirtualMonkey
     end
 
     def self.use_options
-      ("text '#{@@available_commands[@@command.to_sym]}';" +
+      ("text '  monkey #{@@command} [options...]\n\n #{@@available_commands[@@command.to_sym]}';" +
       @@command_flags["#{@@command}"].map { |op| @@flags[op] }.join(";"))
     end
 
@@ -183,11 +183,16 @@ module VirtualMonkey
       self.instance_eval <<EOS
         def #{command_name}(*args)
           self.init(*args)
-          @@command = #{command_name.inspect}
+          @@command = "#{command_name}"
           puts ""
           @@options = Trollop::options do
             eval(VirtualMonkey::Command::use_options)
             #{more_trollop_options.join("; ")}
+          end
+
+          if VirtualMonkey::Command::reconstruct_command_line() == "#{command_name}"
+            ans = ask("Did you mean to run 'monkey #{command_name}' without any options (y/n)?")
+            #{command_name}("--help") unless ans =~ /^[yY]/
           end
 
           self.instance_eval(&(#{block.to_ruby}))
@@ -226,23 +231,26 @@ EOS
       @@command = "config"
 
       unless class_variable_defined?("@@config_help_message")
-        @@config_help_message = @@available_commands[@@command.to_sym] + "\n"
+        @@config_help_message = "  monkey config [options...]\n\n "
+        @@config_help_message += @@available_commands[@@command.to_sym] + "\n"
         max_width = ConfigOptions.keys.map { |k| k.to_s.length }.max
         temp = ConfigOptions.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
         @@config_help_message += temp.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
       end
 
-      if not (ARGV & ['--help', '-h', 'help']).empty?
+      if ARGV.empty? or not (ARGV & ['--help', '-h', 'help']).empty?
         puts "\n#{@@config_help_message}\n\n"
         exit(0)
       end
 
       config_file = VirtualMonkey::ROOT_CONFIG
       configuration = VirtualMonkey::config.dup
+      improper_argument_error = "FATAL: Improper arguments for command '#{ARGV[0]}'.\n\n#{@@config_help_message}\n"
 
       case ARGV[0]
       when "set", "-s", "--set", "add", "-a", "--add"
-        error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 3
+        error improper_argument_error if ARGV.length != 3
+
         if check_variable_value(ARGV[1], ARGV[2])
           configuration[ARGV[1].to_sym] = convert_value(ARGV[2], ConfigVariables[ARGV[1].to_s]["values"])
         else
@@ -251,7 +259,8 @@ EOS
         File.open(config_file, "w") { |f| f.write(configuration.to_yaml) }
 
       when "edit", "-e", "--edit"
-        error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 1
+        error improper_argument_error if ARGV.length != 1
+
         editor = `git config --get core.editor`.chomp
         editor = "vim" if editor.empty?
         config_ok = false
@@ -270,7 +279,8 @@ EOS
         end
 
       when "unset", "-u", "--unset"
-        error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 2
+        error improper_argument_error if ARGV.length != 2
+
         if ConfigVariables.keys.include?(ARGV[1])
           configuration.delete(ARGV[1].to_sym)
         else
@@ -279,22 +289,25 @@ EOS
         File.open(config_file, "w") { |f| f.write(configuration.to_yaml) }
 
       when "list", "-l", "--list"
-        error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 1
+        error improper_argument_error if ARGV.length != 1
+
         max_width = configuration.keys.map { |k| k.to_s.length }.max
         message = configuration.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
         message = message.map { |k,v| "  %#{max_width}s:   #{configuration[k]}" % k }.join("\n")
-        puts "\n#{message}\n\n"
+        puts "\n  monkey config list\n\n#{message}\n\n"
 
       when "catalog", "-c", "--catalog"
-        error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 1
+        error improper_argument_error if ARGV.length != 1
+
         max_key_width = ConfigVariables.keys.map { |k| k.to_s.length }.max
         max_desc_width = ConfigVariables.values.map { |v| v["description"].to_s.length }.max
         message = ConfigVariables.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
         message = message.map { |k,v| "  %#{max_key_width}s:   %-#{max_desc_width}s  Values: #{v["values"].inspect}" % [k, v["description"]] }
-        puts "\n#{message.join("\n")}\n\n"
+        puts "\n  monkey config catalog\n\n#{message.join("\n")}\n\n"
 
       when "get", "-g", "--get"
-        error "FATAL: Improper arguments for command '#{ARGV[0]}':\n#{@@config_help_message}" if ARGV.length != 2
+        error improper_argument_error if ARGV.length != 2
+
         if ConfigVariables.keys.include?(ARGV[1])
           puts configuration[ARGV[1]]
         else
@@ -302,7 +315,7 @@ EOS
         end
 
       else
-        error "FATAL: '#{ARGV[0]}' is an invalid command.\n#{@@config_help_message}"
+        error "FATAL: '#{ARGV[0]}' is an invalid command.\n\n#{@@config_help_message}\n"
       end
 
       reset()
