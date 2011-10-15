@@ -147,7 +147,9 @@ module VirtualMonkey
           end
         }
       }
-      exit(1) unless @@gm.jobs.unanimous? { |job| job.status == 0 } and @@gm.jobs.first.status == 0
+      unless @@gm.jobs.unanimous? { |job| job.status == 0 } and @@gm.jobs.first.status == 0
+        error "Some jobs failed. Inspect the results at the given URL"
+      end
     end
 
     # Encapsulates the logic for running through the log auditor/trainer on a single deployment

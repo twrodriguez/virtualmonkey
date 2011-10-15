@@ -190,14 +190,14 @@ module VirtualMonkey
             #{more_trollop_options.join("; ")}
           end
 
-          cmd_line = VirtualMonkey::Command::reconstruct_command_line()
-          if cmd_line == "#{command_name}"
+          @@last_command_line = VirtualMonkey::Command::reconstruct_command_line()
+          if @@last_command_line == "#{command_name}"
             ans = ask("Did you mean to run 'monkey #{command_name}' without any options (y/n)?")
             #{command_name}("--help") unless ans =~ /^[yY]/
           end
 
           self.instance_eval(&(#{block.to_ruby}))
-          puts ("\nCommand 'monkey " + cmd_line + "' finished successfully.").apply_color(:green)
+          puts ("\nCommand 'monkey " + @@last_command_line + "' finished successfully.").apply_color(:green)
           reset()
         end
 EOS
@@ -238,6 +238,8 @@ EOS
         temp = ConfigOptions.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
         @@config_help_message += temp.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
       end
+
+      @@last_command_line = ARGV.join(" ")
 
       if ARGV.empty? or not (ARGV & ['--help', '-h', 'help']).empty?
         puts "\n#{@@config_help_message}\n\n"
@@ -319,7 +321,7 @@ EOS
         error "FATAL: '#{ARGV[0]}' is an invalid command.\n\n#{@@config_help_message}\n"
       end
 
-      puts ("Command 'monkey #{ARGV.join(" ")}' finished successfully.").apply_color(:green)
+      puts ("Command 'monkey #{@@last_command_line}' finished successfully.").apply_color(:green)
       reset()
     end
 
@@ -349,6 +351,10 @@ EOS
         end
       end
       key_exists && val_valid
+    end
+
+    def self.last_command_line
+      @@last_command_line ||= ""
     end
   end
 end

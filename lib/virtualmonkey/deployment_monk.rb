@@ -207,9 +207,9 @@ class DeploymentMonk
           @deployments << new_deploy
         end
 
-        tags = {"cloud" => (@clouds.length > 1 ? "multicloud" : cloud),
+        tags = {"cloud" => (@single_deployment > 1 ? "multicloud" : cloud),
                 "troop" => options[:config_file],
-                "command" => VirtualMonkey::Command::reconstruct_command_line}
+                "command" => VirtualMonkey::Command::last_command_line}
         new_deploy.set_info_tags(tags)
 
         dep_image_list = []
@@ -223,7 +223,11 @@ class DeploymentMonk
             pair ||= @mci_order.detect { |idx,st_hash| st_hash[st.href] }
             mci = @mci_order[pair.first][st.href]
           end
-          dep_image_list << dep_image_names = mci.name.gsub(/ /,'_')
+          dep_image_list << dep_image_names = URI.escape(mci.name.gsub(/ \t/,'_'))
+          if dep_image_names != mci.name.gsub(/ \t/,'_')
+            warn "MCI name has HREF-sensitive characters, this can cause trouble for reporting to S3"
+          end
+
           use_this_image = mci.href
 
           # Load Cloud Variables from all_clouds.json

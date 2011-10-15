@@ -13,8 +13,8 @@ module VirtualMonkey
     end
 
     def self.update_s3(jobs, log_started)
-      def upload_args(bucket, log_started, filename)
-        content = `file -ib #{filename}`.split(/;/).first
+      upload_args = proc do |bucket, log_started, filename|
+        content = `file -ib "#{filename}"`.split(/;/).first
         [
           bucket,
           "#{log_started}/#{File.basename(filename)}",
@@ -33,23 +33,26 @@ module VirtualMonkey
       running = jobs.select { |s| s.status == nil }
       report_on = jobs.select { |s| s.status == 0 || s.status == 1 }
       bucket_name = Fog.credentials[:s3_bucket] || "virtual_monkey"
+      local_log_dir = File.join(VirtualMonkey::LOG_DIR, log_started)
 
       index = ERB.new(File.read(File.join(VirtualMonkey::LIB_DIR, "index.html.erb")))
-      index_html_file = File.join(VirtualMonkey::LOG_DIR, log_started, "index.html")
+      index_html_file = File.join(local_log_dir, "index.html")
       File.open(index_html_file, 'w') { |f| f.write(index.result(binding)) }
 
       ## upload to s3
-      if directory = s3.directories.detect { |d| d.key == bucket_name }
-        puts "found directory, re-using"
-      else
+      unless directory = s3.directories.detect { |d| d.key == bucket_name }
         directory = s3.directories.create(:key => bucket_name)
       end
-      raise 'could not create directory' unless directory
+      raise "FATAL: Could not create directory. Check log files locally in #{local_log_dir}" unless directory
 
       begin
-        s3.put_object(*upload_args(bucket_name, log_started, index_html_file))
-      rescue Exception => e
-        raise unless e.message =~ /Bad file descriptor|no such file or directory/i
+        s3.put_object(*upload_args.call(bucket_name, log_started, index_html_file))
+      rescue Excon::Errors::ServiceUnavailable
+        warn "being throttled..."
+        sleep 5
+        retry
+      rescue Errno::ENOENT, Errno::EBADF => e
+        warn e.message
         sleep 1
         retry
       end
@@ -58,13 +61,17 @@ module VirtualMonkey
       report_on.each do |job|
         begin
           [job.logfile, job.rest_log].each { |log|
-            s3.put_object(*upload_args(bucket_name, log_started, log))
+            s3.put_object(*upload_args.call(bucket_name, log_started, log))
           }
-          ([job.err_log] + j.other_logs).each { |log|
-            s3.put_object(*upload_args(bucket_name, log_started, log)) if File.exists?(log)
+          ([job.err_log] + job.other_logs).each { |log|
+            s3.put_object(*upload_args.call(bucket_name, log_started, log)) if File.exists?(log)
           }
-        rescue Exception => e
-          raise unless e.message =~ /Bad file descriptor|no such file or directory/i
+        rescue Excon::Errors::ServiceUnavailable
+          warn "being throttled..."
+          sleep 5
+          retry
+        rescue Errno::ENOENT, Errno::EBADF => e
+          warn e.message
           sleep 1
           retry
         end

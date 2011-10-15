@@ -89,6 +89,10 @@ progress_require('rubygems', 'dependencies')
 progress_require('rest_connection')
 progress_require('right_popen')
 progress_require('fog')
+if Fog::VERSION !~ /^0\./ # New functionality in 1.0.0
+  Fog::Logger[:warning] = nil # Disable annoying [WARN] about bucket names
+end
+
 progress_require('fileutils')
 progress_require('parse_tree')
 progress_require('parse_tree_extensions')

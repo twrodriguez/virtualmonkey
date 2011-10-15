@@ -253,7 +253,7 @@ class GrinderMonk
       data["feature"] = [feature] # TODO: Gather runner info and runner option info?
       data["command_create"] = deployment.get_info_tags["self"]["command"]
       data.delete("command_create") unless data["command_create"]
-      data["command_run"] = VirtualMonkey::Command::reconstruct_command_line
+      data["command_run"] = VirtualMonkey::Command::last_command_line
 
       # Unique JobID
       data["job_id"] = "#{@started_at.strftime("%Y_%m_%d_%H_%M_%S")}_#{deployment.rs_id}"
@@ -341,7 +341,7 @@ class GrinderMonk
     passed_string = " #{@passed.size} features passed. "
     passed_string = passed_string.apply_color(:green) if @passed.size > 0
 
-    failed_string = " #{@failed.size} features passed. "
+    failed_string = " #{@failed.size} features failed. "
     failed_string = failed_string.apply_color(:red) if @failed.size > 0
 
     running_string = " #{@running.size} features running "
@@ -361,10 +361,16 @@ class GrinderMonk
   end
 
   def status_change_hook
-    generate_reports
-    if all_done?
-      puts "monkey done."
-      EM.stop
+    begin
+      generate_reports
+      if all_done?
+        puts "monkey done."
+        EM.stop
+      end
+    rescue Interrupt => e
+      raise
+    rescue Exception => e
+      warn "#{e}\n#{e.backtrace}"
     end
   end
 

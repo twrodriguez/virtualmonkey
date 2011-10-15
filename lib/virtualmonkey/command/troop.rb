@@ -15,7 +15,7 @@ module VirtualMonkey
       unless @@dm.deployments.size > 0
         create_logic
       else
-        puts "Existing deployments matching --prefix #{@@options[:prefix]} found. Skipping deployment creation."
+        warn "Existing deployments matching --prefix #{@@options[:prefix]} found. Skipping deployment creation."
       end
 
       run_logic
