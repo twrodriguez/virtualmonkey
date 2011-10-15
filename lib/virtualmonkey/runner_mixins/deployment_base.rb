@@ -226,7 +226,7 @@ module VirtualMonkey
           begin
             transaction { s.start }
           rescue Exception => e
-            raise e unless e.message =~ /AlreadyLaunchedError/
+            raise unless e.message =~ /AlreadyLaunchedError/
           end
         }
       end
@@ -243,7 +243,7 @@ module VirtualMonkey
           begin
             transaction { s.relaunch }
           rescue Exception => e
-            raise e #unless e.message =~ /AlreadyLaunchedError/
+            raise #unless e.message =~ /AlreadyLaunchedError/
           end
         }
       end

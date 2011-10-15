@@ -260,7 +260,7 @@ module VirtualMonkey
           # Configure rest_connection config
           rest_settings[:ssh_keys] |= [priv_key_file]
         rescue Exception => e
-          raise e unless force
+          raise unless force
           warn "WARNING: Got #{e.message}. Forcing continuation..."
         end
       }
@@ -323,7 +323,7 @@ module VirtualMonkey
           temp_key.reload
           temp_key.destroy if temp_key.aws_key_name =~ /monkey/
         rescue Exception => e
-          raise e unless force
+          raise unless force
           warn "WARNING: Got #{e.message}. Forcing continuation..."
         end
       }
@@ -386,13 +386,13 @@ module VirtualMonkey
               end
               sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
             rescue Exception => e
-              raise e if e.message =~ /Security Group.*not found/
+              raise if e.message =~ /Security Group.*not found/
               puts "Cloud #{cloud} doesn't support the resource 'security_group'"
               sgs["#{cloud}"] = {}
             end
           end
         rescue Exception => e
-          raise e unless force
+          raise unless force
           warn "WARNING: Got #{e.message}. Forcing continuation..."
         end
       }
@@ -440,7 +440,7 @@ module VirtualMonkey
             end
           end
         rescue Exception => e
-          raise e unless force
+          raise unless force
           warn "WARNING: Got #{e.message}. Forcing continuation..."
         end
       }

@@ -49,7 +49,7 @@ module VirtualMonkey
       begin
         s3.put_object(*upload_args(bucket_name, log_started, index_html_file))
       rescue Exception => e
-        raise e unless e.message =~ /Bad file descriptor|no such file or directory/i
+        raise unless e.message =~ /Bad file descriptor|no such file or directory/i
         sleep 1
         retry
       end
@@ -64,7 +64,7 @@ module VirtualMonkey
             s3.put_object(*upload_args(bucket_name, log_started, log)) if File.exists?(log)
           }
         rescue Exception => e
-          raise e unless e.message =~ /Bad file descriptor|no such file or directory/i
+          raise unless e.message =~ /Bad file descriptor|no such file or directory/i
           sleep 1
           retry
         end

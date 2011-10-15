@@ -141,7 +141,7 @@ module VirtualMonkey
             end
 =end
           rescue Interrupt, NameError, ArgumentError, TypeError => e
-            raise e
+            raise
           rescue Exception => e
             warn "WARNING: Got #{e.message} from #{e.backtrace.first}"
           end
@@ -282,16 +282,16 @@ module VirtualMonkey
       return cmd_line
     end
 
-    def self.retry_block(max_retries=10, &block)
+    def self.retry_block(max_retries=(VirtualMonkey::config[:max_retries] || 10), &block)
       begin
         yield()
       rescue Interrupt, NameError, ArgumentError, TypeError => e
-        raise e
+        raise
       rescue Exception => e
         warn "WARNING: Got #{e.message} from #{e.backtrace.first}"
         sleep 5
         max_reties -= 1
-        (max_retries > 0) ? (retry) : (raise e)
+        (max_retries > 0) ? (retry) : (raise)
       end
     end
 

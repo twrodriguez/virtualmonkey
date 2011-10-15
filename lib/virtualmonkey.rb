@@ -76,7 +76,7 @@ def automatic_require(full_path, progress=nil)
         some_not_included ||= val
       end
     rescue NameError => e
-      raise e unless "#{e}" =~ /uninitialized constant/i
+      raise unless "#{e}" =~ /uninitialized constant/i
       some_not_included = true
       files.push(files.shift)
     end

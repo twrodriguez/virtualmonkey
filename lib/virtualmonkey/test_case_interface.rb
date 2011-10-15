@@ -180,6 +180,7 @@ module VirtualMonkey
     # * Exception Handling
     # * Runner-Contextual Debugging
     # * Built-in retrying
+=begin
     def verify(sym, *args, &block)
       @retry_loop << 0
       execution_stack_trace(sym, args)
@@ -196,15 +197,16 @@ module VirtualMonkey
         continue_test
       rescue Exception => e
         if block and e.message !~ /^FATAL: Failed behavior verification/
-          raise e if not yield(e)
+          raise if not yield(e)
         else
-          raise e
+          raise
         end
       end while @rerun_last_command.pop
       clean_stack_trace
       @retry_loop.pop
       result
     end
+=end
 
     # Launches an irb debugging session if
     def launch_irb_session(debug = false)
@@ -244,13 +246,21 @@ module VirtualMonkey
           continue_test
         rescue VirtualMonkey::TestCaseInterface::Retry
         rescue VirtualMonkey::TestCaseInterface::UnhandledException => e
-          orig_raise e.exception
+          begin
+            orig_raise e.exception
+          rescue Exception => e
+            orig_raise
+          end
         rescue Exception => e
           begin
             raise e # Need to use the internal raise
           rescue VirtualMonkey::TestCaseInterface::Retry
           rescue VirtualMonkey::TestCaseInterface::UnhandledException => e
-            orig_raise e.exception
+            begin
+              orig_raise e.exception
+            rescue Exception => e
+              orig_raise
+            end
           end
         end while @rerun_last_command.pop
 
