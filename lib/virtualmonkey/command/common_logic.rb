@@ -275,7 +275,8 @@ module VirtualMonkey
       cmd_line = "#{@@command}"
       @@command_flags["#{@@command}"].each { |flag|
         if @@options["#{flag}_given".to_sym]
-          cmd_line += " --#{flag} #{[@@options[flag]].flatten.map { |arg| arg.inspect }.join(" ")}"
+          actual_flag = "--#{flag.to_s.gsub(/_/, "-")}"
+          cmd_line += " --#{actual_flag} #{[@@options[flag]].flatten.map { |arg| arg.inspect }.join(" ")}"
         end
       }
       return cmd_line

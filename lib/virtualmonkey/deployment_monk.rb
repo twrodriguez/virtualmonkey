@@ -21,7 +21,7 @@ class DeploymentMonk
 
   # Lists the nicknames of Array of Deployment objects whose nicknames start with prefix
   def self.list(prefix, verbose = false)
-    deployments = Deployment.find_by_tags("info:prefix=#{@prefix}")
+    deployments = Deployment.find_by_tags("info:prefix=#{prefix}")
     if verbose
       pp deployments.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
     else

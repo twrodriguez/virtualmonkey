@@ -190,13 +190,14 @@ module VirtualMonkey
             #{more_trollop_options.join("; ")}
           end
 
-          if VirtualMonkey::Command::reconstruct_command_line() == "#{command_name}"
+          cmd_line = VirtualMonkey::Command::reconstruct_command_line()
+          if cmd_line == "#{command_name}"
             ans = ask("Did you mean to run 'monkey #{command_name}' without any options (y/n)?")
             #{command_name}("--help") unless ans =~ /^[yY]/
           end
 
           self.instance_eval(&(#{block.to_ruby}))
-          puts "Command '#{command_name.gsub(/_/, " ").titlecase}' finished successfully."
+          puts "Command 'monkey " + cmd_line + "' finished successfully."
           reset()
         end
 EOS
