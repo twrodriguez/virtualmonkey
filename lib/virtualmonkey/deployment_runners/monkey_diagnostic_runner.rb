@@ -1,8 +1,11 @@
 module VirtualMonkey
   module Runner
     class MonkeyDiagnostic
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::MonkeyDiagnostic
+
+      description "Tests the $0 aspects of the VirtualMonkey ServerTemplate and codebase"
 
       def initialize(*args)
         super(*args)

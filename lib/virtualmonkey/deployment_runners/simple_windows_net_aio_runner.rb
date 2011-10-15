@@ -1,9 +1,12 @@
 module VirtualMonkey
   module Runner
     class SimpleWindowsNet
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::SimpleWindows
-  
+
+      description "TODO"
+
       def simple_windows_net_aio_lookup_scripts
        scripts = [
                    [ 'backup', 'backup' ],

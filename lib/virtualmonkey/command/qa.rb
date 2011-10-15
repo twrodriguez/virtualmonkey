@@ -8,8 +8,7 @@ module VirtualMonkey
       elsif @@command == "-h" or @@command == "--help"
         VirtualMonkey::Command.help
       else
-        warn "Invalid command #{@@command}\n\n#{@@usage_msg}".red
-        exit(1)
+        error "Invalid command #{@@command}\n\n#{@@usage_msg}"
       end
     end
 

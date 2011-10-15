@@ -1,4 +1,4 @@
-require 'sinatra/base'
+progress_require('sinatra/base')
 
 module VirtualMonkey
   API_PATH = "/api"

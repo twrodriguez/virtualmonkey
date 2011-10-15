@@ -1,12 +1,15 @@
 module VirtualMonkey
   module Runner
     class MysqlChefHA
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::ChefEBS
       include VirtualMonkey::Mixin::ChefMysqlHA
       include VirtualMonkey::Mixin::Chef
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
+
+      description "TODO"
 
       # pass in the instance server on which we want to check the backup on
       def wait_for_snapshots(server)

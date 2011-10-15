@@ -1,13 +1,16 @@
 module VirtualMonkey
   module Runner
     class SimpleWindowsAD
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::SimpleWindows
-  
+
+      description "TODO"
+
       def server_ad
           @servers.select { |s| s.nickname =~ /Active/i }.first
       end
-  
+
       def oleg_windows_ad_lookup_scripts
        scripts = [
                    [ 'AD Create a new user', 'AD Create a new user' ],

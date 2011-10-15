@@ -1,7 +1,13 @@
 module VirtualMonkey
   module Runner
     class MonkeyMetaTroop
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
+
+      description <<EOS
+Tests the VirtualMonkey ServerTemplate in full permutation and verifies that it can run in multiple
+cloud environments and OSes
+EOS
 
       def initialize(*args)
         super(*args)

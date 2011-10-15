@@ -1,8 +1,11 @@
 module VirtualMonkey
   module Runner
     class Jenkins
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::Jenkins
+
+      description "TODO"
       def jenkins_lookup_scripts
         scripts = [
                    [ 'do_force_reset', 'block_device::do_force_reset' ],

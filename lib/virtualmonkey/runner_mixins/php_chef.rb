@@ -50,7 +50,7 @@ module VirtualMonkey
                    [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ]
                   ]
         fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
-        load_script_table(fe_st,recipes)
+        load_script_table(fe_st,recipes,fe_st)
       end
 
       def php_chef_app_lookup_scripts
@@ -60,7 +60,7 @@ module VirtualMonkey
                     [ 'update_code', 'app_php::do_update_code' ]
                   ]
         app_st = ServerTemplate.find(resource_id(app_servers.first.server_template_href))
-        load_script_table(app_st,recipes)
+        load_script_table(app_st,recipes,app_st)
       end
 
       def test_detach

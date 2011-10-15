@@ -1,9 +1,12 @@
 module VirtualMonkey
   module Runner
     class SimpleWindowsBlog
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::SimpleWindows
-  
+
+      description "TODO"
+
       def simple_windows_blog_lookup_scripts
        scripts = [
                    [ 'backup_database', 'backup_database' ],
@@ -16,4 +19,4 @@ module VirtualMonkey
       end
     end
   end
-end 
+end

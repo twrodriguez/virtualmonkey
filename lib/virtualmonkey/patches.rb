@@ -148,6 +148,14 @@ class String
   def colorized?
     !(self =~ /\e\[0[;0-9]*m/).nil?
   end
+
+  def apply_color(*color_symbols)
+    ret = self
+    if VirtualMonkey::config[:colorized_text] != "hide"
+      color_symbols.each { |color| ret = ret.__send__(color) }
+    end
+    ret
+  end
 end
 
 class Symbol
@@ -181,15 +189,28 @@ end
 class Object
   def raise(*args, &block)
     if args.first.is_a?(String)
-      args[0] = args[0].red
+      args[0] = args[0].apply_color(:uncolorize, :red)
     elsif args.first.is_a?(Exception)
-      args[0] = args[0].class.new(args[0].to_str.red)
-    else
-      super(*args, &block)
+      args[0] = args[0].class.new(args[0].to_str.apply_color(:uncolorize, :red))
     end
+    super(*args, &block)
+  end
+
+  def warn(*args, &block)
+    if args.first.is_a?(String)
+      args[0] = args[0].apply_color(:uncolorize, :yellow)
+    end
+    super(*args, &block)
+  end
+
+  def error(string)
+    STDERR.puts(string.apply_color(:uncolorize, :red))
+    exit(1)
   end
 
   def just_my_methods
-    self.methods - self.class.superclass.new.methods
+    ret = self.methods - self.class.superclass.new.methods
+    self.included_modules.each { |mod| ret -= mod.methods }
+    ret
   end
 end

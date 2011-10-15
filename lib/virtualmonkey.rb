@@ -1,32 +1,4 @@
-STDERR.print "loading dependencies" if ENV['ENTRY_COMMAND'] == "monkey"
-require 'rubygems'
-
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'rest_connection'
-
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'right_popen'
-
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'fog'
-
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'fileutils'
-
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'parse_tree'
-
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'parse_tree_extensions'
-
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'ruby2ruby'
-
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'colorize'
-
-
-STDERR.print "\nloading virtualmonkey" if ENV['ENTRY_COMMAND'] == "monkey"
+require 'yaml'
 
 module VirtualMonkey
   ROOTDIR = File.expand_path(File.join(File.dirname(__FILE__), ".."))
@@ -50,61 +22,89 @@ module VirtualMonkey
   branch = (`git branch 2> /dev/null | grep \\*`.chomp =~ /\* ([^ ]+)/; $1) || "master"
   VERSION = (`cat "#{File.join(ROOTDIR, "VERSION")}"`.chomp + (branch == "master" ? "" : " #{branch.upcase}"))
 
-  def self.auto_require(full_path)
-    some_not_included = true
-    files = Dir.glob(File.join(File.expand_path(full_path), "**"))
-    retry_loop = 0
-    while some_not_included and retry_loop < (files.size ** 2) do
-      begin
-        some_not_included = false
-        for f in files do
-          val = require f.chomp(".rb") if f =~ /\.rb$/
-          STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey" && val
-          some_not_included ||= val
-        end
-      rescue NameError => e
-        raise e unless "#{e}" =~ /uninitialized constant/i
-        some_not_included = true
-        files.push(files.shift)
-      end
-      retry_loop += 1
+  ROOT_CONFIG = File.join(VirtualMonkey::ROOTDIR, ".config.yaml")
+  USER_CONFIG = File.join(File.expand_path("~"), ".virtualmonkey", "config.yaml")
+  SYS_CONFIG = File.join("", "etc", "virtualmonkey", "config.yaml")
+
+  def self.config
+    @@virtual_monkey_config = {}
+    if File.exists?(VirtualMonkey::SYS_CONFIG)
+      @@virtual_monkey_config.merge!(YAML::load(IO.read(VirtualMonkey::SYS_CONFIG)) || {})
     end
+    if File.exists?(VirtualMonkey::USER_CONFIG)
+      @@virtual_monkey_config.merge!(YAML::load(IO.read(VirtualMonkey::USER_CONFIG)) || {})
+    end
+    if File.exists?(VirtualMonkey::ROOT_CONFIG)
+      @@virtual_monkey_config.merge!(YAML::load(IO.read(VirtualMonkey::ROOT_CONFIG)) || {})
+    end
+    @@virtual_monkey_config
   end
 end
 
+def progress_require(file, progress=nil)
+  if VirtualMonkey::config[:load_progress] != "hide"
+    @current_progress ||= nil
+    if ENV['ENTRY_COMMAND'] == "monkey" && progress && progress != @current_progress
+      STDOUT.print "\nloading #{progress}"
+    end
+    @current_progress = progress || @current_progress
+  end
 
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/patches'
+  ret = require file
 
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/deployment_monk'
+  if VirtualMonkey::config[:load_progress] != "hide"
+    if ENV['ENTRY_COMMAND'] == "monkey" && ret
+      STDOUT.print "."
+    end
+  end
+  STDOUT.flush
+  ret
+end
 
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/grinder_monk'
+def automatic_require(full_path, progress=nil)
+  some_not_included = true
+  files = Dir.glob(File.join(File.expand_path(full_path), "**"))
+  retry_loop = 0
+  while some_not_included and retry_loop < (files.size ** 2) do
+    begin
+      some_not_included = false
+      for f in files do
+        val = progress_require(f.chomp(".rb"), progress) if f =~ /\.rb$/
+        some_not_included ||= val
+      end
+    rescue NameError => e
+      raise e unless "#{e}" =~ /uninitialized constant/i
+      some_not_included = true
+      files.push(files.shift)
+    end
+    retry_loop += 1
+  end
+end
 
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/shared_dns'
+progress_require('rubygems', 'dependencies')
+progress_require('rest_connection')
+progress_require('right_popen')
+progress_require('fog')
+progress_require('fileutils')
+progress_require('parse_tree')
+progress_require('parse_tree_extensions')
+progress_require('ruby2ruby')
+progress_require('colorize')
 
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/message_check'
+progress_require('virtualmonkey/patches', 'virtualmonkey')
+progress_require('virtualmonkey/deployment_monk')
+progress_require('virtualmonkey/grinder_monk')
+progress_require('virtualmonkey/shared_dns')
+progress_require('virtualmonkey/message_check')
+progress_require('virtualmonkey/test_case_interface')
+progress_require('virtualmonkey/test_case_dsl')
 
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/test_case_interface'
+progress_require('virtualmonkey/command', 'commands')
+progress_require('virtualmonkey/toolbox')
 
-STDERR.print "." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/test_case_dsl'
+progress_require('virtualmonkey/runner_mixins', 'mixins')
 
-STDERR.print "\nloading commands" if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/command'
-require 'virtualmonkey/toolbox'
+progress_require('virtualmonkey/deployment_runners', 'runners')
 
-STDERR.print "\nloading mixins" if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/runner_mixins'
-
-STDERR.print "\nloading runners" if ENV['ENTRY_COMMAND'] == "monkey"
-require 'virtualmonkey/deployment_runners'
-
-STDERR.print "\nloading web_app..." if ENV['ENTRY_COMMAND'] == "monkey"
-require 'web_app.rb'
-
-STDERR.print "\nComplete!\n" if ENV['ENTRY_COMMAND'] == "monkey"
+progress_require('web_app.rb', 'web_app')
+puts "\n"

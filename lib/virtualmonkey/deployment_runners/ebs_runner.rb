@@ -1,8 +1,11 @@
 module VirtualMonkey
   module Runner
     class EBS
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
+
+      description "TODO"
 
       # lookup all the RightScripts that we will want to run
       def ebs_lookup_scripts

@@ -1,4 +1,4 @@
 #!/bin/bash -e
 
 rake build
-sudo gem install ../pkg/virtualmonkey*.gem --no-rdoc --no-ri
+gem install ../pkg/virtualmonkey*.gem --no-rdoc --no-ri

@@ -1,9 +1,12 @@
 module VirtualMonkey
   module Runner
     class SimpleWindowsSqlsToolbox
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::SimpleWindows
-      
+
+      description "TODO"
+
       def set_test_lineage
         @lineage = "monkey_ms_sql_testlineage#{resource_id(@deployment)}"
         @deployment.set_input("DB_LINEAGE_NAME", "text:#{@lineage}")
@@ -12,7 +15,7 @@ module VirtualMonkey
         @deployment.set_input("OPT_FILE_PREFIX", "text:#{@prefix}")
         s_one.set_inputs({"OPT_FILE_PREFIX" => "text:#{@prefix}"})
       end
-      
+
       def vitaly_windows_sqls_toolbox_lookup_scripts
         scripts = [
                     [ 'EBS Create Data and Log volumes', 'EBS Create Data and Log volumes' ],
@@ -27,7 +30,7 @@ module VirtualMonkey
                     [ 'DB SQLS Norecovery snapshot', 'DB SQLS Norecovery snapshot' ],
                     [ 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes', 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes' ]
                   ]
-        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server Toolbox/i } 
+        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server Toolbox/i }
         load_script_table(st,scripts)
         load_script('SQLS CHECK volumes created', RightScript.new('href' => "/api/acct/2901/right_scripts/434990"))
         load_script('SQLS CHECK backup volume created', RightScript.new('href' => "/api/acct/2901/right_scripts/435042"))

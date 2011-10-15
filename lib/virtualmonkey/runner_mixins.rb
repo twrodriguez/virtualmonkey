@@ -1,2 +1,2 @@
 # Auto-require
-VirtualMonkey::auto_require(VirtualMonkey::MIXIN_DIR)
+automatic_require(VirtualMonkey::MIXIN_DIR)

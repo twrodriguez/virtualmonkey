@@ -42,7 +42,7 @@ module VirtualMonkey
     end
 
     def warn(*args)
-      write_readable_log("#{args}".uncolorize.yellow, STDERR)
+      write_readable_log("#{args}".apply_color(:uncolorize, :yellow), STDERR)
     end
 
     def sleep(time)
@@ -92,7 +92,7 @@ module VirtualMonkey
       @done_resuming = true
       # @in_transaction tracks how deeply nested the current transaction is
       @in_transaction = []
-      @max_retries = 10
+      @max_retries = VirtualMonkey::config[:max_retries] || 10
       @options = options
       @options[:additional_logs] ||= []
       @deprecation_error = `curl -s "www.kdegraaf.net/cgi-bin/bofh" | grep -o "<b>.*</b>"`
@@ -304,7 +304,7 @@ module VirtualMonkey
       exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m !~ /^__/ }
 
       @retry_loop ||= []
-      return false if @retry_loop.empty? or @retry_loop.last > @max_retries # No more than 10 retries
+      return false if @retry_loop.empty? or @retry_loop.last > @max_retries
       exception_handle_methods.each { |m|
         if self.__send__(m,e)
           # If an exception_handle method doesn't return false, it handled correctly

@@ -1,3 +1,4 @@
 require 'rubygems'
 require 'virtualmonkey.rb'
-require 'web_app/monkey_rest_api.rb'
+progress_require('web_app/monkey_rest_api')
+progress_require('web_app/report')

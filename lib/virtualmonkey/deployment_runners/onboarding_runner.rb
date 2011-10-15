@@ -1,9 +1,12 @@
 module VirtualMonkey
   module Runner
     class Onboarding
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::UnifiedApplication
       include VirtualMonkey::Mixin::Mysql
+
+      description "TODO"
 
       def run_onboarding_checks
         # check that the standard unified app is responding on port 80

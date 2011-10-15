@@ -33,20 +33,20 @@ class SharedDns
           print "Checking #{k.inspect} from domain #{domain.inspect}..."
           if v["owner"].first != "available"
             Deployment.find(v["owner"].first)
-            puts "Deployment exists."
+            puts "Deployment exists.".apply_color(:red)
           else
-            puts "already available."
+            puts "already available.".apply_color(:green)
           end
         rescue Exception => rest_exception
           if rest_exception.message =~ /404/
             begin
               sdb.put_attributes(domain, k, {"owner" => "available"}, :replace => ["owner"])
             rescue Excon::Errors::ServiceUnavailable
-              print "being throttled..."
+              print "being throttled...".apply_color(:yellow)
               sleep 5
               retry
             end
-            puts "Freed #{k.inspect} from domain #{domain.inspect}."
+            puts "Freed #{k.inspect} from domain #{domain.inspect}.".apply_color(:green)
             sleep 1
           end
         end
@@ -60,23 +60,18 @@ class SharedDns
     @reservation = nil
   end
 
-    # set dns inputs on a deployment to match the current reservation
+  # set dns inputs on a deployment to match the current reservation
   # * deployment<~Deployment> the deployment to set inputs on
   def set_dns_inputs(deployment)
     sdb_result = @sdb.get_attributes(@domain, @reservation)
 
     set_these = sdb_result.body['Attributes'].reject {|k,v| k == 'owner'}
-    set_these.each do |key,val|
-      deployment.set_input(key, val.to_s)
-      deployment.servers.each { |s|
-        if s.multicloud
-          st = McServerTemplate.find(s.server_template_href)
-          s.set_input(key, "text:") unless st.name =~ /virtual *monkey/i
-        else
-          st = ServerTemplate.find(s.server_template_href)
-          s.set_input(key, "text:") unless st.nickname =~ /virtual *monkey/i
-        end
-      }
+    deployment.set_inputs(set_these)
+
+    blank_inputs = set_these.map { |k,v| [k, "text:"] }.to_h
+    deployment.servers_no_reload.each do |s|
+      s.set_next_inputs(blank_inputs)
+      s.set_current_inputs(set_these)
     end
   end
 
@@ -87,11 +82,15 @@ class SharedDns
       puts "Reusing DNS reservation: " + @sdb.get_attributes(@domain, result.body["Items"].keys.first).body["Attributes"]["MASTER_DB_DNSNAME"].first.gsub(/^text:/,"")
     end
     if result.body["Items"].empty?
-       result = @sdb.select("SELECT * from #{@domain} where owner = 'available'")
-       return false if result.body["Items"].empty?
-       item_name = result.body["Items"].keys.first
-       puts "Aquired new DNS reservation: " + @sdb.get_attributes(@domain, item_name).body["Attributes"]["MASTER_DB_DNSNAME"].first.gsub(/^text:/,"")
-       response = @sdb.put_attributes(@domain, item_name, {'owner' => owner}, :expect => {'owner' => "available"}, :replace => ['owner'])
+      result = @sdb.select("SELECT * from #{@domain} where owner = 'available'")
+      if result.body["Items"].empty?
+        SharedDns.release_all_unused_domains
+        result = @sdb.select("SELECT * from #{@domain} where owner = 'available'")
+        return false if result.body["Items"].empty?
+      end
+      item_name = result.body["Items"].keys.first
+      puts "Aquired new DNS reservation: " + @sdb.get_attributes(@domain, item_name).body["Attributes"]["MASTER_DB_DNSNAME"].first.gsub(/^text:/,"")
+      response = @sdb.put_attributes(@domain, item_name, {'owner' => owner}, :expect => {'owner' => "available"}, :replace => ['owner'])
     end
     @owner = owner
     @reservation = result.body["Items"].keys.first
@@ -125,5 +124,3 @@ class SharedDns
     @reservation = nil
   end
 end
-
-

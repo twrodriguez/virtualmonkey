@@ -1,12 +1,15 @@
 module VirtualMonkey
   module Runner
     class Postgres
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
       include VirtualMonkey::Mixin::Postgres
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
-  
+
+      description "TODO"
+
       # lookup all the RightScripts that we will want to run
       def lookup_scripts
        scripts = [
@@ -23,7 +26,7 @@ module VirtualMonkey
                    [ 'terminate', 'PostgreSQL TERMINATE SERVER' ],
                    [ 'unfreeze_backups', 'DB PostgreSQL Unfreeze' ]
                  ]
-  
+
         st = ServerTemplate.find(resource_id(s_one.server_template_href))
         load_script_table(st,scripts)
         # hardwired script! (this is an 'anyscript' that users typically use to setup the master dns)

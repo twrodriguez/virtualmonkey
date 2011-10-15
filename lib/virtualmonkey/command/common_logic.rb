@@ -33,8 +33,7 @@ module VirtualMonkey
         }.to_h
         unless @@options[:yes]
           unless ask("Are these the correct revisions that should be used?", lambda { |ans| ans =~ /^[yY]/ })
-            warn "Aborting.".red
-            exit(1)
+            error "Aborting on user input."
           end
         end
       end
@@ -78,18 +77,14 @@ module VirtualMonkey
       end
       unless @@options[:yes] or @@command == "troop"
         unless ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| ans =~ /^[yY]/ })
-          warn "Aborting.".red
-          exit(1)
+          error "Aborting on user input."
         end
       end
     end
 
     # Encapsulates the logic for loading the necessary variables to create a set of deployments
     def self.create_logic
-      unless VirtualMonkey::Toolbox::api0_1?
-        warn "Need Internal Testing API access to use this command.".red
-        exit(1)
-      end
+      error "Need Internal Testing API access to use this command." unless VirtualMonkey::Toolbox::api0_1?
       if @@options[:clouds]
         @@dm.load_clouds(@@options[:clouds])
 #      elsif @@options[:cloud_variables]
@@ -105,10 +100,7 @@ module VirtualMonkey
     # with a test case. Included is the logic for optionally destroying "successful" servers or
     # running "successful" servers through the log auditor/trainer.
     def self.run_logic
-      unless VirtualMonkey::Toolbox::api0_1?
-        warn "Need Internal Testing API access to use this command.".red
-        exit(1)
-      end
+      error "Need Internal Testing API access to use this command." unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] ||= get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
 
@@ -151,7 +143,7 @@ module VirtualMonkey
           rescue Interrupt, NameError, ArgumentError, TypeError => e
             raise e
           rescue Exception => e
-            warn "WARNING: Got #{e.message} from #{e.backtrace.first}".yellow
+            warn "WARNING: Got #{e.message} from #{e.backtrace.first}"
           end
         }
       }
@@ -190,10 +182,7 @@ module VirtualMonkey
 
     # Encapsulates the logic for destroying all matched deployments
     def self.destroy_all_logic
-      unless VirtualMonkey::Toolbox::api0_1?
-        warn "Need Internal Testing API access to use this command.".red
-        exit(1)
-      end
+      error "Need Internal Testing API access to use this command." unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] ||= get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
       @@do_these ||= @@dm.deployments
@@ -298,7 +287,7 @@ module VirtualMonkey
       rescue Interrupt, NameError, ArgumentError, TypeError => e
         raise e
       rescue Exception => e
-        warn "WARNING: Got #{e.message} from #{e.backtrace.first}".yellow
+        warn "WARNING: Got #{e.message} from #{e.backtrace.first}"
         sleep 5
         max_reties -= 1
         (max_retries > 0) ? (retry) : (raise e)
@@ -561,6 +550,7 @@ EOS
 module VirtualMonkey
   module Runner
     class #{@@camel_case_name}
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::#{@@camel_case_name}
 

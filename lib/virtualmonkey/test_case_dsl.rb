@@ -108,7 +108,8 @@ module VirtualMonkey
         tests_to_run = @tests_to_resume if @tests_to_resume
         tests_to_run.compact!
         tests = get_keys(feature)
-        tests = tests - (tests - tests_to_run) unless tests_to_run.empty?
+        tests.shuffle! unless VirtualMonkey::config[:test_ordering] == "strict"
+        tests &= tests_to_run unless tests_to_run.empty?
         # Add the tests to the tracelog
         VirtualMonkey::trace_log.first["tests"] = tests_to_run
         VirtualMonkey::trace_log.first["feature"] = feature

@@ -92,7 +92,7 @@ module VirtualMonkey
                     [ 'iptable_rules', 'sys_firewall::do_list_rules' ]
                   ]
         mysql_st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
-        load_script_table(mysql_st,recipes)
+        load_script_table(mysql_st,recipes,mysql_st)
 
        run_script_on_set('iptable_rules', mysql_servers.first)
 

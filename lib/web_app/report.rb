@@ -7,7 +7,9 @@ module VirtualMonkey
     @@jobs_domain = "virtualmonkey_jobs"
 
     def new_sdb_connection
-      Fog::AWS::SimpleDB.new()
+#      Fog::AWS::SimpleDB.new() # Local Development
+      Fog::AWS::SimpleDB.new(:aws_access_key_id => Fog.credentials[:aws_access_key_id_test],
+                             :aws_secret_access_key => Fog.credentials[:aws_secret_access_key_test])
     end
 
     def self.update_s3(jobs, log_started)
@@ -22,7 +24,10 @@ module VirtualMonkey
       end
 
       # Initialize Variables
-      s3 = Fog::Storage.new(:provider => "AWS")
+#      s3 = Fog::Storage.new(:provider => "AWS") # Local Development
+      s3 = Fog::Storage.new(:provider => "AWS",
+                            :aws_access_key_id => Fog.credentials[:aws_access_key_id_test],
+                            :aws_secret_access_key => Fog.credentials[:aws_secret_access_key_test])
       passed = jobs.select { |s| s.status == 0 }
       failed = jobs.select { |s| s.status == 1 }
       running = jobs.select { |s| s.status == nil }

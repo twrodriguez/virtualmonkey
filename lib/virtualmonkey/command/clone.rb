@@ -1,20 +1,7 @@
 module VirtualMonkey
   module Command
-    # Command Flags for Clone
-    (@@command_flags ||= {}).merge!("clone" => [:deployment, :config_file, :n_copies, :yes, :verbose,
-                                                :terminate])
-
     # monkey clone --deployment name --feature testcase.rb --breakpoint 4 --copies 7
-    def self.clone(*args)
-      unless VirtualMonkey::Toolbox::api0_1?
-        warn "Need Internal Testing API access to use this command.".red
-        exit(1)
-      end
-      self.init(*args)
-      @@options = Trollop::options do
-        eval(VirtualMonkey::Command::use_options)
-      end
-
+    add_command("clone", [:deployment, :config_file, :n_copies, :yes, :verbose, :terminate]) do
       deployments = Deployment.find_by_nickname_speed(@@options[:deployment])
       if deployments.length > 1
         raise "FATAL: Ambiguous Regex; more than one deployment matched /#{@@options[:deployment]}/"

@@ -11,9 +11,33 @@ for FILE in `git diff-index --name-only HEAD --` ; do
     # If a file is ruby, check for syntax errors
     if [[ -n `find $FILE -regex ".*\.rb$"` ]]; then
       if [[ "$fail" -eq 0 || -z "$fail" ]]; then
-        `ruby -c $FILE 1> /dev/null`; fail=$?
+        ruby -c "$FILE" 1> /dev/null; fail=$?
+        if [[ "$fail" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
       else
-        `ruby -c $FILE 1> /dev/null`
+        ruby -c "$FILE" 1> /dev/null
+        if [[ "$?" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
+      fi
+    fi
+
+    # If a file is json, check for syntax errors
+    if [[ -n `find $FILE -regex ".*\.json$"` ]]; then
+      if [[ "$fail" -eq 0 || -z "$fail" ]]; then
+        ruby -e "require 'rubygems'; require 'json'; JSON::parse(IO.read('$FILE'))" 1> /dev/null; fail=$?
+        if [[ "$fail" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
+      else
+        ruby -e "require 'rubygems'; require 'json'; JSON::parse(IO.read('$FILE'))" 1> /dev/null
+        if [[ "$?" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
+      fi
+    fi
+
+    # If a file is yaml, check for syntax errors
+    if [[ -n `find $FILE -regex ".*\.yaml$"` ]]; then
+      if [[ "$fail" -eq 0 || -z "$fail" ]]; then
+        ruby -e "require 'rubygems'; require 'yaml'; YAML::load(IO.read('$FILE'))" 1> /dev/null; fail=$?
+        if [[ "$fail" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
+      else
+        ruby -e "require 'rubygems'; require 'yaml'; YAML::load(IO.read('$FILE'))" 1> /dev/null
+        if [[ "$?" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
       fi
     fi
   fi

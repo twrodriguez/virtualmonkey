@@ -69,25 +69,29 @@ module VirtualMonkey
 
       # Makes this exception_handle available for all runners
       def deployment_base_exception_handle(e)
-        if e.message =~ /Insufficient capacity/
+        if e.message =~ /Insufficient capacity/i
           warn "Got \"Insufficient capacity\". Retrying...."
           sleep 60
           return true # Exception Handled
-        elsif e.message =~ /execution expired/i
-          warn "Got \"execution expired...\". Retrying...."
+        elsif e.message =~ /execution expired/i # Response timed out
+          warn "Got \"execution expired\". Retrying...."
           sleep 5
           return true # Exception Handled
-        elsif e.message =~ /Service Unavailable|Service Temporarily Unavailable/
+        elsif e.message =~ /Service Unavailable|Service Temporarily Unavailable/i # 503
           warn "Got \"Service Temporarily Unavailable\". Retrying...."
+          sleep 30
+          return true # Exception Handled
+        elsif e.message =~ /Bad Gateway/i     # 502: Rackspace sometimes forgets instances exist
+          warn "Got \"Bad Gateway\". Retrying...."
+          sleep 90
+          return true # Exception Handled
+        elsif e.message =~ /Internal error/i  # 500: For mysql deadlocks only
+          warn "Got \"Internal Error\". Retrying...."
           sleep 10
           return true # Exception Handled
-        elsif e.message =~ /Bad Gateway/
-          puts "Got \"Bad Gateway\". Retrying...."
-          sleep 10
-          return true # Exception Handled
-        elsif e.message =~ /Internal error/i  #for mysql deadlocks only
-          puts "Internal Error"
-          sleep 10
+        elsif e.message =~ /Another launch is in progress/i # 422: Rackspace seems to have gotten two launch commands
+          warn "Got \"Another launch is in progress\". Continuing...."
+          continue_test
           return true # Exception Handled
         else
           return false # Exception Not Handled

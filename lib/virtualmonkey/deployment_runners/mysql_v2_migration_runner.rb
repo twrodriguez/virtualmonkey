@@ -1,11 +1,14 @@
 module VirtualMonkey
   module Runner
     class MysqlV2Migration
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
       include VirtualMonkey::Mixin::Mysql
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
+
+      description "TODO"
 
       def s_one
         @servers.select { |s| s.nickname =~ /v2/ }.first

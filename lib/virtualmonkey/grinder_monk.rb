@@ -48,9 +48,9 @@ class GrinderJob
     data_ary = data.split("\n")
     data_ary.each_index do |i|
       data_ary[i] = timestamp + data_ary[i]
-      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n".uncolorize) if @verbose
+      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n".apply_color(:uncolorize)) if @verbose
     end
-    File.open(@logfile, "a") { |f| f.write("#{data_ary.join("\n")}\n".uncolorize) }
+    File.open(@logfile, "a") { |f| f.write("#{data_ary.join("\n")}\n".apply_color(:uncolorize)) }
   end
 
   # stderr hook for popen3
@@ -58,10 +58,10 @@ class GrinderJob
     data_ary = data.split("\n")
     data_ary.each_index do |i|
       data_ary[i] = timestamp + data_ary[i]
-      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n".uncolorize.yellow)
+      $stdout.syswrite("<#{deploy_id}>#{data_ary[i]}\n".apply_color(:uncolorize, :yellow))
     end
-    File.open(@logfile, "a") { |f| f.write("#{data_ary.join("\n")}\n".uncolorize) }
-    File.open(@err_log, "a") { |f| f.write("#{data_ary.join("\n")}\n".uncolorize) }
+    File.open(@logfile, "a") { |f| f.write("#{data_ary.join("\n")}\n".apply_color(:uncolorize)) }
+    File.open(@err_log, "a") { |f| f.write("#{data_ary.join("\n")}\n".apply_color(:uncolorize)) }
   end
 
   def timestamp
@@ -132,7 +132,7 @@ class GrinderMonk
     test_ary.each { |test| cmd += " \"#{test}\" " }
     cmd += " -r " if @options[:no_resume]
 
-    if @options[:report_metadata]
+    if @options[:report_metadata] && false # TODO: Remove false after WebUI is finished
       # Build Job Metadata
       puts "\nBuilding Job Metadata...\n\n"
       data = {}
@@ -286,7 +286,7 @@ class GrinderMonk
     features = [features].flatten
     test_cases = features.map_to_h { |feature| VirtualMonkey::TestCase.new(feature, @options) }
     deployment_hsh = {}
-    if ENV['MONKEY_PARALLEL_FEATURES'] or features.length < 2
+    if VirtualMonkey::config[:feature_mixins] == "parallel" or features.length < 2
       raise "Need more deployments than feature files" unless deployments.length >= features.length
       dep_clone = deployments.dup
       deps_per_feature = (deployments.length.to_f / features.length.to_f).floor
@@ -305,8 +305,8 @@ class GrinderMonk
 
     deployment_hsh.each { |feature,deploy_ary|
       total_keys = test_cases[feature].get_keys
-      total_keys = total_keys - (total_keys - set) unless set.nil? || set.empty?
-      if ENV['MONKEY_FULL_TEST_PERMUTATION']
+      total_keys &= set unless set.nil? || set.empty?
+      if VirtualMonkey::config[:test_permutation] == "exhaustive"
         deployment_tests = [total_keys] * deploy_ary.length
       else
         keys_per_dep = (total_keys.length.to_f / deploy_ary.length.to_f).ceil
@@ -319,7 +319,7 @@ class GrinderMonk
         }
       end
 
-      deployment_tests.map! { |ary| ary.shuffle } unless ENV['MONKEY_STRICT_TEST_ORDERING']
+      deployment_tests.map! { |ary| ary.shuffle } unless VirtualMonkey::config[:test_ordering] == "strict"
 
       deploy_ary.each_with_index { |d,i|
         run_test(d, feature, deployment_tests[i], test_cases[feature].options[:additional_logs])
@@ -337,11 +337,11 @@ class GrinderMonk
     @failed = @jobs.select { |s| s.status != 0 && s.status != nil }
     @running = @jobs.select { |s| s.status == nil }
     new_sum = @passed.size + @failed.size + @running.size
-    puts(" #{@passed.size} features passed. ".green +
-         " #{@failed.size} features failed. ".red +
+    puts(" #{@passed.size} features passed. ".apply_color(:green) +
+         " #{@failed.size} features failed. ".apply_color(:red) +
          " #{@running.size} features running for #{Time.now - @started_at}")
     if new_sum < old_sum and new_sum < @jobs.size
-      warn "WARNING: Jobs Lost! Finding...".yellow
+      warn "WARNING: Jobs Lost! Finding...".apply_color(:yellow)
       report_lost_deployments({ :old_passed => old_passed, :passed => @passed,
                                 :old_failed => old_failed, :failed => @failed,
                                 :old_running => old_running, :running => @running })
@@ -368,6 +368,8 @@ class GrinderMonk
   def generate_reports
     report_url = VirtualMonkey::Report.update_s3(@jobs, @log_started)
     puts "    new results available at #{report_url}"
+=begin
+    TODO: Uncomment after WebUI is finished
     if @options[:report_metadata]
       @jobs.each { |job|
         job.metadata["report_page"] = report_url
@@ -376,6 +378,7 @@ class GrinderMonk
       VirtualMonkey::Report.update_sdb(@jobs)
       puts "SimpleDB updated"
     end
+=end
   end
 
   # Prints information on jobs that didn't have an exit code of 0 or 1
@@ -385,13 +388,13 @@ class GrinderMonk
     failed_change = jobs[:failed] - jobs[:old_failed]
     lost_jobs = running_change - passed_change - failed_change
     lost_jobs.each do |j|
-      warn "LOST JOB---------------------------------".yellow
-      warn "Deployment Name: #{j.deployment.nickname}".yellow
-      warn "Status Code: #{j.status}".yellow
-      warn "Audit Entries: #{j.link_to_rightscale}".yellow
-      warn "Log File: #{j.logfile}".yellow
-      warn "Rest_Connection Log File: #{j.rest_log}".yellow
-      warn "-----------------------------------------".yellow
+      warn "LOST JOB---------------------------------"
+      warn "Deployment Name: #{j.deployment.nickname}"
+      warn "Status Code: #{j.status}"
+      warn "Audit Entries: #{j.link_to_rightscale}"
+      warn "Log File: #{j.logfile}"
+      warn "Rest_Connection Log File: #{j.rest_log}"
+      warn "-----------------------------------------"
     end
   end
 

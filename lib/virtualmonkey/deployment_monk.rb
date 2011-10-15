@@ -281,7 +281,7 @@ class DeploymentMonk
           begin
             server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
           rescue Exception => e
-            msg = "#\n# GOT EXCEPTION: #{e.message}\n#\n".yellow
+            msg = "#\n# GOT EXCEPTION: #{e.message}\n#\n".apply_color(:yellow)
             STDERR.print(msg)
             next
           end

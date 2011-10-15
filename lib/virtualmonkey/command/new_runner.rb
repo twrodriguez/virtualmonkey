@@ -1,15 +1,6 @@
 module VirtualMonkey
   module Command
-    # Command Flags for "new_runner"
-    (@@command_flags ||= {}).merge!("new_runner" => [])
-
-    # This command does all the steps create/run/conditionaly destroy
-    def self.new_runner(*args)
-      self.init(*args)
-      @@options = Trollop::options do
-        eval(VirtualMonkey::Command::use_options)
-      end
-
+    add_command("new_runner") do
       build_scenario_names()
       build_troop_config()
       write_common_inputs_file()
@@ -24,7 +15,7 @@ module VirtualMonkey
       say("Created mixin file:          #{@@mixin_file}")
       say("Created runner file:         #{@@runner_file}")
 
-      say("\nScenario created! DON'T FORGET TO CUSTOMIZE THESE FILES!");
+      say("\nScenario created! DON'T FORGET TO CUSTOMIZE THESE FILES!")
     end
   end
 end
