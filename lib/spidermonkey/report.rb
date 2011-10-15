@@ -35,7 +35,7 @@ module VirtualMonkey
       bucket_name = Fog.credentials[:s3_bucket] || "virtual_monkey"
 
       index = ERB.new(File.read(File.join(VirtualMonkey::LIB_DIR, "index.html.erb")))
-      index_html_file = File.join(log_started, "index.html")
+      index_html_file = File.join(VirtualMonkey::LOG_DIR, log_started, "index.html")
       File.open(index_html_file, 'w') { |f| f.write(index.result(binding)) }
 
       ## upload to s3

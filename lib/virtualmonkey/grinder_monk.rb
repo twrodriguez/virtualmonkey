@@ -337,9 +337,18 @@ class GrinderMonk
     @failed = @jobs.select { |s| s.status != 0 && s.status != nil }
     @running = @jobs.select { |s| s.status == nil }
     new_sum = @passed.size + @failed.size + @running.size
-    puts(" #{@passed.size} features passed. ".apply_color(:green) +
-         " #{@failed.size} features failed. ".apply_color(:red) +
-         " #{@running.size} features running for #{Time.now - @started_at}")
+
+    passed_string = " #{@passed.size} features passed. "
+    passed_string = passed_string.apply_color(:green) if @passed.size > 0
+
+    failed_string = " #{@failed.size} features passed. "
+    failed_string = failed_string.apply_color(:red) if @failed.size > 0
+
+    running_string = " #{@running.size} features running "
+    running_string = running_string.apply_color(:cyan) if @running.size > 0
+    running_string += "for #{Time.now - @started_at}"
+
+    puts(passed_string + failed_string + running_string)
     if new_sum < old_sum and new_sum < @jobs.size
       warn "WARNING: Jobs Lost! Finding...".apply_color(:yellow)
       report_lost_deployments({ :old_passed => old_passed, :passed => @passed,

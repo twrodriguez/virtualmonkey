@@ -319,6 +319,7 @@ EOS
         error "FATAL: '#{ARGV[0]}' is an invalid command.\n\n#{@@config_help_message}\n"
       end
 
+      puts ("Command 'monkey #{ARGV.join(" ")}' finished successfully.").apply_color(:green)
       reset()
     end
 

@@ -187,15 +187,6 @@ class ServerInterface
 end
 
 class Object
-  def raise(*args, &block)
-    if args.first.is_a?(String)
-      args[0] = args[0].apply_color(:uncolorize, :red)
-    elsif args.first.is_a?(Exception)
-      args[0] = args[0].class.new(args[0].to_str.apply_color(:uncolorize, :red))
-    end
-    super(*args, &block)
-  end
-
   def warn(*args, &block)
     if args.first.is_a?(String)
       args[0] = args[0].apply_color(:uncolorize, :yellow)
