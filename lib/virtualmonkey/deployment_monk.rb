@@ -210,7 +210,7 @@ class DeploymentMonk
         tags = {"cloud" => (@clouds.length > 1 ? "multicloud" : cloud),
                 "troop" => options[:config_file],
                 "command" => VirtualMonkey::Command::reconstruct_command_line}
-        deployment.set_info_tags(tags)
+        new_deploy.set_info_tags(tags)
 
         dep_image_list = []
         @server_templates.each_with_index do |st,index|
@@ -297,7 +297,7 @@ class DeploymentMonk
               tags["server_#{server.rs_id}-mci_id"] = use_this_image.split(/\//).last
             end
           end
-          deployment.set_info_tags(tags)
+          new_deploy.set_info_tags(tags)
 
           # AWS Cloud-specific Code XXX LEGACY XXX
           if cloud.to_i < 10
@@ -369,7 +369,7 @@ class DeploymentMonk
   end
 
   def load_clouds(cloud_ids)
-    VirtualMonkey::Toolbox::populate_all_cloud_vars(:force)
+    VirtualMonkey::Toolbox::populate_all_cloud_vars(cloud_ids, {:force => true})
     all_clouds = JSON::parse(IO.read(File.join(VirtualMonkey::CLOUD_VAR_DIR, "all_clouds.json")))
     cloud_ids.each { |id| @variables_for_cloud.deep_merge!(id.to_s => all_clouds[id.to_s]) }
   end

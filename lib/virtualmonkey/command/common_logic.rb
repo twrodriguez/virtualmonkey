@@ -276,7 +276,10 @@ module VirtualMonkey
       @@command_flags["#{@@command}"].each { |flag|
         if @@options["#{flag}_given".to_sym]
           actual_flag = "--#{flag.to_s.gsub(/_/, "-")}"
-          cmd_line += " #{actual_flag} #{[@@options[flag]].flatten.map { |arg| arg.inspect }.join(" ")}"
+          cmd_line += " #{actual_flag}"
+          unless @@options[flag].is_a?(TrueClass) || @@options[flag].is_a?(FalseClass)
+            cmd_line +=" #{[@@options[flag]].flatten.map { |arg| arg.inspect }.join(" ")}"
+          end
         end
       }
       return cmd_line

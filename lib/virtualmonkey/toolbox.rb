@@ -191,7 +191,8 @@ module VirtualMonkey
     def generate_ssh_keys(cloud_id_set=nil, overwrite=false, force=false, ssh_key_id_ary=nil)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
-      puts "Generating SSH Keys for clouds: #{cloud_ids.join(",")}"
+      return puts("Nothing to change") if cloud_ids.empty?
+      puts "Generating SSH Keys for clouds: #{cloud_ids.join(", ")}"
 
       ssh_key_id_ary ||= {}
       multicloud_key_file = File.join(@@ssh_dir, "api_user_key")
@@ -212,11 +213,7 @@ module VirtualMonkey
               next
             end
           end
-          if cloud <= 10 # EC2 clouds
-            key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
-          else # GW clouds use a hard-coded key
-            key_name = "api_user_key"
-          end
+          key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
           found = nil
           if cloud <= 10
             if api0_1?
@@ -235,27 +232,46 @@ module VirtualMonkey
             priv_key_file = File.join(@@ssh_dir, "#{@@ssh_key_file_basename}#{cloud}")
             File.open(priv_key_file, "w") { |f| f.write(k.aws_material) } unless File.exists?(priv_key_file)
           else
-            # Use API user's managed ssh key
-            puts "Using API user's managed ssh key, make sure \"~/.ssh/#{key_name}\" exists!"
             keys["#{cloud}"] = {}
-            if api0_1? and Ec2SshKeyInternal.find_by_cloud_id(1).select { |o| o.aws_key_name =~ /publish-test/ }.first
-              keys["#{cloud}"]["parameters"] = {"PRIVATE_SSH_KEY" => "key:publish-test:1"}
-            end
-            begin
-              found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first
+=begin
+            TODO Uncomment once API 1.5 supports returning the key material
+            if Cloud.find(cloud).ssh_keys
+              # Multicloud Resource that supports SSH Keys
+              found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /#{key_name}/ }.first
               if ssh_key_id_ary[cloud.to_s]
-                k = McSshKey[ssh_key_id_ary[cloud.to_s].to_i]
+                k = McSshKey[ssh_key_id_ary[cloud.to_s].to_i].first
               else
                 k = (found ? found : McSshKey.create('name' => key_name, 'cloud_id' => "#{cloud}"))
               end
               keys["#{cloud}"]["ssh_key_href"] = k.href
-            rescue
-              puts "Cloud #{cloud} doesn't support the resource 'ssh_key'"
-            end
-            priv_key_file = multicloud_key_file
+              priv_key_file = File.join(@@ssh_dir, "#{@@ssh_key_file_basename}#{cloud}")
+              File.open(priv_key_file, "w") { |f| f.write(#TODO key_material) } unless File.exists?(priv_key_file)
+            else
+=end
+              # Use API user's managed ssh key
+              puts "Using API user's managed ssh key, make sure \"~/.ssh/#{multicloud_key_file}\" exists!"
+              if api0_1? and Ec2SshKeyInternal.find_by_cloud_id(1).select { |o| o.aws_key_name =~ /publish-test/ }.first
+                keys["#{cloud}"]["parameters"] = {"PRIVATE_SSH_KEY" => "key:publish-test:1"}
+              end
+=begin
+              begin
+                found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first
+                if ssh_key_id_ary[cloud.to_s]
+                  k = McSshKey[ssh_key_id_ary[cloud.to_s].to_i].first
+                else
+                  k = (found ? found : McSshKey.create('name' => "publish-test", 'cloud_id' => "#{cloud}"))
+                end
+                keys["#{cloud}"]["ssh_key_href"] = k.href
+              rescue
+                puts "Cloud #{cloud} doesn't support the resource 'ssh_key'"
+              end
+=end
+              puts "Cloud #{cloud} doesn't support the resource 'ssh_key'" unless Cloud.find(cloud).ssh_keys
+              priv_key_file = multicloud_key_file
+#            end #TODO Uncomment once API 1.5 supports returning the key material
           end
 
-          `touch #{priv_key_file}`
+          FileUtils.touch(priv_key_file)
           File.chmod(0700, priv_key_file)
           # Configure rest_connection config
           rest_settings[:ssh_keys] |= [priv_key_file]
@@ -265,9 +281,7 @@ module VirtualMonkey
         end
       }
 
-      keys_out = keys.to_json(:indent => "  ",
-                              :object_nl => "\n",
-                              :array_nl => "\n")
+      keys_out = keys.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
       rest_out = rest_settings.to_yaml
       File.open(@@keys_file, "w") { |f| f.write(keys_out) }
       File.open(@@rest_yaml, "w") { |f| f.write(rest_out) }
@@ -297,12 +311,15 @@ module VirtualMonkey
 
     # Destroys this monkey's temporary generated ssh keys
     def destroy_ssh_keys(cloud_id_set=nil, force=false)
+      # TODO: Remove "10" once API1.5 supports key material lookup
       cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
       cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
-      puts "Destroying SSH Keys for clouds: #{cloud_ids.join(",")}"
+      return puts("Nothing to change") if cloud_ids.empty?
+      puts "Destroying SSH Keys for clouds: #{cloud_ids.join(", ")}"
 
       rest_settings = YAML::load(IO.read(@@rest_yaml))
 
+      # Find key_hrefs
       key_name = "#{ENV['RS_API_URL'].split("/").last}"
       if api0_1?
         found = []
@@ -317,6 +334,8 @@ module VirtualMonkey
       else
         raise "FATAL: Can't determine any ssh_key hrefs"
       end
+
+      # Delete keys from API
       key_hrefs.each { |href|
         begin
           temp_key = Ec2SshKey.new('href' => href)
@@ -327,9 +346,27 @@ module VirtualMonkey
           warn "WARNING: Got #{e.message}. Forcing continuation..."
         end
       }
-      File.delete(@@keys_file) if File.exists?(@@keys_file)
-      (rest_settings[:ssh_keys] || []).each do |f|
-        File.delete(f) if File.exists?(f) and f =~ /#{@@ssh_key_file_basename}(#{cloud_ids.join("|")})/
+
+      # Delete key files from user's ssh dir and references from user's rest_yaml file
+      if rest_settings[:ssh_keys]
+        rest_settings[:ssh_keys].reject! do |f|
+          ret = (f =~ /#{@@ssh_key_file_basename}(#{cloud_ids.join("|")})$/)
+          File.delete(f) if File.exists?(f) and ret
+          ret
+        end
+        File.open(@@rest_yaml, "w") { |f| f.write(rest_settings.to_yaml) }
+      end
+
+      # Delete keys from cloud_variables file
+      if File.exists?(@@keys_file)
+        keys_info = JSON::parse(IO.read(@@keys_file))
+        cloud_ids.each { |cloud| keys_info.delete("#{cloud}") }
+        if keys_info.empty?
+          File.delete(@@keys_file)
+        else
+          keys_out = keys_info.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
+          File.open(@@keys_file, "w") { |f| f.write(keys_out) }
+        end
       end
     end
 
@@ -340,7 +377,8 @@ module VirtualMonkey
     def populate_security_groups(cloud_id_set=nil, use_this_sec_group=nil, overwrite=false, force=false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
-      puts "Populating Security Groups for clouds: #{cloud_ids.join(",")}"
+      return puts("Nothing to change") if cloud_ids.empty?
+      puts "Populating Security Groups for clouds: #{cloud_ids.join(", ")}"
 
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {})
 
@@ -408,7 +446,8 @@ module VirtualMonkey
     def populate_datacenters(cloud_id_set=nil, overwrite=false, force=false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
       cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
-      puts "Populating Datacenters for clouds: #{cloud_ids.join(",")}"
+      return puts("Nothing to change") if cloud_ids.empty?
+      puts "Populating Datacenters for clouds: #{cloud_ids.join(", ")}"
 
       dcs = (File.exists?(@@dcs_file) ? JSON::parse(IO.read(@@dcs_file)) : {})
 
