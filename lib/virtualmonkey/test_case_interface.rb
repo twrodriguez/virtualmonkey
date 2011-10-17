@@ -482,17 +482,24 @@ EOS
       if @rerun_last_command.length < @stack_objects.length # shallower or same level call
         diff = Math.abs(@stack_objects.length - @rerun_last_command.length)
         unless @done_resuming
-          # Check Length & Depth Expectations
-          if @stack_objects.length < @expected_stack_depths.length
-            msg = "Expected Stack Depth not met, cancelling resume."
-            warn "#{__FILE__}::#{__LINE__}: #{msg}"
+          begin
+            # Check Length & Depth Expectations
+            if @stack_objects.length < @expected_stack_depths.length
+              msg = "Expected Stack Depth not met, cancelling resume."
+              warn "#{__FILE__}::#{__LINE__}: #{msg}"
+              inspect_trace_objects
+              @done_resuming = true
+            end
+            if @iterating_stack.length < @expected_stack_depths.last
+              msg = "Expected number of sub-function calls not met, cancelling resume."
+              warn "#{__FILE__}::#{__LINE__}: #{msg}"
+              inspect_trace_objects
+              @done_resuming = true
+            end
+          rescue Exception => e
+            warn "RESUME EXCEPTION: Got \"#{e}\". Cancelling resume and continuing"
             inspect_trace_objects
-            @done_resuming = true
-          end
-          if @iterating_stack.length < @expected_stack_depths.last
-            msg = "Expected number of sub-function calls not met, cancelling resume."
-            warn "#{__FILE__}::#{__LINE__}: #{msg}"
-            inspect_trace_objects
+            warn "Exception Backtrace:\n#{e.backtrace.join("\n")}"
             @done_resuming = true
           end
         end
@@ -501,11 +508,18 @@ EOS
         @expected_stack_depths.pop(diff)
       end
       unless @done_resuming
-        # Check Depth Expectations
-        if @stack_objects.length < @expected_stack_depths.length
-          msg = "Expected Stack Depth not met, cancelling resume."
-          warn "#{__FILE__}::#{__LINE__}: #{msg}"
+        begin
+          # Check Depth Expectations
+          if @stack_objects.length < @expected_stack_depths.length
+            msg = "Expected Stack Depth not met, cancelling resume."
+            warn "#{__FILE__}::#{__LINE__}: #{msg}"
+            inspect_trace_objects
+            @done_resuming = true
+          end
+        rescue Exception => e
+          warn "RESUME EXCEPTION: Got \"#{e}\". Cancelling resume and continuing"
           inspect_trace_objects
+          warn "Exception Backtrace:\n#{e.backtrace.join("\n")}"
           @done_resuming = true
         end
       end
@@ -660,7 +674,7 @@ EOS
         end
         return false
       rescue Exception => e
-        warn "WARNING: Got \"#{e}\". Cancelling resume and continuing"
+        warn "RESUME EXCEPTION: Got \"#{e}\". Cancelling resume and continuing"
         inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
         warn "Exception Backtrace:\n#{e.backtrace.join("\n")}"
         return @done_resuming = true

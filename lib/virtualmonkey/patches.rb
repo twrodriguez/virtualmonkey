@@ -63,15 +63,17 @@ class Array
     ret
   end
 
-  def to_h
+  def to_h(name_key="name", value_key="value")
     raise "Elements are not unique!" unless self == uniq
     ret = {}
     each_with_index do |elem,index|
       if elem.is_a?(Hash)
-        if elem["name"] and elem["value"] and elem.length == 2
-          ret[elem["name"]] = elem["value"]
-        elsif elem[:name] and elem[:value] and elem.length == 2
-          ret[elem[:name]] = elem[:value]
+        if elem[name_key] and elem[value_key] and elem.length == 2
+          ret[elem[name_key]] = elem[value_key]
+        elsif elem[name_key.to_s] and elem[value_key.to_s] and elem.length == 2
+          ret[elem[name_key.to_s]] = elem[value_key.to_s]
+        elsif elem[name_key.to_sym] and elem[value_key.to_sym] and elem.length == 2
+          ret[elem[name_key.to_sym]] = elem[value_key.to_sym]
         else
           changed = ((ret.keys - elem.keys) != ret.keys)
           raise "Collision detected in Array->Hash conversion" if changed

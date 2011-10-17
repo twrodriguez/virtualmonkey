@@ -65,7 +65,9 @@ class SharedDns
   def set_dns_inputs(deployment)
     sdb_result = @sdb.get_attributes(@domain, @reservation)
 
-    set_these = sdb_result.body['Attributes'].reject {|k,v| k == 'owner'}
+    set_these = sdb_result.body['Attributes'].reject { |k,v| k == 'owner' }
+    set_these = set_these.map { |k,v| [k, v.to_s] }.to_h
+
     deployment.set_inputs(set_these)
 
     blank_inputs = set_these.map { |k,v| [k, "text:"] }.to_h
