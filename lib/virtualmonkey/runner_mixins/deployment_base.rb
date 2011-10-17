@@ -117,7 +117,7 @@ module VirtualMonkey
       # Loads a table of [friendly_name, script/recipe regex] from ref_template, attaching them to all templates in the deployment unless add_only_to_this_st is set
       def load_script_table(ref_template, table, add_only_to_this_st = nil)
         if add_only_to_this_st.is_a?(ServerInterface) or add_only_to_this_st.is_a?(Server)
-          sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
+          sts = [ match_st_by_server(add_only_to_this_st) ]
         elsif add_only_to_this_st.is_a?(ServerTemplate)
           sts = [ add_only_to_this_st ]
         elsif add_only_to_this_st.nil?
@@ -162,7 +162,7 @@ module VirtualMonkey
       # Loads a single hard-coded RightScript or Recipe, attaching it to all templates in the deployment unless add_only_to_this_st is set
       def load_script(friendly_name, script, add_only_to_this_st=nil)
         if add_only_to_this_st.is_a?(ServerInterface) or add_only_to_this_st.is_a?(Server)
-          sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
+          sts = [ match_st_by_server(add_only_to_this_st) ]
         elsif add_only_to_this_st.is_a?(ServerTemplate)
           sts = [ add_only_to_this_st ]
         elsif add_only_to_this_st.nil?

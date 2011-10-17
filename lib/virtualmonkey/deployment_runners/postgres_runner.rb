@@ -27,7 +27,7 @@ module VirtualMonkey
                    [ 'unfreeze_backups', 'DB PostgreSQL Unfreeze' ]
                  ]
 
-        st = ServerTemplate.find(resource_id(s_one.server_template_href))
+        st = match_st_by_server(s_one)
         load_script_table(st,scripts)
         # hardwired script! (this is an 'anyscript' that users typically use to setup the master dns)
         # This a special version of the register that uses MASTER_DB_DNSID instead of a test DNSID

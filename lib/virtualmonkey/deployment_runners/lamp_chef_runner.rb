@@ -14,7 +14,7 @@ module VirtualMonkey
                     [ 'backup', 'mysqldump backup' ],
                     [ 'restart_apache', '\(re\)start' ]
                   ]
-        st = ServerTemplate.find(resource_id(@servers.first.server_template_href))
+        st = match_st_by_server(s_one)
         load_script_table(st,scripts,st)
       end
 =end

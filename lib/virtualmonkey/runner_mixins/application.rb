@@ -8,16 +8,9 @@ module VirtualMonkey
 
       # returns an Array of the App Servers in the deployment
       def app_servers
-        ret = []
-        @servers.each do |server|
-          st = ServerTemplate.find(resource_id(server.server_template_href))
-          if st.nickname =~ /AppServer/ || st.nickname =~ /App Server/
-            ret << server
-          end
-        end
-
-        raise "No app servers in deployment" unless ret.length > 0
-        ret
+        res = select_set(/App Server|AppServer/i)
+        raise "No app servers in deployment" unless res.length > 0
+        res
       end
 
       # sets LB_HOSTNAME on the deployment using the private dns of the fe_servers

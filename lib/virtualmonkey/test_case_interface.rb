@@ -56,7 +56,7 @@ module VirtualMonkey
         orig_raise(*args)
       rescue Exception => e
         if not self.__send__(:__exception_handle__, e)
-          if ENV['MONKEY_NO_DEBUG'] != "true" and not Debugger.post_mortem
+          if ENV['MONKEY_NO_DEBUG'] != "true" && ENV['ENTRY_COMMAND'] == "grinder" && !Debugger.post_mortem
             puts "Got exception: #{e.message}" if e
             puts "Backtrace: #{e.backtrace.join("\n")}" if e
             puts "Pausing for inspection before continuing to raise Exception..."
@@ -415,7 +415,7 @@ EOS
         end
       end
       if set.is_a?(Regexp)
-        set = match_servers_by_st(@server_templates.detect { |st| st.name =~ set })
+        set = match_servers_by_st(@server_templates.detect { |st| st.name =~ set || st.nickname =~ set })
       end
       set = match_servers_by_st(set) if set.is_a?(ServerTemplate)
       set = __send__(set) if set.is_a?(Symbol)
@@ -545,6 +545,11 @@ EOS
         elsif VirtualMonkey::trace_log == resume_log
           return @done_resuming = true
         end
+
+        if VirtualMonkey::trace_log[0] != resume_log[0]
+          # The runner is still being instantiated if these two aren't equal.
+          return false
+        end
         resume_stack_objects = []
         @expected_stack_depths = []
 
@@ -655,7 +660,7 @@ EOS
         end
         return false
       rescue Exception => e
-        warn "WARNING: Got #{e}. Cancelling resume and continuing"
+        warn "WARNING: Got \"#{e}\". Cancelling resume and continuing"
         inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
         warn "Exception Backtrace:\n#{e.backtrace.join("\n")}"
         return @done_resuming = true

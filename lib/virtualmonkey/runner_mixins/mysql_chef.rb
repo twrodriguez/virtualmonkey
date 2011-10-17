@@ -19,13 +19,7 @@ module VirtualMonkey
       end
 
       def mysql_servers
-        res = []
-        @servers.each do |server|
-          st = ServerTemplate.find(resource_id(server.server_template_href))
-          if st.nickname =~ /Database Manager/
-            res << server
-          end
-        end
+        res = select_set(/Database Manager/)
         raise "FATAL: No Database Manager servers found" unless res.length > 0
         res
       end
@@ -55,7 +49,7 @@ module VirtualMonkey
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
 
-        st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
+        st = match_st_by_server(mysql_servers.first)
         load_script_table(st,scripts,st)
       end
 

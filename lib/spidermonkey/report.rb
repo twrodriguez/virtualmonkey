@@ -48,11 +48,11 @@ module VirtualMonkey
       begin
         s3.put_object(*upload_args.call(bucket_name, log_started, index_html_file))
       rescue Excon::Errors::ServiceUnavailable
-        warn "being throttled..."
+        warn "Got \"ServiceUnavailable\", retrying..."
         sleep 5
         retry
       rescue Errno::ENOENT, Errno::EBADF => e
-        warn e.message
+        warn "Got \"#{e.message}\", retrying..."
         sleep 1
         retry
       end
@@ -67,11 +67,11 @@ module VirtualMonkey
             s3.put_object(*upload_args.call(bucket_name, log_started, log)) if File.exists?(log)
           }
         rescue Excon::Errors::ServiceUnavailable
-          warn "being throttled..."
+          warn "Got \"ServiceUnavailable\", retrying..."
           sleep 5
           retry
         rescue Errno::ENOENT, Errno::EBADF => e
-          warn e.message
+          warn "Got \"#{e.message}\", retrying..."
           sleep 1
           retry
         end
@@ -99,11 +99,11 @@ module VirtualMonkey
         end
         @@sdb.batch_put_attributes(@@domain, data)
       rescue Excon::Errors::ServiceUnavailable
-        warn "Got ServiceUnavailable, retrying..."
+        warn "Got \"ServiceUnavailable\", retrying..."
         sleep 5
         retry
       rescue Exception => e
-        warn "Got #{e.message} from #{e.backtrace.join("\n")}"
+        warn "Got \"#{e.message}\" from #{e.backtrace.join("\n")}"
       end
     end
 

@@ -266,7 +266,7 @@ module VirtualMonkey
                 puts "Cloud #{cloud} doesn't support the resource 'ssh_key'"
               end
 =end
-              puts "Cloud #{cloud} doesn't support the resource 'ssh_key'" unless Cloud.find(cloud).ssh_keys
+              warn "Cloud #{cloud} doesn't support the resource 'ssh_key'" unless Cloud.find(cloud).ssh_keys
               priv_key_file = multicloud_key_file
 #            end #TODO Uncomment once API 1.5 supports returning the key material
           end
@@ -277,7 +277,7 @@ module VirtualMonkey
           rest_settings[:ssh_keys] |= [priv_key_file]
         rescue Exception => e
           raise unless force
-          warn "WARNING: Got #{e.message}. Forcing continuation..."
+          warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
         end
       }
 
@@ -343,7 +343,7 @@ module VirtualMonkey
           temp_key.destroy if temp_key.aws_key_name =~ /monkey/
         rescue Exception => e
           raise unless force
-          warn "WARNING: Got #{e.message}. Forcing continuation..."
+          warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
         end
       }
 
@@ -425,13 +425,13 @@ module VirtualMonkey
               sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
             rescue Exception => e
               raise if e.message =~ /Security Group.*not found/
-              puts "Cloud #{cloud} doesn't support the resource 'security_group'"
+              warn "Cloud #{cloud} doesn't support the resource 'security_group'"
               sgs["#{cloud}"] = {}
             end
           end
         rescue Exception => e
           raise unless force
-          warn "WARNING: Got #{e.message}. Forcing continuation..."
+          warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
         end
       }
 
@@ -459,7 +459,7 @@ module VirtualMonkey
             next
           end
           if cloud <= 10
-            puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
+            warn "Cloud #{cloud} doesn't support the resource 'datacenter'"
             dcs["#{cloud}"] = {}
           elsif api1_5?
             begin
@@ -474,13 +474,13 @@ module VirtualMonkey
               end
               dcs["#{cloud}"] = {"datacenter_href" => found}
             rescue
-              puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
+              warn "Cloud #{cloud} doesn't support the resource 'datacenter'"
               dcs["#{cloud}"] = {}
             end
           end
         rescue Exception => e
           raise unless force
-          warn "WARNING: Got #{e.message}. Forcing continuation..."
+          warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
         end
       }
 

@@ -118,7 +118,7 @@ class GrinderMonk
   # Runs a grinder test on a single Deployment
   # * deployment<~String> the nickname of the deployment
   # * feature<~String> the feature filename
-  def run_test(deployment, feature, test_ary, other_logs = [])
+  def build_job(deployment, feature, test_ary, other_logs = [])
     new_job = GrinderJob.new
     new_job.logfile = File.join(@log_dir, "#{deployment.nickname}.log")
     new_job.err_log = File.join(@log_dir, "#{deployment.nickname}.stderr.log")
@@ -128,7 +128,8 @@ class GrinderMonk
     }
     new_job.deployment = deployment
     new_job.verbose = true if @options[:verbose]
-    cmd = "bin/grinder -f \"#{feature}\" -d \"#{deployment.nickname}\" -g -t "
+    grinder_bin = File.join(VirtualMonkey::BIN_DIR, "grinder")
+    cmd = "#{grinder_bin} -f \"#{feature}\" -d \"#{deployment.nickname}\" -t "
     test_ary.each { |test| cmd += " \"#{test}\" " }
     cmd += " -r " if @options[:no_resume]
 
@@ -261,9 +262,28 @@ class GrinderMonk
       new_job.metadata = data
     end
 
+    [new_job, cmd]
+  end
+
+  def run_test(deployment, feature, test_ary, other_logs = [])
+    new_job, cmd = build_job(deployment, feature, test_ary, other_logs)
     @jobs << new_job
+
+    cmd += " -g "
     puts "running #{cmd}"
     new_job.run(cmd)
+  end
+
+  def exec_test(deployment, feature, test_ary, other_logs = [])
+    unless VirtualMonkey::config[:grinder_subprocess] == "force_subprocess"
+      new_job, cmd = build_job(deployment, feature, test_ary, other_logs)
+      warn "\n========== Loading Grinder into current process! =========="
+      warn "\nSince you only have one deployment, it would probably be of more use to run the developer tool"
+      warn "Grinder directly. The command:\n\n#{cmd + ' -s'}\n\nwill replace the current process."
+      warn "\nPress Ctrl-C in the next 15 seconds to run Grinder in a subprocess rather than this one."
+      exec(cmd + " -s") if VirtualMonkey::Command::countdown(15)
+    end
+    run_test(deployment, feature, test_ary, other_logs)
   end
 
   def initialize()
@@ -282,16 +302,16 @@ class GrinderMonk
   # runs a feature on an array of deployments
   # * deployments<~Array> array of strings containing the nicknames of the deployments
   # * feature_name<~String> the feature filename
-  def run_tests(deployments,features,set=[])
+  def run_tests(deploys, features, set=[])
     features = [features].flatten
     test_cases = features.map_to_h { |feature| VirtualMonkey::TestCase.new(feature, @options) }
     deployment_hsh = {}
     if VirtualMonkey::config[:feature_mixins] == "parallel" or features.length < 2
-      raise "Need more deployments than feature files" unless deployments.length >= features.length
-      dep_clone = deployments.dup
-      deps_per_feature = (deployments.length.to_f / features.length.to_f).floor
+      raise "Need more deployments than feature files" unless deploys.length >= features.length
+      dep_clone = deploys.dup
+      deps_per_feature = (deploys.length.to_f / features.length.to_f).floor
       deployment_hsh = features.map_to_h { |f|
-        dep_clone = dep_clone.shuffle
+        dep_clone.shuffle!
         dep_clone.slice!(0,deps_per_feature)
       }
     else
@@ -300,31 +320,44 @@ class GrinderMonk
         f.write(features.map { |feature| "mixin_feature '#{feature}', :hard_reset" }.join("\n"))
       }
       test_cases[combo_feature] = VirtualMonkey::TestCase.new(combo_feature, @options)
-      deployment_hsh = { combo_feature => deployments }
+      deployment_hsh = { combo_feature => deploys }
     end
 
-    deployment_hsh.each { |feature,deploy_ary|
+    if deploys.size == 1 && VirtualMonkey::Command::last_command_line !~ /^troop/ && !@options[:report_metadata]
+      feature = deployment_hsh.first.first
+      d = deployment_hsh.first.last.last
       total_keys = test_cases[feature].get_keys
       total_keys &= set unless set.nil? || set.empty?
-      if VirtualMonkey::config[:test_permutation] == "exhaustive"
-        deployment_tests = [total_keys] * deploy_ary.length
-      else
-        keys_per_dep = (total_keys.length.to_f / deploy_ary.length.to_f).ceil
 
-        deployment_tests = []
-        (keys_per_dep * deploy_ary.length).times { |i|
-          di = i % deploy_ary.length
-          deployment_tests[di] ||= []
-          deployment_tests[di] << total_keys[i % total_keys.length]
-        }
+      unless VirtualMonkey::config[:test_ordering] == "strict"
+        deployment_tests = [total_keys].map { |ary| ary.shuffle }
       end
 
-      deployment_tests.map! { |ary| ary.shuffle } unless VirtualMonkey::config[:test_ordering] == "strict"
+      exec_test(d, feature, deployment_tests[0], test_cases[feature].options[:additional_logs])
+    else
+      deployment_hsh.each { |feature,deploy_ary|
+        total_keys = test_cases[feature].get_keys
+        total_keys &= set unless set.nil? || set.empty?
+        if VirtualMonkey::config[:test_permutation] == "exhaustive"
+          deployment_tests = [total_keys] * deploy_ary.length
+        else
+          keys_per_dep = (total_keys.length.to_f / deploy_ary.length.to_f).ceil
 
-      deploy_ary.each_with_index { |d,i|
-        run_test(d, feature, deployment_tests[i], test_cases[feature].options[:additional_logs])
+          deployment_tests = []
+          (keys_per_dep * deploy_ary.length).times { |i|
+            di = i % deploy_ary.length
+            deployment_tests[di] ||= []
+            deployment_tests[di] << total_keys[i % total_keys.length]
+          }
+        end
+
+        deployment_tests.map! { |ary| ary.shuffle } unless VirtualMonkey::config[:test_ordering] == "strict"
+
+        deploy_ary.each_with_index { |d,i|
+          run_test(d, feature, deployment_tests[i], test_cases[feature].options[:additional_logs])
+        }
       }
-    }
+    end
   end
 
   # Print status of jobs. Also watches for jobs that had exit statuses other than 0 or 1

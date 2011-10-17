@@ -79,18 +79,20 @@ module VirtualMonkey
     }
 
     ConfigVariables = {
-      "test_permutation"  => {"description" => "Controls how individual test cases in a feature file get assigned per deployment",
+      "test_permutation"    => {"description" => "Controls how individual test cases in a feature file get assigned per deployment",
                               "values" => ["distributive", "exhaustive"]},
-      "test_ordering"     => {"description" => "Controls how individual test cases in a feature file are ordered for execution",
+      "test_ordering"       => {"description" => "Controls how individual test cases in a feature file are ordered for execution",
                               "values" => ["random", "strict"]},
-      "feature_mixins"    => {"description" => "Controls how multiple features are distributed amongst available deployments",
+      "feature_mixins"      => {"description" => "Controls how multiple features are distributed amongst available deployments",
                               "values" => ["spanning", "parallel"]},
-      "load_progress"     => {"description" => "Turns on/off the display of load progress info for 'monkey' commands",
+      "load_progress"       => {"description" => "Turns on/off the display of load progress info for 'monkey' commands",
                               "values" => ["show", "hide"]},
-      "colorized_text"    => {"description" => "Turns on/off colorized console text",
+      "colorized_text"      => {"description" => "Turns on/off colorized console text",
                               "values" => ["show", "hide"]},
-      "max_retries"       => {"description" => "Controls how many retries to attempt in a scope stack before giving up",
-                              "values" => Integer}
+      "max_retries"         => {"description" => "Controls how many retries to attempt in a scope stack before giving up",
+                              "values" => Integer},
+      "grinder_subprocess"  => {"description" => "Turns on/off the ability of Grinder to load into the current process",
+                              "values" => ["allow_same_process", "force_subprocess"]}
     }
 
     @@command_flags ||= {}

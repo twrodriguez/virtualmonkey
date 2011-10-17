@@ -6,6 +6,7 @@ module VirtualMonkey
   TEST_STATE_DIR = File.join(ROOTDIR, "test_states")
   FEATURE_DIR = File.join(ROOTDIR, "features")
   LOG_DIR = File.join(ROOTDIR, "log")
+  BIN_DIR = File.join(ROOTDIR, "bin")
   LIB_DIR = File.join(ROOTDIR, "lib", "virtualmonkey")
   COMMAND_DIR = File.join(LIB_DIR, "command")
   RUNNER_DIR = File.join(LIB_DIR, "deployment_runners")

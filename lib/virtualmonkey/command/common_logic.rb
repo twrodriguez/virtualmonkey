@@ -37,8 +37,8 @@ module VirtualMonkey
           end
         end
       end
-      st_revision_map = config['server_template_ids'].zip(@@options[:revisions]).to_h
       # TODO - Blocked on API 1.5 Revision History
+      #st_revision_map = config['server_template_ids'].zip(@@options[:revisions]).to_h
       #@@options[:server_template_ids] = []
       #st_revision_map.each { |st_id|
       #  ServerTemplate.find_by(:nickname) { |n| n == ServerTemplate.find(st_id) }
@@ -143,7 +143,7 @@ module VirtualMonkey
           rescue Interrupt, NameError, ArgumentError, TypeError => e
             raise
           rescue Exception => e
-            warn "WARNING: Got #{e.message} from #{e.backtrace.first}"
+            warn "WARNING: Got \"#{e.message}\" from #{e.backtrace.first}"
           end
         }
       }
@@ -188,8 +188,10 @@ module VirtualMonkey
       @@options[:runner] ||= get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
       @@do_these ||= @@dm.deployments
+      runner_hsh = {}
       @@do_these.each do |deploy|
-        runner = @@options[:runner].new(deploy.nickname)
+        runner_hsh[deploy.nickname] = @@options[:runner].new(deploy.nickname)
+        runner = runner_hsh[deploy.nickname]
 
         # Before Destroy Hooks?
         retry_block { before_destroy_logic(runner) } unless @@options[:keep]
@@ -210,9 +212,12 @@ module VirtualMonkey
 
       unless @@options[:keep]
         @@do_these.each do |deploy|
-          runner = @@options[:runner].new(deploy.nickname)
+          unless runner_hsh[deploy.nickname]
+            runner_hsh[deploy.nickname] = @@options[:runner].new(deploy.nickname)
+          end
+          runner = runner_hsh[deploy.nickname]
           retry_block do
-            deploy.servers.each { |s|
+            deploy.servers_no_reload.each { |s|
               s.wait_for_state("stopped")
             }
           end
@@ -293,10 +298,28 @@ module VirtualMonkey
       rescue Interrupt, NameError, ArgumentError, TypeError => e
         raise
       rescue Exception => e
-        warn "WARNING: Got #{e.message} from #{e.backtrace.first}"
+        warn "WARNING: Got \"#{e.message}\" from: #{e.backtrace.first}"
         sleep 5
         max_reties -= 1
         (max_retries > 0) ? (retry) : (raise)
+      end
+    end
+
+    def self.countdown(secs)
+      begin
+        Array(1..secs).reverse.each do |i|
+          if i < (secs / 4)
+            puts "#{i}...".apply_color(:red)
+          elsif i < (secs / 2)
+            puts "#{i}...".apply_color(:yellow)
+          else
+            puts "#{i}..."
+          end
+          sleep 1
+        end
+        return true
+      rescue Interrupt
+        return false
       end
     end
 

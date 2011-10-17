@@ -4,13 +4,7 @@ module VirtualMonkey
       extend VirtualMonkey::Mixin::CommandHooks
       # returns an Array of the Front End servers in the deployment
       def fe_servers
-        res = []
-        @servers.each do |server|
-          st = ServerTemplate.find(resource_id(server.server_template_href))
-          if st.nickname =~ /Front End/ || st.nickname =~ /FrontEnd/ || st.nickname =~ /Apache with HAproxy/ || st.nickname =~ /Load Balancer/
-            res << server
-          end
-        end
+        res = select_set(/Front End|FrontEnd|Apache with HAproxy|Load Balancer/i)
         raise "FATAL: No frontend servers found" unless res.length > 0
         res
       end

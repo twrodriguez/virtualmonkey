@@ -49,7 +49,7 @@ module VirtualMonkey
                     [ 'do_reconverge_list_disable', 'sys::do_reconverge_list_disable' ],
                    [ 'do_reconverge_list_enable', 'sys::do_reconverge_list_enable' ]
                   ]
-        fe_st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
+        fe_st = match_st_by_server(fe_servers.first)
         load_script_table(fe_st,recipes,fe_st)
       end
 
@@ -59,7 +59,7 @@ module VirtualMonkey
                     [ 'detach', 'lb_haproxy::do_detach_request' ],
                     [ 'update_code', 'app_php::do_update_code' ]
                   ]
-        app_st = ServerTemplate.find(resource_id(app_servers.first.server_template_href))
+        app_st = match_st_by_server(app_servers.first)
         load_script_table(app_st,recipes,app_st)
       end
 

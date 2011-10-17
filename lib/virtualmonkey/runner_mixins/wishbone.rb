@@ -86,20 +86,20 @@ module VirtualMonkey
       # This is where we perform multiple checks on the deployment after a reboot.
       def run_reboot_checks
         # one simple check we can do is the backup.  Backup can fail if anything is amiss
-       sleep(60)
-       run_unified_application_checks(fe_servers, 80)
+        sleep(60)
+        run_unified_application_checks(fe_servers, 80)
         recipes = [
                     [ 'iptable_rules', 'sys_firewall::do_list_rules' ]
                   ]
-        mysql_st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
+        mysql_st = match_st_by_server(mysql_servers.first)
         load_script_table(mysql_st,recipes,mysql_st)
 
-       run_script_on_set('iptable_rules', mysql_servers.first)
+        run_script_on_set('iptable_rules', mysql_servers.first)
 
         run_script("do_tag_as_master", mysql_servers.first)
-       run_script("do_backup", mysql_servers.first)
-       sleep(120)
-       run_unified_application_checks(fe_servers, 80)
+        run_script("do_backup", mysql_servers.first)
+        sleep(120)
+        run_unified_application_checks(fe_servers, 80)
       end
 
       def setup_block_device

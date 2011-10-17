@@ -18,7 +18,7 @@ module VirtualMonkey
                    [ 'deregister_from_elb', 'deregister_from_elb' ],
                    [ 'update_code_svn', 'update_code_svn' ]
                  ]
-        st = ServerTemplate.find(resource_id(s_one.server_template_href))
+        st = match_st_by_server(s_one)
         load_script_table(st,scripts)
         load_script('backup_database_check', RightScript.new('href' => "/api/acct/2901/right_scripts/310407"))
         raise "Did not find script" unless script_to_run?('backup_database_check')

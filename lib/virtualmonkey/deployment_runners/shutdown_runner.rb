@@ -10,7 +10,7 @@ module VirtualMonkey
         scripts = [
                    [ 'shutdown', 'TEST shutdown' ]
                  ]
-        st = ServerTemplate.find(resource_id(s_one.server_template_href))
+        st = match_st_by_server(s_one)
         load_script_table(st,scripts)
       end
 
