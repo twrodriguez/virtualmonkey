@@ -4,6 +4,9 @@ module VirtualMonkey
     add_command("create", [:config_file, :clouds, :only, :no_spot, :one_deploy, :prefix, :yes, :verbose,
                            :use_mci, :revisions, :force, :overwrite]) do
       raise "--config_file is required" unless @@options[:config_file]
+
+      create_command_ary = VirtualMonkey::Command::reconstruct_command_line(:Array)
+
       load_config_file
       @@dm = DeploymentMonk.new(@@options[:prefix],
                                 @@options[:server_template_ids],
@@ -27,7 +30,14 @@ module VirtualMonkey
         else
           destroy_all_logic
         end
-        go(@@last_command_line)
+        # Store for later
+        create_command_string = @@last_command_line
+
+        reset
+        go(*create_command_ary)
+
+        # Restore last_command_line
+        @@last_command_line = create_command_string
       else
         warn "Existing deployments matching --prefix #{@@options[:prefix]} found. Skipping deployment creation."
       end

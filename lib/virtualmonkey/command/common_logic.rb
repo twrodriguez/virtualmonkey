@@ -123,6 +123,7 @@ module VirtualMonkey
             end
 
             if @@options[:terminate] and not (@@options[:list_trainer] or @@options[:qa])
+#   TODO: Daemons           destroy_job_set_logic(@@remaining_jobs.select { |job| job.status == 0 })
               @@remaining_jobs.each do |job|
                 if job.status == 0
                   destroy_job_logic(job)
@@ -178,9 +179,51 @@ module VirtualMonkey
       unless @@options[:keep] or @@command =~ /run|clone/
         retry_block { runner.deployment.destroy }
         retry_block { after_destroy_logic(runner) }
+        cleanup_state_dir(runner.deployment)
       end
       @@remaining_jobs.delete(job)
     end
+
+=begin
+    # Encapsulates the logic for destroying the deployments from a set of jobs
+    def self.destroy_job_set_logic(job_set)
+      # TODO: Daemons
+      @@options[:runner] ||= get_runner_class
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
+      runner_hsh = {}
+      job_set.each do |job|
+        deploy = job.deployment
+        runner_hsh[deploy.nickname] = @@options[:runner].new(deploy.nickname)
+        runner = runner_hsh[deploy.nickname]
+
+        # Before Destroy Hooks?
+        unless @@options[:keep] or @@command =~ /run|clone/
+          retry_block { before_destroy_logic(runner) } unless @@options[:keep]
+          retry_block { runner.stop_all(false) }
+        end
+      end
+
+      unless @@options[:keep]
+        job_set.each do |job|
+          deploy = job.deployment
+          unless runner_hsh[deploy.nickname]
+            runner_hsh[deploy.nickname] = @@options[:runner].new(deploy.nickname)
+          end
+          runner = runner_hsh[deploy.nickname]
+          retry_block do
+            deploy.servers_no_reload.each { |s|
+              s.wait_for_state("stopped")
+            }
+          end
+          retry_block { deploy.destroy }
+          # After Destroy Hooks?
+          retry_block { after_destroy_logic(runner) }
+          cleanup_state_dir(deploy)
+          @@remaining_jobs.delete(job)
+        end
+      end
+    end
+=end
 
     # Encapsulates the logic for destroying all matched deployments
     def self.destroy_all_logic
@@ -196,18 +239,6 @@ module VirtualMonkey
         # Before Destroy Hooks?
         retry_block { before_destroy_logic(runner) } unless @@options[:keep]
         retry_block { runner.stop_all(false) }
-        retry_block do
-          state_dir = File.join(@@global_state_dir, deploy.nickname)
-          if File.directory?(state_dir)
-            puts "Deleting state files for #{deploy.nickname}..."
-            Dir.new(state_dir).each do |state_file|
-              if File.extname(state_file) =~ /((rb)|(feature))/
-                File.delete(File.join(state_dir, state_file))
-              end
-            end
-            FileUtils.rm_rf(state_dir)
-          end
-        end
       end
 
       unless @@options[:keep]
@@ -224,6 +255,22 @@ module VirtualMonkey
           retry_block { deploy.destroy }
           # After Destroy Hooks?
           retry_block { after_destroy_logic(runner) }
+          cleanup_state_dir(deploy)
+        end
+      end
+    end
+
+    def self.cleanup_state_dir(deploy)
+      retry_block do
+        state_dir = File.join(@@global_state_dir, deploy.nickname)
+        if File.directory?(state_dir)
+          puts "Deleting state files for #{deploy.nickname}..."
+          Dir.new(state_dir).each do |state_file|
+            if File.extname(state_file) =~ /((rb)|(feature))/
+              File.delete(File.join(state_dir, state_file))
+            end
+          end
+          FileUtils.rm_rf(state_dir)
         end
       end
     end
@@ -278,14 +325,25 @@ module VirtualMonkey
       @@options[:feature] = features
     end
 
-    def self.reconstruct_command_line()
-      cmd_line = "#{@@command}"
+    def self.reconstruct_command_line(as=:String)
+      if as == :String
+        cmd_line = "#{@@command}"
+      elsif as == :Array
+        cmd_line = ["#{@@command}"]
+      end
       @@command_flags["#{@@command}"].each { |flag|
         if @@options["#{flag}_given".to_sym]
           actual_flag = "--#{flag.to_s.gsub(/_/, "-")}"
-          cmd_line += " #{actual_flag}"
-          unless @@options[flag].is_a?(TrueClass) || @@options[flag].is_a?(FalseClass)
-            cmd_line +=" #{[@@options[flag]].flatten.map { |arg| arg.inspect }.join(" ")}"
+          if as == :String
+            cmd_line += " #{actual_flag}"
+            unless @@options[flag].is_a?(TrueClass) || @@options[flag].is_a?(FalseClass)
+              cmd_line += " #{[@@options[flag]].flatten.map { |arg| arg.inspect }.join(" ")}"
+            end
+          elsif as == :Array
+            cmd_line << "#{actual_flag}"
+            unless @@options[flag].is_a?(TrueClass) || @@options[flag].is_a?(FalseClass)
+              cmd_line += [@@options[flag]].flatten.map { |arg| "#{arg}" }
+            end
           end
         end
       }

@@ -158,6 +158,7 @@ module VirtualMonkey
       @@individual_server_inputs = nil
       @@st_inputs = nil
       @@common_inputs = nil
+      @@last_command_line = nil
     end
 
     # Parses the initial command string, removing it from ARGV, then runs command.
