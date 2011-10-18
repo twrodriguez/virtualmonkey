@@ -1,15 +1,20 @@
+progress_require('timeout')
 
 #
 # Figure out REACHABLE_IP
 #
 
-if ENV['SSH_CONNECTION'] # LINUX ONLY
-  ENV['REACHABLE_IP'] = ENV['SSH_CONNECTION'].split(/ /)[-2]
-else
-  possible_ips = `ifconfig | grep -o "inet addr:[0-9\.]*" | grep -o [0-9\.]*`.split(/\n/)
-  possible_ips.reject! { |ip| ip == "127.0.0.1" }
-  ENV['REACHABLE_IP'] = possible_ips.first
+def load_self_reachable_ip
+  if ENV['SSH_CONNECTION'] # LINUX ONLY
+    ENV['REACHABLE_IP'] = ENV['SSH_CONNECTION'].split(/ /)[-2]
+  else
+    possible_ips = `ifconfig | grep -o "inet addr:[0-9\.]*" | grep -o [0-9\.]*`.split(/\n/)
+    possible_ips.reject! { |ip| ip == "127.0.0.1" }
+    ENV['REACHABLE_IP'] = possible_ips.first
+  end
 end
+
+load_self_reachable_ip()
 
 #
 # Import user and metadata if we're in the cloud
@@ -18,14 +23,22 @@ end
 if File.exists?("/var/spool/cloud/meta-data.rb")
   require '/var/spool/cloud/user-data'
   require '/var/spool/cloud/meta-data-cache'
-  if ENV['RS_API_URL']
+  if ENV['RS_API_URL'] # AWS
     ENV['I_AM_IN_EC2'] = "true"
-  else # Eucalyptus
-    ENV['RS_API_URL'] = "#{`hostname`.strip}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
-    ENV['I_AM_IN_MULTICLOUD'] = "true"
+  elsif File.exists?("/etc/rightscale.d/cloud")
+    ENV['CLOUD_TYPE'] = IO.read("/etc/rightscale.d/cloud").chomp
+    case ENV['CLOUD_TYPE']
+    when "eucalyptus", "cloudstack", "rackspace"
+      Timeout::timeout(300) { (load_self_reachable_ip(); sleep 5) until ENV['REACHABLE_IP'] }
+      ENV['RS_API_URL'] = "#{`hostname`.strip}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
+      ENV['I_AM_IN_MULTICLOUD'] = "true"
+    else
+      `wall "FATAL: New cloud_type detected: '#{ENV['CLOUD_TYPE']}'"`
+    end
   end
 elsif File.exists?("/var/spool/cloud/user-data.rb")
   require '/var/spool/cloud/user-data'
+  Timeout::timeout(300) { (load_self_reachable_ip(); sleep 5) until ENV['REACHABLE_IP'] }
   ENV['RS_API_URL'] = "#{`hostname`.strip}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
   ENV['I_AM_IN_MULTICLOUD'] = "true"
 else
