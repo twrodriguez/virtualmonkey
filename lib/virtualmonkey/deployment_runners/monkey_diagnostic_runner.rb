@@ -22,7 +22,7 @@ module VirtualMonkey
                    ['generate cloud data', 'RB virtualmonkey generate cloud test data'],
                    ['destroy cloud data', 'RB virtualmonkey destroy cloud test data']
                   ]
-        st = match_st_by_server(VirtualMonkey::my_api_self)
+        st = ServerTemplate.find(VirtualMonkey::my_api_self.server_template_href)
         load_script_table(st,scripts)
       end
 

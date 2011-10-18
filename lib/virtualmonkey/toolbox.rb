@@ -497,7 +497,7 @@ module VirtualMonkey
       get_available_clouds()
       cloud_ids = @@clouds.map { |hsh| hsh["cloud_id"] }
       cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
-      cloud_names = @@clouds.map { |hsh| hsh["name"] }
+      cloud_names = @@clouds.map { |hsh| [hsh["cloud_id"], hsh["name"]] }.to_h
 
       aws_clouds = {}
       all_clouds = {}
@@ -506,8 +506,8 @@ module VirtualMonkey
       populate_security_groups(cloud_ids, options[:security_group_name], options[:overwrite], options[:force])
       populate_datacenters(cloud_ids, options[:overwrite], options[:force])
 
-      cloud_ids.zip(cloud_names).each { |id,name|
-        name = name.gsub(/[- ]/, "_").gsub(/_+/, "_").downcase
+      cloud_ids.each { |id|
+        name = cloud_names[id].gsub(/[- ]/, "_").gsub(/_+/, "_").downcase
         single_file_name = File.join(@@cloud_vars_dir, "#{name}.json")
 
         single_cloud_vars = {"#{id}" => {}}

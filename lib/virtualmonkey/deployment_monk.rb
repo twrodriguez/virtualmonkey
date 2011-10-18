@@ -394,7 +394,11 @@ class DeploymentMonk
       end
     end
     puts "\nError Summary:\n#{@errors.join("\n")}".apply_color(:red) if !@errors.empty?
-    puts "\nCreated #{@deployments.length} deployments:\n#{@deployments.pretty_inspect}".apply_color(:green)
+    if @deployments.length > 0
+      puts "\nCreated #{@deployments.length} deployments:\n#{@deployments.pretty_inspect}".apply_color(:green)
+    else
+      error "\nNo deployments created!"
+    end
   end
 
   def load_common_inputs(file)
