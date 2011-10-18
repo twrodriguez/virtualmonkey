@@ -1,7 +1,5 @@
 require 'irb'
-if require 'ruby-debug'
-  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['ENTRY_COMMAND'] == "grinder"
-end
+require 'ruby-debug'
 
 module VirtualMonkey
   # Class Variables meant to be globally accessible, used for stack tracing
@@ -56,7 +54,7 @@ module VirtualMonkey
         orig_raise(*args)
       rescue Exception => e
         if not self.__send__(:__exception_handle__, e)
-          if ENV['MONKEY_NO_DEBUG'] != "true" && ENV['ENTRY_COMMAND'] == "grinder" && !Debugger.post_mortem
+          if ENV['MONKEY_NO_DEBUG'] != "true" && ENV['ENTRY_COMMAND'] == "grinder" && !Debugger.started?
             puts "Got exception: #{e.message}" if e
             puts "Backtrace: #{e.backtrace.join("\n")}" if e
             puts "Pausing for inspection before continuing to raise Exception..."

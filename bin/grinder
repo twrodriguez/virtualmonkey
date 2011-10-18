@@ -9,9 +9,7 @@ ENV['ENTRY_COMMAND'] = File.basename(__FILE__, ".rb")
 
 require 'rubygems'
 require 'virtualmonkey'
-if require 'ruby-debug'
-  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['ENTRY_COMMAND'] == "grinder"
-end
+require 'ruby-debug'
 require 'irb'
 
 # Trollop
@@ -31,7 +29,9 @@ end
 
 # Set up debugging mode
 ENV['MONKEY_NO_DEBUG'] ||= "#{options[:no_debug]}"
-Debugger.post_mortem = options[:post_mortem] if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['ENTRY_COMMAND'] == "grinder"
+if ENV['MONKEY_NO_DEBUG'] != "true" && ENV['ENTRY_COMMAND'] == "grinder" && options[:post_mortem]
+  Debugger.start(:post_mortem => true) # Only start the debugger if post_mortem => true
+end
 
 # Get confirmation if its detected that this instance is in the selected deployment
 unless ENV['MONKEY_NO_DEBUG'] =~ /true/i
@@ -62,3 +62,5 @@ else
 end
 
 test_case.run(*options[:tests])
+
+puts "Grinder run successful!".apply_color(:green)

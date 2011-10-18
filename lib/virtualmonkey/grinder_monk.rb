@@ -279,9 +279,9 @@ class GrinderMonk
       new_job, cmd = build_job(deployment, feature, test_ary, other_logs)
       warn "\n========== Loading Grinder into current process! =========="
       warn "\nSince you only have one deployment, it would probably be of more use to run the developer tool"
-      warn "Grinder directly. The command:\n\n#{cmd + ' -s'}\n\nwill replace the current process."
+      warn "Grinder directly. The command:\n\n#{cmd}\n\nwill replace the current process."
       warn "\nPress Ctrl-C in the next 15 seconds to run Grinder in a subprocess rather than this one."
-      exec(cmd + " -s") if VirtualMonkey::Command::countdown(15)
+      exec(cmd) if VirtualMonkey::Command::countdown(15)
     end
     run_test(deployment, feature, test_ary, other_logs)
   end

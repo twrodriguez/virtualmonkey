@@ -307,14 +307,18 @@ class DeploymentMonk
           end
 
           # Create Server
-          begin
+          if options[:force]
+            begin
+              server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
+            rescue Exception => e
+              msg = "GOT EXCEPTION: \"#{e.message}\""
+              warn "#\n# #{msg}\n#\n\n"
+              cmd = "ServerInterface.new(#{cloud}).create(#{server_params.deep_merge(@variables_for_cloud[cloud]).pretty_inspect})"
+              @errors << "#{msg} for #{cmd}"
+              next
+            end
+          else
             server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
-          rescue Exception => e
-            msg = "GOT EXCEPTION: \"#{e.message}\""
-            warn "#\n# #{msg}\n#\n\n"
-            cmd = "ServerInterface.new(#{cloud}).create(#{server_params.deep_merge(@variables_for_cloud[cloud]).pretty_inspect})"
-            @errors << "#{msg} for #{cmd}"
-            next
           end
 
           # Set info tags on deployment

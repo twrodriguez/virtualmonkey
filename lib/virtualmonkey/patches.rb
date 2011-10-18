@@ -1,6 +1,4 @@
-if require 'ruby-debug'
-  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true" and ENV['ENTRY_COMMAND'] == "grinder"
-end
+require 'ruby-debug'
 
 # Hash Patches
 
