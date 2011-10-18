@@ -331,7 +331,9 @@ module VirtualMonkey
       elsif as == :Array
         cmd_line = ["#{@@command}"]
       end
-      @@command_flags["#{@@command}"].each { |flag|
+      command_flags = @@options.keys.map { |k| k.to_s =~ /^(.*)_given$/; $1 }.compact
+      command_flags.map! { |k| k.to_sym }
+      command_flags.each { |flag|
         if @@options["#{flag}_given".to_sym]
           actual_flag = "--#{flag.to_s.gsub(/_/, "-")}"
           if as == :String
