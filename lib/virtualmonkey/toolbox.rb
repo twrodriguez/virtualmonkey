@@ -8,7 +8,7 @@ def load_self_reachable_ip
   if ENV['SSH_CONNECTION'] # LINUX ONLY
     ENV['REACHABLE_IP'] = ENV['SSH_CONNECTION'].split(/ /)[-2]
   else
-    possible_ips = `ifconfig | grep -o "inet addr:[0-9\.]*" | grep -o [0-9\.]*`.split(/\n/)
+    possible_ips = `ifconfig | grep -o "inet addr:[0-9\.]*" | grep -o "[0-9\.]*$"`.split(/\n/)
     possible_ips.reject! { |ip| ip == "127.0.0.1" }
     ENV['REACHABLE_IP'] = possible_ips.first
   end
