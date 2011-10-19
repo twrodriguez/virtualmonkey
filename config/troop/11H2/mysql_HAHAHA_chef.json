@@ -3,7 +3,6 @@
   "common_inputs":["mysql_ha_chef.json","chef_swap.json"],
   "server_template_ids":[
    "107666",
-   "107666",
    "107666"
   ],
   "feature":"mysql_ha_chef.rb",

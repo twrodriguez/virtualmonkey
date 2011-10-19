@@ -30,7 +30,7 @@ before do
 end
 
 #
-## Unified Application on 8000
+## Unified Application on 80
 #
 
 test "run_unified_application_checks" do
