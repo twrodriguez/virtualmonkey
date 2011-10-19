@@ -28,7 +28,7 @@ module VirtualMonkey
            while timeout > 0
               timeout=300
               step=10
-              snapshots =find_snapshots
+              snapshots = find_snapshots(server)
               status = snapshots.map { |x| x.aws_status }
               break unless status.include?("pending")
               sleep step
