@@ -201,16 +201,19 @@ class DeploymentMonk
           next
         end
 
-
         # Before Create Hooks?
-        if not options[:runner].before_destroy.empty?
-          puts "Executing before_create hooks..."
-          runner_class = options[:runner]
-          runner_class.assert_integrity!
-          runner_class.before_create.each { |fn|
-            (fn.is_a?(Proc) ? runner_class.instance_eval(&fn) : runner_class.__send__(fn))
-          }
-          puts "Finished executing before_create hooks."
+        if options[:runner].respond_to?(:before_create)
+          if not options[:runner].before_create.empty?
+            puts "Executing before_create hooks..."
+            runner_class = options[:runner]
+            runner_class.assert_integrity!
+            runner_class.before_create.each { |fn|
+              (fn.is_a?(Proc) ? runner_class.instance_eval(&fn) : runner_class.__send__(fn))
+            }
+            puts "Finished executing before_create hooks."
+          end
+        else
+          warn "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
         end
 
         # Create Deployment for this MCI and cloud
@@ -368,13 +371,17 @@ class DeploymentMonk
         end # @server_templates.each do |st|
 
         # After Create Hooks for multiple deployments?
-        if not options[:runner].before_destroy.empty? and not @single_deployment
-          puts "Executing after_create hooks..."
-          runner = options[:runner].new(new_deploy.href)
-          options[:runner].after_create.each { |fn|
-            (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
-          }
-          puts "Finished executing after_create hooks."
+        if options[:runner].respond_to?(:after_create)
+          if not options[:runner].after_create.empty? and not @single_deployment
+            puts "Executing after_create hooks..."
+            runner = options[:runner].new(new_deploy.href)
+            options[:runner].after_create.each { |fn|
+              (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
+            }
+            puts "Finished executing after_create hooks."
+          end
+        else
+          warn "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
         end
       end # @clouds.each do |cloud|
     end # @image_count.times do |index|
@@ -384,13 +391,17 @@ class DeploymentMonk
       new_deploy.save
 
       # After Create Hooks for single deployment?
-      if not options[:runner].before_destroy.empty?
-        puts "Executing after_create hooks..."
-        runner = options[:runner].new(new_deploy.href)
-        options[:runner].after_create.each { |fn|
-          (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
-        }
-        puts "Finished executing after_create hooks."
+      if options[:runner].respond_to?(:after_create)
+        if not options[:runner].after_create.empty?
+          puts "Executing after_create hooks..."
+          runner = options[:runner].new(new_deploy.href)
+          options[:runner].after_create.each { |fn|
+            (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
+          }
+          puts "Finished executing after_create hooks."
+        end
+      else
+        warn "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
       end
     end
     puts "\nError Summary:\n#{@errors.join("\n")}".apply_color(:red) if !@errors.empty?

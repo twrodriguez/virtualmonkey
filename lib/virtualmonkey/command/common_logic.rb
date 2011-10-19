@@ -277,23 +277,31 @@ module VirtualMonkey
 
     # Encapsulates the logic for running the before_destroy hooks for a particular runner
     def self.before_destroy_logic(runner)
-      if not @@options[:runner].before_destroy.empty?
-        puts "Executing before_destroy hooks..."
-        @@options[:runner].before_destroy.each { |fn|
-          retry_block { (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn)) }
-        }
-        puts "Finished executing vefore_destroy hooks."
+      if @@options[:runner].respond_to?(:before_destroy)
+        if not @@options[:runner].before_destroy.empty?
+          puts "Executing before_destroy hooks..."
+          @@options[:runner].before_destroy.each { |fn|
+            retry_block { (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn)) }
+          }
+          puts "Finished executing vefore_destroy hooks."
+        end
+      else
+        warn "#{@@options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
       end
     end
 
     # Encapsulates the logic for running the after_destroy hooks for a particular runner
     def self.after_destroy_logic(runner)
-      if not @@options[:runner].after_destroy.empty?
-        puts "Executing after_destroy hooks..."
-        @@options[:runner].after_destroy.each { |fn|
-          retry_block { (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn)) }
-        }
-        puts "Finished executing after_destroy hooks."
+      if @@options[:runner].respond_to?(:after_destroy)
+        if not @@options[:runner].after_destroy.empty?
+          puts "Executing after_destroy hooks..."
+          @@options[:runner].after_destroy.each { |fn|
+            retry_block { (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn)) }
+          }
+          puts "Finished executing after_destroy hooks."
+        end
+      else
+        warn "#{@@options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
       end
     end
 
@@ -308,7 +316,12 @@ module VirtualMonkey
       unless test_cases.unanimous? { |tc| tc.options[:allow_meta_monkey] }
         raise ":allow_meta_monkey options MUST match for multiple feature files"
       end
-      return @@options[:runner] = test_cases.first.options[:runner]
+      @@options[:runner] = test_cases.first.options[:runner]
+      unless @@options[:runner].respond_to?(:assert_integrity!)
+        @@options[:runner].extend(VirtualMonkey::Mixin::CommandHooks)
+      end
+      @@options[:runner].assert_integrity!
+      return @@options[:runner]
     end
 
     def self.load_features(config)

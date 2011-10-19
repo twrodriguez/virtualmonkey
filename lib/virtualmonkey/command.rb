@@ -63,7 +63,7 @@ module VirtualMonkey
       :one_deploy      => "opt :one_deploy, 'Load all variations of a single ST into one Deployment',           :short => '-z', :type => :boolean",
 
       :force           => "opt :force, 'Forces command to attempt to continue even if an exception is raised',  :short => '-F', :type => :boolean",
-      :overwrite       => "opt :overwrite, 'Refresh values by replacing existing data',                         :short => '-O', :type => :boolean",
+      :overwrite       => "opt :overwrite, 'Replace existing resources with fresh ones',                        :short => '-O', :type => :boolean",
       :report_metadata => "opt :report_metadata, 'Report metadata to SimpleDB',                                 :short => '-R', :type => :boolean",
       :report_tags     => "opt :report_tags, 'Additional tags to help database sorting (e.g. -T sprint28)',     :short => '-T', :type => :strings"
     }
@@ -255,14 +255,19 @@ EOS
 
       case ARGV[0]
       when "set", "-s", "--set", "add", "-a", "--add"
-        error improper_argument_error if ARGV.length != 3
-
-        if check_variable_value(ARGV[1], ARGV[2])
-          configuration[ARGV[1].to_sym] = convert_value(ARGV[2], ConfigVariables[ARGV[1].to_s]["values"])
+        if ARGV.length == 1
+          # print catalog
+          puts "\n  Available config variables:\n\n#{self.config_catalog_message}\n\n"
         else
-          error "FATAL: Invalid variable or value. Run 'monkey config catalog' to view available variables."
+          error improper_argument_error if ARGV.length != 3
+
+          if check_variable_value(ARGV[1], ARGV[2])
+            configuration[ARGV[1].to_sym] = convert_value(ARGV[2], ConfigVariables[ARGV[1].to_s]["values"])
+          else
+            error "FATAL: Invalid variable or value. Run 'monkey config catalog' to view available variables."
+          end
+          File.open(config_file, "w") { |f| f.write(configuration.to_yaml) }
         end
-        File.open(config_file, "w") { |f| f.write(configuration.to_yaml) }
 
       when "edit", "-e", "--edit"
         error improper_argument_error if ARGV.length != 1
@@ -270,6 +275,8 @@ EOS
         editor = `git config --get core.editor`.chomp
         editor = "vim" if editor.empty?
         config_ok = false
+        puts "\n  Available config variables:\n\n#{self.config_catalog_message}\n\n"
+        ask("Press Enter to edit using #{editor}")
         until config_ok
           exit_status = system("#{editor} '#{config_file}'")
           begin
@@ -290,26 +297,27 @@ EOS
         if ConfigVariables.keys.include?(ARGV[1])
           configuration.delete(ARGV[1].to_sym)
         else
-          error "FATAL: '#{ARGV[1]}' is an invalid variable. Run 'monkey config catalog' to view available variables."
+          error "FATAL: '#{ARGV[1]}' is an invalid variable.\n  Available config variables:\n\n#{self.config_catalog_message}\n\n"
         end
         File.open(config_file, "w") { |f| f.write(configuration.to_yaml) }
 
       when "list", "-l", "--list"
         error improper_argument_error if ARGV.length != 1
 
-        max_width = configuration.keys.map { |k| k.to_s.length }.max
-        message = configuration.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
-        message = message.map { |k,v| "  %#{max_width}s:   #{configuration[k]}" % k }.join("\n")
+        message = ""
+        if configuration.empty?
+          message = "  No variables configured.".apply_color(:yellow)
+        else
+          max_width = configuration.keys.map { |k| k.to_s.length }.max
+          message = configuration.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
+          message = message.map { |k,v| "  %#{max_width}s:   #{configuration[k]}" % k }.join("\n")
+        end
         puts "\n  monkey config list\n\n#{message}\n\n"
 
       when "catalog", "-c", "--catalog"
         error improper_argument_error if ARGV.length != 1
 
-        max_key_width = ConfigVariables.keys.map { |k| k.to_s.length }.max
-        max_desc_width = ConfigVariables.values.map { |v| v["description"].to_s.length }.max
-        message = ConfigVariables.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
-        message = message.map { |k,v| "  %#{max_key_width}s:   %-#{max_desc_width}s  Values: #{v["values"].inspect}" % [k, v["description"]] }
-        puts "\n  monkey config catalog\n\n#{message.join("\n")}\n\n"
+        puts "\n  monkey config catalog\n\n#{self.config_catalog_message}\n\n"
 
       when "get", "-g", "--get"
         error improper_argument_error if ARGV.length != 2
@@ -317,7 +325,7 @@ EOS
         if ConfigVariables.keys.include?(ARGV[1])
           puts configuration[ARGV[1]]
         else
-          error "FATAL: '#{ARGV[1]}' is an invalid variable. Run 'monkey config catalog' to view available variables."
+          error "FATAL: '#{ARGV[1]}' is an invalid variable.\n  Available config variables:\n\n#{self.config_catalog_message}\n\n"
         end
 
       else
@@ -354,6 +362,14 @@ EOS
         end
       end
       key_exists && val_valid
+    end
+
+    def self.config_catalog_message
+      max_key_width = ConfigVariables.keys.map { |k| k.to_s.length }.max
+      max_desc_width = ConfigVariables.values.map { |v| v["description"].to_s.length }.max
+      message = ConfigVariables.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
+      message = message.map { |k,v| "  %#{max_key_width}s:   %-#{max_desc_width}s  Values: #{v["values"].inspect}" % [k, v["description"]] }
+      message.join("\n")
     end
 
     def self.last_command_line

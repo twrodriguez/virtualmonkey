@@ -8,9 +8,9 @@ module VirtualMonkey
       description "Tests the $0 aspects of the VirtualMonkey ServerTemplate and codebase"
 
       def initialize(*args)
+        raise "FATAL: #{self.class} must be run in the cloud" unless VirtualMonkey::my_api_self
         super(*args)
         @my_inputs = {}
-        raise "FATAL: #{self.class} must be run in the cloud" unless VirtualMonkey::my_api_self
         @cloud = VirtualMonkey::my_api_self.cloud_id
         @commands = VirtualMonkey::Command::AvailableCommands.keys.map_to_h { |cmd| [] }
         populate_commands
@@ -22,7 +22,7 @@ module VirtualMonkey
                    ['generate cloud data', 'RB virtualmonkey generate cloud test data'],
                    ['destroy cloud data', 'RB virtualmonkey destroy cloud test data']
                   ]
-        st = ServerTemplate.find(VirtualMonkey::my_api_self.server_template_href)
+        st = ServerTemplate.find(resource_id(VirtualMonkey::my_api_self.server_template_href).to_i)
         load_script_table(st,scripts)
       end
 
@@ -31,6 +31,7 @@ module VirtualMonkey
         @commands[:help] = @commands.keys.map { |cmd| cmd.to_s } - ["help"]
         @commands[:api_check] += ["-a 0.1", "-a 1.0", "-a 1.5"]
         @commands[:version] << ""
+        @commands[:config] = VirtualMonkey::Command::ConfigOptions.keys - ["edit", "set", "unset", "get"] #TODO
 
         # Commands that need Scenarios
         @commands.delete :populate_all_cloud_vars

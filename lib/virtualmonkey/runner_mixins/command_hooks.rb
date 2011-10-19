@@ -45,6 +45,14 @@ module VirtualMonkey
       end
 
       def assert_integrity!
+        if self.description.empty?
+          msg = "FATAL: Description not set for #{self}.\nRunners are required to have a"
+          msg += "simple desription of functionality defined in the class by specifying:\n\n"
+          msg += "'description \"My Description Here\"'.\n\nYou will need to ensure that your "
+          msg += "Runner class (#{self}) also extends VirtualMonkey::Mixin::CommandHooks using:\n\n"
+          msg += "'extend VirtualMonkey::Mixin::CommandHooks'"
+          error msg
+        end
         self.before_create.each { |fn|
           if not fn.is_a?(Proc)
             raise "FATAL: #{self.to_s} does not have a class method named #{fn}; before_create requires class methods" unless self.respond_to?(fn)

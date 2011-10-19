@@ -19,7 +19,7 @@ module VirtualMonkey
           bucket,
           "#{log_started}/#{File.basename(filename)}",
           IO.read(filename),
-          {'x-amz-acl' => 'public-read', 'Content-Type' => content}
+          {'x-amz-acl' => 'public-read', 'Content-Type' => content.chomp}
         ]
       end
 

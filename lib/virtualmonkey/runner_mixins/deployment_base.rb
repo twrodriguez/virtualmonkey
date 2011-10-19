@@ -14,6 +14,7 @@ module VirtualMonkey
         raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
         test_case_interface_init(opts)
         populate_settings
+        self.class.extend(VirtualMonkey::Mixin::CommandHooks) unless self.class.respond_to?(:before_create)
         assert_integrity!
       end
 
@@ -647,15 +648,23 @@ module VirtualMonkey
       end
 
       def assert_integrity!
+        unless self.class.respond_to?(:description)
+          error "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
+        end
         raise "FATAL: Description not set for #{self.class}!" if self.class.description.empty?
-        hook_sets = [self.class.before_destroy, self.class.after_create, self.class.after_destroy]
-        hook_sets.each { |hook_set|
-          hook_set.each { |fn|
+        [:before_destroy, :after_create, :after_destroy].each do |hook_set|
+          unless self.class.respond_to?(hook_set)
+            error "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
+          end
+          self.class.__send__(hook_set).each { |fn|
             if not fn.is_a?(Proc)
               raise "FATAL: #{self.class} does not have an instance method named #{fn}" unless self.respond_to?(fn)
             end
           }
-        }
+        end
+        unless self.class.respond_to?(:assert_integrity!)
+          error "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
+        end
         self.class.assert_integrity!
       end
     end

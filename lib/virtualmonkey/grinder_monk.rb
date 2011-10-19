@@ -129,7 +129,7 @@ class GrinderMonk
     new_job.deployment = deployment
     new_job.verbose = true if @options[:verbose]
     grinder_bin = File.join(VirtualMonkey::BIN_DIR, "grinder")
-    cmd = "#{grinder_bin} -f \"#{feature}\" -d \"#{deployment.nickname}\" -t "
+    cmd = "\"#{grinder_bin}\" -f \"#{feature}\" -d \"#{deployment.nickname}\" -t "
     test_ary.each { |test| cmd += " \"#{test}\" " }
     cmd += " -r " if @options[:no_resume]
 
@@ -403,7 +403,7 @@ class GrinderMonk
     rescue Interrupt => e
       raise
     rescue Exception => e
-      warn "#{e}\n#{e.backtrace}"
+      warn "#{e}\n#{e.backtrace.join("\n")}"
     end
   end
 
