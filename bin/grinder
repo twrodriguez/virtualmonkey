@@ -5,11 +5,11 @@ $LOAD_PATH.unshift(File.dirname(__FILE__))
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 ###
 
+ENV['ENTRY_COMMAND'] = File.basename(__FILE__, ".rb")
+
 require 'rubygems'
 require 'virtualmonkey'
-if require 'ruby-debug'
-  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true"
-end
+require 'ruby-debug'
 require 'irb'
 
 # Trollop
@@ -18,10 +18,9 @@ self_deployment = ENV['MONKEY_SELF_DEPLOYMENT_NAME'] if VirtualMonkey::Toolbox::
 self_deployment ||= "nil"
 
 options = Trollop::options do
-  opt :deployment, "Full deployment name",                                  :short => "-d", :type => :string,  :default => self_deployment, :required => true
+  opt :deployment, "Full deployment name",                                  :short => "-d", :type => :string,  :default => self_deployment
   opt :features, "Feature file names",                                      :short => "-f", :type => :strings, :required => true
   opt :no_debug, "Disable all debugging",                                   :short => "-g", :type => :boolean
-  opt :log, "Log file name",                                                :short => "-l", :type => :string,  :default => default_log_file, :required => true
   opt :no_resume, "Do not resume; start test from scratch",                 :short => "-r", :type => :boolean
   opt :post_mortem, "Enable Post Mortem debugging",                         :short => "-s", :type => :boolean
   opt :tests, "Space-separated strings of tests to execute (default: all)", :short => "-t", :type => :strings
@@ -30,7 +29,9 @@ end
 
 # Set up debugging mode
 ENV['MONKEY_NO_DEBUG'] ||= "#{options[:no_debug]}"
-Debugger.post_mortem = options[:post_mortem] if ENV['MONKEY_NO_DEBUG'] != "true"
+if ENV['MONKEY_NO_DEBUG'] != "true" && ENV['ENTRY_COMMAND'] == "grinder" && options[:post_mortem]
+  Debugger.start(:post_mortem => true) # Only start the debugger if post_mortem => true
+end
 
 # Get confirmation if its detected that this instance is in the selected deployment
 unless ENV['MONKEY_NO_DEBUG'] =~ /true/i
@@ -61,3 +62,5 @@ else
 end
 
 test_case.run(*options[:tests])
+
+puts "Grinder run successful!".apply_color(:green)

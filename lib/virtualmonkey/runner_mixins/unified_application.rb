@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module UnifiedApplication
+      extend VirtualMonkey::Mixin::CommandHooks
       # returns true if the http response contains the expected_string
       # * url<~String> url to perform http request
       # * expected_string<~String> regex compatible string used to match against the response output
@@ -20,8 +21,8 @@ module VirtualMonkey
 
       def unified_application_exception_handle(e)
         if e.message =~ /UnifiedApplication Error/
-          puts "Got \"UnifiedApplication Error\". Retrying...."
-          puts e.message
+          warn "Got \"UnifiedApplication Error\". Retrying...."
+          warn e.message
           sleep 6
           return true # Exception Handled
         else
@@ -38,7 +39,7 @@ module VirtualMonkey
                       ]
         run_on = select_set(set)
         http_checks.each { |expect_str,rel_path|
-          url_set = run_on.map { |s| "#{port==443?"https://":""}#{s.dns_name}:#{port}#{rel_path}" }
+          url_set = run_on.map { |s| "#{port==443?"https://":""}#{s.reachable_ip}:#{port}#{rel_path}" }
           test_http_responses(url_set, expect_str)
         }
       end

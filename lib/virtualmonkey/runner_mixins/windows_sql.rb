@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
-    module SimpleWindowsSQL 
+    module SimpleWindowsSQL
+      extend VirtualMonkey::Mixin::CommandHooks
       # Every instance method included in the runner class that has
       # "lookup_scripts" in its name is called when the Class is instantiated.
       # These functions help to create a hash table of RightScripts and/or
@@ -20,7 +21,7 @@ module VirtualMonkey
                    [ 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes', 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes' ],
                    [ 'DB SQLS Repair log files', 'DB SQLS Repair log files' ],
                  ]
-        st = ServerTemplate.find(s_one.server_template_href)
+        st = match_st_by_server(s_one)
         load_script_table(st,scripts)
         load_script('sql_db_check', RightScript.new('href' => "/api/acct/2901/right_scripts/335104"))
         load_script('load_db', RightScript.new('href' => "/api/acct/2901/right_scripts/331394"))
@@ -65,7 +66,7 @@ module VirtualMonkey
       def cleanup_snapshots
         find_snapshots.each do |snap|
           snap.destroy
-        end 
+        end
       end
 
     end

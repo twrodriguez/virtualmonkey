@@ -1,7 +1,9 @@
 #!/bin/bash
 
+whitespace=""
 for FILE in `git diff-index --name-only HEAD --` ; do
   if test -e $FILE; then
+    if [[ -n `grep "\\s\\s*$" $FILE` ]]; then whitespace="$whitespace $FILE"; fi
     # Remove trailing whitespace
     sed -i "s/\\s\\s*$//g" $FILE
     # Remove tabs
@@ -9,9 +11,33 @@ for FILE in `git diff-index --name-only HEAD --` ; do
     # If a file is ruby, check for syntax errors
     if [[ -n `find $FILE -regex ".*\.rb$"` ]]; then
       if [[ "$fail" -eq 0 || -z "$fail" ]]; then
-        `ruby -c $FILE 1> /dev/null`; fail=$?
+        ruby -c "$FILE" 1> /dev/null; fail=$?
+        if [[ "$fail" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
       else
-        `ruby -c $FILE 1> /dev/null`
+        ruby -c "$FILE" 1> /dev/null
+        if [[ "$?" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
+      fi
+    fi
+
+    # If a file is json, check for syntax errors
+    if [[ -n `find $FILE -regex ".*\.json$"` ]]; then
+      if [[ "$fail" -eq 0 || -z "$fail" ]]; then
+        ruby -e "require 'rubygems'; require 'json'; JSON::parse(IO.read('$FILE'))" 1> /dev/null; fail=$?
+        if [[ "$fail" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
+      else
+        ruby -e "require 'rubygems'; require 'json'; JSON::parse(IO.read('$FILE'))" 1> /dev/null
+        if [[ "$?" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
+      fi
+    fi
+
+    # If a file is yaml, check for syntax errors
+    if [[ -n `find $FILE -regex ".*\.yaml$"` ]]; then
+      if [[ "$fail" -eq 0 || -z "$fail" ]]; then
+        ruby -e "require 'rubygems'; require 'yaml'; YAML::load(IO.read('$FILE'))" 1> /dev/null; fail=$?
+        if [[ "$fail" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
+      else
+        ruby -e "require 'rubygems'; require 'yaml'; YAML::load(IO.read('$FILE'))" 1> /dev/null
+        if [[ "$?" -ne 0 ]]; then echo "Syntax Error found in '$FILE'"; fi
       fi
     fi
   fi
@@ -25,10 +51,27 @@ if [[ "$fail" -ne 0 && -n "$fail" ]]; then
   exit 1
 fi
 
+for FILE in $whitespace; do
+  echo "Whitespace problem fixed. Please re-add '$FILE' to your commit"
+done
+if [[ -n "$whitespace" ]]; then exit 1; fi
+
 # Check that project metadata files exist
-for FILE in "LICENSE" "README.rdoc" "VERSION" "Gemfile" "Gemfile.lock" ".gitignore"; do
+for FILE in "LICENSE" "README.rdoc" "VERSION" "Gemfile" "Gemfile.lock" ".gitignore" "Rakefile"; do
   if test ! -e $FILE; then
     echo "$FILE not present. Aborting commit"
     exit 1
   fi
 done
+
+# Check that username and user emails are filled properly
+username=`git config --get user.name`
+useremail=`git config --get user.email`
+emaildomain=`echo $useremail | grep -o "[^@]*$"`
+if [[ "$username" == "Put Your Name Here" || "$username" == "" ]]; then
+  echo "Please set your git user.name by running 'git config user.name <your github username>'"
+  exit 1
+elif [[ "$useremail" == "setyouremail@rightscale.com" || "$useremail" == "" ]] || ! host "$emaildomain" &> /dev/null; then
+  echo "Please set your git user.email by running 'git config user.email <your github email>'"
+  exit 1
+fi

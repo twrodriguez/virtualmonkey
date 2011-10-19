@@ -1,18 +1,21 @@
 module VirtualMonkey
   module Runner
     class Onboarding
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::UnifiedApplication
       include VirtualMonkey::Mixin::Mysql
-  
+
+      description "TODO"
+
       def run_onboarding_checks
         # check that the standard unified app is responding on port 80
-        @servers.each do |server| 
-          url_base = "#{server.dns_name}:#{80}"
+        @servers.each do |server|
+          url_base = "#{server.reachable_ip}:#{80}"
           test_http_response("Congratulations", "#{url_base}", 80)
         end
       end
-  
+
   # Check for specific passenger data.
       def check_passenger_monitoring
         passenger_plugins = [

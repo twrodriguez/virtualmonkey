@@ -1,8 +1,9 @@
 module VirtualMonkey
   module Mixin
     module Jenkins
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::UnifiedApplication
-  
+
       # Stolen from ::EBS need to consolidate or dr_toolbox needs a terminate script to include ::EBS instead
       # take the lineage name, find all snapshots and sleep until none are in the pending state.
       def wait_for_snapshots
@@ -11,14 +12,14 @@ module VirtualMonkey
         while timeout > 0
           puts "Checking for snapshot completed"
           snapshots =find_snapshots
-          status = snapshots.map { |x| x.aws_status } 
+          status = snapshots.map { |x| x.aws_status }
           break unless status.include?("pending")
           sleep step
           timeout -= step
         end
         raise "FATAL: timed out waiting for all snapshots in lineage #{@lineage} to complete" if timeout == 0
       end
-  
+
       # Find all snapshots associated with this deployment's lineage
       def find_snapshots
         unless @lineage
@@ -28,17 +29,17 @@ module VirtualMonkey
         end
         snapshots = Ec2EbsSnapshot.find_by_cloud_id(@servers.first.cloud_id).select { |n| n.nickname =~ /#{@lineage}.*$/ }
       end
-  
+
       def set_variation_lineage
         @lineage = "testlineage#{resource_id(@deployment)}"
         obj_behavior(@deployment, :set_input, "block_device/lineage", "text:#{@lineage}")
       end
-  
+
       def set_variation_container
         @container = "testlineage#{resource_id(@deployment)}"
         obj_behavior(@deployment, :set_input, "block_device/storage_container", "text:#{@container}")
       end
-  
+
       # Pick a storage_type depending on what cloud we're on.
       def set_variation_storage_type
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
@@ -56,10 +57,10 @@ module VirtualMonkey
           end
         end
         puts "STORAGE_TYPE: #{@storage_type}"
-   
+
         obj_behavior(@deployment, :set_input, "block_device/storage_type", "text:#{@storage_type}")
       end
-  
+
       def test_s3
       # run_script("do_force_reset", s_one)
       #  sleep 10
@@ -80,7 +81,7 @@ module VirtualMonkey
           true
         end
       end
-  
+
       def test_ebs
         # EBS is already setup, to save time we'll skip the force_reset
         run_script("do_force_reset", s_one)
@@ -88,7 +89,7 @@ module VirtualMonkey
         run_script("setup_lvm_device_ebs", s_one)
         options = {
                 "JENKINS_BACKUP_TYPE" => "text:ebs"
-        }      
+        }
         probe(s_one, "touch /mnt/storage/monkey_was_here")
         sleep 10
        run_script("backup", s_one, options)
@@ -104,7 +105,7 @@ module VirtualMonkey
           true
         end
       end
-  
+
       def test_cloud_files
       # run_script("do_force_reset", s_one)
       #  sleep 10
@@ -125,7 +126,7 @@ module VirtualMonkey
           true
         end
       end
-  
+
       # pick the right set of tests depending on what cloud we're on
       def test_multicloud
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
@@ -139,26 +140,26 @@ module VirtualMonkey
           end
         end
       end
-  
+
       def do_reset
        do_service_stop;
        run_script("do_force_reset", s_one)
         sleep 10
       end
-  
+
       def do_service_restart
        run_script('service_restart', s_one)
       end
-  
+
       def do_service_stop
        run_script('service_stop', s_one)
       end
-  
+
       def do_prep
        run_script('setup_block_device', s_one)
        run_script('move_datadir', s_one)
       end
-  
+
   # Check for specific Jenkins data.
       def check_app_monitoring
         app_plugins = [
@@ -186,10 +187,10 @@ module VirtualMonkey
           end
         end
       end
-  
+
       def test_http
-       test_http_response("Create an account", "#{s_one.dns_name}:3389/login", 3389)
+       test_http_response("Create an account", "#{s_one.reachable_ip}:3389/login", 3389)
       end
     end
   end
-end 
+end

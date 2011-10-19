@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module Rightlink
+      extend VirtualMonkey::Mixin::CommandHooks
       # Every instance method included in the runner class that has
       # "lookup_scripts" in its name is called when the Class is instantiated.
       # These functions help to create a hash table of RightScripts and/or
@@ -66,23 +67,23 @@ module VirtualMonkey
           #["/var/log/messages", "#<ServerTemplate:0xb65f44a0>", "error"]
         ]
       end
-      
+
       def test_state_test_check
         run_script_on_all('state_test_check')
       end
-      
+
       def test_remote_recipe_test
         run_script_on_all('remote_recipe_test')
       end
-      
+
       def test_remote_recipe_ping
         run_script_on_all('resource_remote_ping')
-      end      
-      
+      end
+
       def test_resource_remote_pong
         run_script_on_all('resource_remote_pong')
       end
-      
+
       def test_persist_test_check
         run_script_on_all('persist_test_check')
       end

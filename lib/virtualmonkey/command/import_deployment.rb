@@ -1,13 +1,6 @@
 module VirtualMonkey
   module Command
-    # This command does all the steps create/run/conditionaly destroy
-    def self.import_deployment(*args)
-      self.init(*args)
-      @@options = Trollop::options do
-        text @@available_commands[:import_deployment]
-        eval(VirtualMonkey::Command::use_options(:deployment))
-      end
-
+  add_command("import_deployment", [:deployment]) do
       # Find Model Deployment
       deploy_name = @@options[:deployment]
       if @@options[:deployment]

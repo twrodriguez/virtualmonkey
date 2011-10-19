@@ -1,9 +1,12 @@
 module VirtualMonkey
   module Runner
     class ELB
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::ELB
-    
+
+      description "TODO"
+
       def initialize(*args)
         super(*args)
         raise "FATAL: ELBRunner must run on a single-cloud AWS deployment" unless @deployment.cloud_id

@@ -1,18 +1,19 @@
 module VirtualMonkey
   module Mixin
     module ApplicationFrontendLookupScripts
+      extend VirtualMonkey::Mixin::CommandHooks
       def frontend_lookup_scripts
         fe_scripts = [
-		      [ 'https_vhost', 'WEB apache FrontEnd https vhost' ]
+                      [ 'https_vhost', 'WEB apache FrontEnd https vhost' ]
                      ]
         app_scripts = [
                        [ 'connect', 'LB [app|application|mongrels]+ to HA[ pP]+roxy connect' ]
                       ]
-        st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
+        st = match_st_by_server(fe_servers.first)
         load_script_table(st,fe_scripts)
-        st = ServerTemplate.find(resource_id(app_servers.first.server_template_href))
+        st = match_st_by_server(app_servers.first)
         load_script_table(st,app_scripts)
-      end 
+      end
     end
   end
 end

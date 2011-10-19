@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module SimpleLinux
+      extend VirtualMonkey::Mixin::CommandHooks
 
       def swapspace_fe_lookup_scripts
         scripts = [
@@ -18,7 +19,7 @@ module VirtualMonkey
       def test_swapspace
         probe(servers.first, "grep -c /swapfile /proc/swaps") { |result, status|
           print "grep -c /swapfile /proc/swaps returned = " + result.to_s
-          raise "raise swap file not setup correctly" unless (Integer(result) > 0)
+          raise "raise swap file not setup correctly" unless ((result).to_i > 0)
           true
         }
       end

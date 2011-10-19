@@ -1,9 +1,12 @@
 module VirtualMonkey
   module Runner
     class DrToolbox
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::DrToolbox
       #include VirtualMonkey::Mixin::Chef
+
+      description "TODO"
 
 # once dr toolbox gets a terminate script, we can use the mixin for ebs..
 #    include VirtualMonkey::Mixin::EBS

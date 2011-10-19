@@ -1,19 +1,25 @@
 module VirtualMonkey
   module Mixin
     module ChefMysql
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
 
+      before_destroy do
+        release_container
+        set_variation_lineage
+        cleanup_volumes
+        cleanup_snapshots
+      end
+
+      after_destroy do
+        SharedDns.release_from_all_domains(@deployment.href)
+      end
+
       def mysql_servers
-        res = []
-        @servers.each do |server|
-          st = ServerTemplate.find(resource_id(server.server_template_href))
-          if st.nickname =~ /Database Manager/
-            res << server
-          end
-        end
+        res = select_set(/Database Manager/)
         raise "FATAL: No Database Manager servers found" unless res.length > 0
         res
       end
@@ -43,7 +49,7 @@ module VirtualMonkey
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless mysql_servers.size >= 1
 
-        st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
+        st = match_st_by_server(mysql_servers.first)
         load_script_table(st,scripts,st)
       end
 
@@ -227,7 +233,7 @@ module VirtualMonkey
        config_master_from_scratch(s_one)
        check_master(s_one) ## check is the server sone is a master
         obj_behavior(s_one, :relaunch)
-        s_one.dns_name = nil
+        s_one['dns_name'] = nil
         wait_for_snapshots
         # need to wait for ebs snapshot, otherwise this could easily fail
        restore_server(s_two)
@@ -316,7 +322,7 @@ module VirtualMonkey
         @dns.set_dns_inputs(@deployment)
       end
 
-      def setup_block_device
+      def do_tag_as_master
         puts "DO_TAG_AS_MASTER"
         run_script("do_tag_as_master", s_one)
       end
@@ -412,7 +418,7 @@ module VirtualMonkey
 
   #    def run_restore_with_timestamp_override
   #      obj_behavior(s_one, :relaunch)
-  #      s_one.dns_name = nil
+  #      s_one['dns_name'] = nil
   #      obj_behavior(s_one, :wait_for_operational_with_dns)
   #     run_script('restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
   #    end

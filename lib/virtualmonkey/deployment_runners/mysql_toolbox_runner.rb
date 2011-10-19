@@ -1,11 +1,14 @@
 module VirtualMonkey
   module Runner
     class MysqlToolbox
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
       include VirtualMonkey::Mixin::Mysql
       attr_accessor :scripts_to_run
-  
+
+      description "TODO"
+
       def mysql_toolbox_lookup_scripts
         scripts_mysql = [
                            [ 'promote', 'EBS promote to master' ],

@@ -1,32 +1,53 @@
-if ENV['SSH_CONNECTION'] # LINUX ONLY
-  ENV['REACHABLE_IP'] = ENV['SSH_CONNECTION'].split(/ /)[-2]
-else
-  possible_ips = []
-  0.upto(9) { |i|
-    if `ifconfig eth#{i} 2> /dev/null` =~ /inet addr:([0-9\.]*) /
-      possible_ips << $1
-    end
-  }
-  ENV['REACHABLE_IP'] = possible_ips.first
+progress_require('timeout')
+
+#
+# Figure out REACHABLE_IP
+#
+
+def load_self_reachable_ip
+  if ENV['SSH_CONNECTION'] # LINUX ONLY
+    ENV['REACHABLE_IP'] = ENV['SSH_CONNECTION'].split(/ /)[-2]
+  else
+    possible_ips = `ifconfig | grep -o "inet addr:[0-9\.]*" | grep -o "[0-9\.]*$"`.split(/\n/)
+    possible_ips.reject! { |ip| ip == "127.0.0.1" }
+    ENV['REACHABLE_IP'] = possible_ips.first
+  end
 end
 
+load_self_reachable_ip()
+
+#
 # Import user and metadata if we're in the cloud
+#
+
 if File.exists?("/var/spool/cloud/meta-data.rb")
   require '/var/spool/cloud/user-data'
   require '/var/spool/cloud/meta-data-cache'
-  if ENV['RS_API_URL']
+  if ENV['RS_API_URL'] # AWS
     ENV['I_AM_IN_EC2'] = "true"
-  else # Eucalyptus
-    ENV['RS_API_URL'] = "#{`hostname`.strip}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
-    ENV['I_AM_IN_MULTICLOUD'] = "true"
+  elsif File.exists?("/etc/rightscale.d/cloud")
+    ENV['CLOUD_TYPE'] = IO.read("/etc/rightscale.d/cloud").chomp
+    case ENV['CLOUD_TYPE']
+    when "eucalyptus", "cloudstack", "rackspace"
+      Timeout::timeout(300) { (load_self_reachable_ip(); sleep 5) until ENV['REACHABLE_IP'] }
+      ENV['RS_API_URL'] = "#{`hostname`.strip}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
+      ENV['I_AM_IN_MULTICLOUD'] = "true"
+    else
+      `wall "FATAL: New cloud_type detected: '#{ENV['CLOUD_TYPE']}'"`
+    end
   end
 elsif File.exists?("/var/spool/cloud/user-data.rb")
   require '/var/spool/cloud/user-data'
+  Timeout::timeout(300) { (load_self_reachable_ip(); sleep 5) until ENV['REACHABLE_IP'] }
   ENV['RS_API_URL'] = "#{`hostname`.strip}-#{ENV['REACHABLE_IP'].gsub(/\./, "-")}" # LINUX ONLY
   ENV['I_AM_IN_MULTICLOUD'] = "true"
 else
   ENV['RS_API_URL'] = "#{ENV['USER']}-#{`hostname`}".strip # LINUX ONLY
 end
+
+#
+# Main Module
+#
 
 module VirtualMonkey
   @@my_api_self = nil
@@ -87,6 +108,7 @@ module VirtualMonkey
       @@keys_file = File.join(@@cloud_vars_dir, "ssh_keys.json")
       @@rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
       @@rest_yaml = File.join("", "etc", "rest_connection", "rest_api_config.yaml") unless File.exists?(@@rest_yaml)
+      @@ssh_key_file_basename = "monkey-cloud-"
     end
 
     # Query for available clouds
@@ -179,78 +201,100 @@ module VirtualMonkey
     # Generates temporary ssh keys to use for ssh'ing into generated servers. ssh_key_id_ary is a Hash of
     # the form: {"1" => "0000", "2" => "0001", ... } or nil
     # NOTE: for some reason, you looked up `git ls-files`
-    def generate_ssh_keys(single_cloud = nil, ssh_key_id_ary = nil)
+    def generate_ssh_keys(cloud_id_set=nil, overwrite=false, force=false, ssh_key_id_ary=nil)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
-      cloud_ids.reject! { |i| i != single_cloud } if single_cloud
+      cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
+      return puts("No clouds to generate ssh keys for") if cloud_ids.empty?
+      puts "Generating SSH Keys for clouds: #{cloud_ids.join(", ")}"
 
       ssh_key_id_ary ||= {}
       multicloud_key_file = File.join(@@ssh_dir, "api_user_key")
       rest_settings = YAML::load(IO.read(@@rest_yaml))
       rest_settings[:ssh_keys] = [] unless rest_settings[:ssh_keys]
       multicloud_key_data = IO.read(multicloud_key_file) if File.exists?(multicloud_key_file)
-      if File.exists?(@@keys_file)
-        keys = JSON::parse(IO.read(@@keys_file))
-      else
-        keys = {}
-      end
+      keys = {}
+      keys = JSON::parse(IO.read(@@keys_file)) if File.exists?(@@keys_file)
 
       cloud_ids.each { |cloud|
-        if keys["#{cloud}"] and keys["#{cloud}"] != {} # We already have data for this cloud, skip
-          puts "Data found for cloud #{cloud}. Skipping..."
-          next
-        end
-        if cloud <= 10 # EC2 clouds
-          key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
-        else # GW clouds use a hard-coded key
-          key_name = "api_user_key"
-        end
-        found = nil
-        if cloud <= 10
-          if api0_1?
-            found = Ec2SshKeyInternal.find_by_cloud_id("#{cloud}").select { |o| o.aws_key_name =~ /#{key_name}/ }.first
-          end
-          if ssh_key_id_ary[cloud.to_s]
-            k = Ec2SshKey[ssh_key_id_ary[cloud.to_s].to_i]
-          else
-            k = (found ? found : Ec2SshKey.create('aws_key_name' => key_name, 'cloud_id' => "#{cloud}"))
-          end
-          keys["#{cloud}"] = {"ec2_ssh_key_href" => k.href,
-                              "parameters" =>
-                                {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
-                              }
-          # Generate Private Key Files
-          priv_key_file = File.join(@@ssh_dir, "monkey-cloud-#{cloud}")
-          File.open(priv_key_file, "w") { |f| f.write(k.aws_material) } unless File.exists?(priv_key_file)
-        else
-          # Use API user's managed ssh key
-          puts "Using API user's managed ssh key, make sure \"~/.ssh/#{key_name}\" exists!"
-          keys["#{cloud}"] = {}
-          if api0_1? and Ec2SshKeyInternal.find_by_cloud_id(1).select { |o| o.aws_key_name =~ /publish-test/ }.first
-            keys["#{cloud}"]["parameters"] = {"PRIVATE_SSH_KEY" => "key:publish-test:1"}
-          end
-          begin
-            found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first
-            if ssh_key_id_ary[cloud.to_s]
-              k = McSshKey[ssh_key_id_ary[cloud.to_s].to_i]
+        begin
+          if keys["#{cloud}"] and keys["#{cloud}"] != {}
+            if overwrite
+              destroy_ssh_keys(cloud)
             else
-              k = (found ? found : McSshKey.create('name' => key_name, 'cloud_id' => "#{cloud}"))
+              # We already have data for this cloud, skip
+              puts "Data found for cloud #{cloud}. Skipping..."
+              next
             end
-            keys["#{cloud}"]["ssh_key_href"] = k.href
-          rescue
-            puts "Cloud #{cloud} doesn't support the resource 'ssh_key'"
           end
-          priv_key_file = multicloud_key_file
-        end
+          key_name = "monkey-#{cloud}-#{ENV['RS_API_URL'].split("/").last}"
+          found = nil
+          if cloud <= 10
+            if api0_1?
+              found = Ec2SshKeyInternal.find_by_cloud_id("#{cloud}").select { |o| o.aws_key_name =~ /#{key_name}/ }.first
+            end
+            if ssh_key_id_ary[cloud.to_s]
+              k = Ec2SshKey[ssh_key_id_ary[cloud.to_s].to_i].first
+            else
+              k = (found ? found : Ec2SshKey.create('aws_key_name' => key_name, 'cloud_id' => "#{cloud}"))
+            end
+            keys["#{cloud}"] = {"ec2_ssh_key_href" => k.href,
+                                "parameters" =>
+                                  {"PRIVATE_SSH_KEY" => "key:#{key_name}:#{cloud}"}
+                                }
+            # Generate Private Key Files
+            priv_key_file = File.join(@@ssh_dir, "#{@@ssh_key_file_basename}#{cloud}")
+            File.open(priv_key_file, "w") { |f| f.write(k.aws_material) } unless File.exists?(priv_key_file)
+          else
+            keys["#{cloud}"] = {}
+=begin
+            TODO Uncomment once API 1.5 supports returning the key material
+            if Cloud.find(cloud).ssh_keys
+              # Multicloud Resource that supports SSH Keys
+              found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /#{key_name}/ }.first
+              if ssh_key_id_ary[cloud.to_s]
+                k = McSshKey[ssh_key_id_ary[cloud.to_s].to_i].first
+              else
+                k = (found ? found : McSshKey.create('name' => key_name, 'cloud_id' => "#{cloud}"))
+              end
+              keys["#{cloud}"]["ssh_key_href"] = k.href
+              priv_key_file = File.join(@@ssh_dir, "#{@@ssh_key_file_basename}#{cloud}")
+              File.open(priv_key_file, "w") { |f| f.write(#TODO key_material) } unless File.exists?(priv_key_file)
+            else
+=end
+              # Use API user's managed ssh key
+              puts "Using API user's managed ssh key, make sure \"~/.ssh/#{multicloud_key_file}\" exists!"
+              if api0_1? and Ec2SshKeyInternal.find_by_cloud_id(1).select { |o| o.aws_key_name =~ /publish-test/ }.first
+                keys["#{cloud}"]["parameters"] = {"PRIVATE_SSH_KEY" => "key:publish-test:1"}
+              end
+=begin
+              begin
+                found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first
+                if ssh_key_id_ary[cloud.to_s]
+                  k = McSshKey[ssh_key_id_ary[cloud.to_s].to_i].first
+                else
+                  k = (found ? found : McSshKey.create('name' => "publish-test", 'cloud_id' => "#{cloud}"))
+                end
+                keys["#{cloud}"]["ssh_key_href"] = k.href
+              rescue
+                puts "Cloud #{cloud} doesn't support the resource 'ssh_key'"
+              end
+=end
+              warn "Cloud #{cloud} doesn't support the resource 'ssh_key'" unless Cloud.find(cloud).ssh_keys
+              priv_key_file = multicloud_key_file
+#            end #TODO Uncomment once API 1.5 supports returning the key material
+          end
 
-        `touch #{priv_key_file}`
-        File.chmod(0700, priv_key_file)
-        # Configure rest_connection config
-        rest_settings[:ssh_keys] << priv_key_file unless rest_settings[:ssh_keys].include?(priv_key_file)
+          FileUtils.touch(priv_key_file)
+          File.chmod(0700, priv_key_file)
+          # Configure rest_connection config
+          rest_settings[:ssh_keys] |= [priv_key_file]
+        rescue Exception => e
+          raise unless force
+          warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
+        end
       }
 
-      keys_out = keys.to_json(:indent => "  ",
-                              :object_nl => "\n",
-                              :array_nl => "\n")
+      keys_out = keys.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
       rest_out = rest_settings.to_yaml
       File.open(@@keys_file, "w") { |f| f.write(keys_out) }
       File.open(@@rest_yaml, "w") { |f| f.write(rest_out) }
@@ -279,92 +323,128 @@ module VirtualMonkey
     end
 
     # Destroys this monkey's temporary generated ssh keys
-    def destroy_ssh_keys
+    def destroy_ssh_keys(cloud_id_set=nil, force=false)
+      # TODO: Remove "10" once API1.5 supports key material lookup
       cloud_ids = get_available_clouds(10).map { |hsh| hsh["cloud_id"] }
+      cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
+      return puts("No clouds to destroy ssh keys for") if cloud_ids.empty?
+      puts "Destroying SSH Keys for clouds: #{cloud_ids.join(", ")}"
 
       rest_settings = YAML::load(IO.read(@@rest_yaml))
 
+      # Find key_hrefs
       key_name = "#{ENV['RS_API_URL'].split("/").last}"
-      # TODO cloud < 10?
       if api0_1?
         found = []
         cloud_ids.each { |c|
           found += Ec2SshKeyInternal.find_by_cloud_id("#{c}").select { |obj| obj.aws_key_name =~ /#{key_name}/ }
         }
         key_hrefs = found.select { |k| k.aws_key_name =~ /monkey/ }.map { |k| k.href }
-      else
-        keys = JSON::parse(IO.read(@@keys_file)) if File.exists?(@@keys_file)
-        keys.reject! { |cloud,hash| hash["ec2_ssh_key_href"].nil? }
+      elsif File.exists?(@@keys_file)
+        keys = JSON::parse(IO.read(@@keys_file))
+        keys.reject! { |cloud,hash| hash["ec2_ssh_key_href"].nil? and not cloud_ids.include?(cloud.to_i) }
         key_hrefs = keys.map { |cloud,hash| hash["ec2_ssh_key_href"] }
+      else
+        raise "FATAL: Can't determine any ssh_key hrefs"
       end
+
+      # Delete keys from API
       key_hrefs.each { |href|
-        temp_key = Ec2SshKey.new('href' => href)
-        temp_key.reload
-        temp_key.destroy if temp_key.aws_key_name =~ /monkey/
+        begin
+          temp_key = Ec2SshKey.new('href' => href)
+          temp_key.reload
+          temp_key.destroy if temp_key.aws_key_name =~ /monkey/
+        rescue Exception => e
+          raise unless force
+          warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
+        end
       }
-      File.delete(@@keys_file) if File.exists?(@@keys_file)
-      (rest_settings[:ssh_keys] || []).each { |f| File.delete(f) if File.exists?(f) and f =~ /monkey/ }
+
+      # Delete key files from user's ssh dir and references from user's rest_yaml file
+      if rest_settings[:ssh_keys]
+        rest_settings[:ssh_keys].reject! do |f|
+          ret = (f =~ /#{@@ssh_key_file_basename}(#{cloud_ids.join("|")})$/)
+          File.delete(f) if File.exists?(f) and ret
+          ret
+        end
+        File.open(@@rest_yaml, "w") { |f| f.write(rest_settings.to_yaml) }
+      end
+
+      # Delete keys from cloud_variables file
+      if File.exists?(@@keys_file)
+        keys_info = JSON::parse(IO.read(@@keys_file))
+        cloud_ids.each { |cloud| keys_info.delete("#{cloud}") }
+        if keys_info.empty?
+          File.delete(@@keys_file)
+        else
+          keys_out = keys_info.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
+          File.open(@@keys_file, "w") { |f| f.write(keys_out) }
+        end
+      end
     end
 
     # If this virtualmonkey is in EC2, will grab the same security groups attached to it to use for
     # generated servers (requires the same security group name in each cloud). Will default to the 'default'
     # security group for every cloud that doesn't have the named security group. use_this_sec_group should
     # be a string, or nil.
-    def populate_security_groups(cloud_id_set = nil, use_this_sec_group = nil, overwrite = false)
+    def populate_security_groups(cloud_id_set=nil, use_this_sec_group=nil, overwrite=false, force=false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
-      if cloud_id_set.is_a?(Array)
-        cloud_ids.reject! { |i| !cloud_id_set.include?(i) } unless cloud_id_set.empty?
-      else
-        cloud_ids.reject! { |i| i != cloud_id_set } unless cloud_id_set
-      end
+      cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
+      return puts("No clouds to populate security groups for") if cloud_ids.empty?
+      puts "Populating Security Groups for clouds: #{cloud_ids.join(", ")}"
 
       sgs = (File.exists?(@@sgs_file) ? JSON::parse(IO.read(@@sgs_file)) : {})
 
       cloud_ids.each { |cloud|
-        if sgs["#{cloud}"] and sgs["#{cloud}"] != {} and not overwrite
-          # We already have data for this cloud, skip
-          puts "Data found for cloud #{cloud}. Skipping..."
-          next
-        end
-        if VirtualMonkey::my_api_self
-          if ENV['I_AM_IN_EC2']
-            my_sec_group = ENV['EC2_SECURITY_GROUPS']
-          elsif ENV['I_AM_IN_MULTICLOUD'] and VirtualMonkey::my_api_self.security_groups
-            my_sec_group = VirtualMonkey::my_api_self.security_groups.first["href"]
-          else
-            my_sec_group = nil
+        begin
+          if sgs["#{cloud}"] and sgs["#{cloud}"] != {} and not overwrite
+            # We already have data for this cloud, skip
+            puts "Data found for cloud #{cloud}. Skipping..."
+            next
           end
-        end
-        sg_name = "#{use_this_sec_group || my_sec_group || 'default'}"
-        puts "Looking for the '#{sg_name}' security group in all supporting clouds."
-        if cloud <= 10
-          found = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /#{sg_name}/ }.first
-          if found
-            sg = found
-          else
-            puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
-            default = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
-            raise "Security Group 'default' not found in cloud #{cloud}." unless default
-            sg = default
+          if VirtualMonkey::my_api_self
+            if ENV['I_AM_IN_EC2']
+              my_sec_group = ENV['EC2_SECURITY_GROUPS']
+            elsif ENV['I_AM_IN_MULTICLOUD'] and VirtualMonkey::my_api_self.security_groups
+              my_sec_group = VirtualMonkey::my_api_self.security_groups.first["href"]
+            else
+              my_sec_group = nil
+            end
           end
-          sgs["#{cloud}"] = {"ec2_security_groups_href" => sg.href }
-        else
-          begin
-            found = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /#{sg_name}/ }.first
+          sg_name = "#{use_this_sec_group || my_sec_group || 'default'}"
+          puts "Looking for the '#{sg_name}' security group in all supporting clouds."
+          if cloud <= 10
+            found = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /#{sg_name}/ }.first
             if found
               sg = found
             else
               puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
-              default = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /default/ }.first
+              default = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
               raise "Security Group 'default' not found in cloud #{cloud}." unless default
               sg = default
             end
-            sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
-          rescue Exception => e
-            raise e if e.message =~ /Security Group.*not found/
-            puts "Cloud #{cloud} doesn't support the resource 'security_group'"
-            sgs["#{cloud}"] = {}
+            sgs["#{cloud}"] = {"ec2_security_groups_href" => sg.href }
+          else
+            begin
+              found = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /#{sg_name}/ }.first
+              if found
+                sg = found
+              else
+                puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
+                default = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /default/ }.first
+                raise "Security Group 'default' not found in cloud #{cloud}." unless default
+                sg = default
+              end
+              sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
+            rescue Exception => e
+              raise if e.message =~ /Security Group.*not found/
+              warn "Cloud #{cloud} doesn't support the resource 'security_group'"
+              sgs["#{cloud}"] = {}
+            end
           end
+        rescue Exception => e
+          raise unless force
+          warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
         end
       }
 
@@ -376,37 +456,44 @@ module VirtualMonkey
     end
 
     # Grabs the API hrefs of the datacenters for each cloud. API 1.5 only
-    def populate_datacenters(single_cloud = nil, overwrite = false)
+    def populate_datacenters(cloud_id_set=nil, overwrite=false, force=false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
-      cloud_ids.reject! { |i| i != single_cloud } if single_cloud
+      cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
+      return puts("No clouds to populate datacenters for") if cloud_ids.empty?
+      puts "Populating Datacenters for clouds: #{cloud_ids.join(", ")}"
 
       dcs = (File.exists?(@@dcs_file) ? JSON::parse(IO.read(@@dcs_file)) : {})
 
       cloud_ids.each { |cloud|
-        if dcs["#{cloud}"] and dcs["#{cloud}"] != {} and not overwrite
-          # We already have data for this cloud, skip
-          puts "Data found for cloud #{cloud}. Skipping..."
-          next
-        end
-        if cloud <= 10
-          puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
-          dcs["#{cloud}"] = {}
-        elsif api1_5?
-          begin
-            #TODO: Don't just take the first one, Datacenters are variations too (as are Hypervisors)
-            found = McDatacenter.find_all("#{cloud}").first.href
-            if VirtualMonkey::my_api_self and ENV['I_AM_IN_MULTICLOUD']
-              if VirtualMonkey::my_api_self.cloud_id == cloud
-                if VirtualMonkey::my_api_self.current_instance.datacenter
-                  found = VirtualMonkey::my_api_self.current_instance.datacenter
+        begin
+          if dcs["#{cloud}"] and dcs["#{cloud}"] != {} and not overwrite
+            # We already have data for this cloud, skip
+            puts "Data found for cloud #{cloud}. Skipping..."
+            next
+          end
+          if cloud <= 10
+            warn "Cloud #{cloud} doesn't support the resource 'datacenter'"
+            dcs["#{cloud}"] = {}
+          elsif api1_5?
+            begin
+              #TODO: Don't just take the first one, Datacenters are variations too (as are Hypervisors)
+              found = McDatacenter.find_all("#{cloud}").first.href
+              if VirtualMonkey::my_api_self and ENV['I_AM_IN_MULTICLOUD']
+                if VirtualMonkey::my_api_self.cloud_id == cloud
+                  if VirtualMonkey::my_api_self.current_instance.datacenter
+                    found = VirtualMonkey::my_api_self.current_instance.datacenter
+                  end
                 end
               end
+              dcs["#{cloud}"] = {"datacenter_href" => found}
+            rescue
+              warn "Cloud #{cloud} doesn't support the resource 'datacenter'"
+              dcs["#{cloud}"] = {}
             end
-            dcs["#{cloud}"] = {"datacenter_href" => found}
-          rescue
-            puts "Cloud #{cloud} doesn't support the resource 'datacenter'"
-            dcs["#{cloud}"] = {}
           end
+        rescue Exception => e
+          raise unless force
+          warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
         end
       }
 
@@ -419,68 +506,35 @@ module VirtualMonkey
 
     # Populates all cloud_vars (ssh_keys, security_groups, and datacenters) without overriding any manually
     # defined resources
-    def populate_all_cloud_vars(force = false, options = {})
+    def populate_all_cloud_vars(cloud_id_set=nil, options={})
       get_available_clouds()
+      cloud_ids = @@clouds.map { |hsh| hsh["cloud_id"] }
+      cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
+      cloud_names = @@clouds.map { |hsh| [hsh["cloud_id"], hsh["name"]] }.to_h
 
       aws_clouds = {}
       all_clouds = {}
 
-      @@clouds.each { |c|
-        puts "Generating SSH Keys for cloud #{c['cloud_id']}..."
-        if force
-          begin
-            generate_ssh_keys(c['cloud_id'], options[:ssh_key_ids])
-          rescue Exception => e
-            puts "Got exception: #{e.message}"
-            puts "Forcing continuation..."
-          end
-        else
-          generate_ssh_keys(c['cloud_id'], options[:ssh_key_ids])
-        end
+      generate_ssh_keys(cloud_ids, options[:overwrite], options[:force], options[:ssh_key_ids])
+      populate_security_groups(cloud_ids, options[:security_group_name], options[:overwrite], options[:force])
+      populate_datacenters(cloud_ids, options[:overwrite], options[:force])
 
-        puts "Populating Security Groups for cloud #{c['cloud_id']}..."
-        if force
-          begin
-            populate_security_groups(c['cloud_id'], options[:security_group_name], options[:overwrite])
-          rescue Exception => e
-            puts "Got exception: #{e.message}"
-            puts "Forcing continuation..."
-          end
-        else
-          populate_security_groups(c['cloud_id'], options[:security_group_name], options[:overwrite])
-        end
+      cloud_ids.each { |id|
+        name = cloud_names[id].gsub(/[- ]/, "_").gsub(/_+/, "_").downcase
+        single_file_name = File.join(@@cloud_vars_dir, "#{name}.json")
 
-        puts "Populating Datacenters for cloud #{c['cloud_id']}..."
-        if force
-          begin
-            populate_datacenters(c['cloud_id'], options[:overwrite])
-          rescue Exception => e
-            puts "Got exception: #{e.message}"
-            puts "Forcing continuation..."
-          end
-        else
-          populate_datacenters(c['cloud_id'], options[:overwrite])
-        end
-        c['name'].gsub!(/[- ]/, "_")
-        c['name'].gsub!(/_+/, "_")
-        c['name'].downcase!
-        single_file_name = File.join(@@cloud_vars_dir, "#{c['name']}.json")
-
-        single_cloud_vars = {"#{c['cloud_id']}" => {}}
-        if File.exists?(single_file_name)
-          single_cloud_vars = JSON::parse(IO.read(single_file_name))
-        end
+        single_cloud_vars = {"#{id}" => {}}
+        single_cloud_vars = JSON::parse(IO.read(single_file_name)) if File.exists?(single_file_name)
         # Single File
-        single_cloud_out = single_cloud_vars.to_json(:indent => "  ",
-                                                     :object_nl => "\n",
-                                                     :array_nl => "\n")
+        single_cloud_out = single_cloud_vars.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
         # AWS Clouds
-        aws_clouds.deep_merge!(single_cloud_vars) if c['cloud_id'] <= 10
+        aws_clouds.deep_merge!(single_cloud_vars) if id <= 10
         # All Clouds
         all_clouds.deep_merge!(single_cloud_vars)
 
         File.open(single_file_name, "w") { |f| f.write(single_cloud_out) }
       }
+
       aws_clouds_out = aws_clouds.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
       all_clouds_out = all_clouds.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
       File.open(File.join(@@cloud_vars_dir, "aws_clouds.json"), "w") { |f| f.write(aws_clouds_out) }

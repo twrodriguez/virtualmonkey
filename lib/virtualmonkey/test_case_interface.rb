@@ -1,7 +1,5 @@
 require 'irb'
-if require 'ruby-debug'
-  Debugger.start() if ENV['MONKEY_NO_DEBUG'] != "true"
-end
+require 'ruby-debug'
 
 module VirtualMonkey
   # Class Variables meant to be globally accessible, used for stack tracing
@@ -20,6 +18,7 @@ module VirtualMonkey
     end
 
     class UnhandledException < Exception
+      attr_reader :exception
       def initialize(e); @exception = e; end
       def inspect; @exception.inspect; end
       def message; @exception.message; end
@@ -40,6 +39,10 @@ module VirtualMonkey
       write_readable_log("#{args}")
     end
 
+    def warn(*args)
+      write_readable_log("#{args}".apply_color(:uncolorize, :yellow), STDERR)
+    end
+
     def sleep(time)
       write_readable_log("sleep(#{time})")
       super(time) if @done_resuming
@@ -51,7 +54,7 @@ module VirtualMonkey
         orig_raise(*args)
       rescue Exception => e
         if not self.__send__(:__exception_handle__, e)
-          if ENV['MONKEY_NO_DEBUG'] != "true" and not Debugger.post_mortem
+          if ENV['MONKEY_NO_DEBUG'] != "true" && ENV['ENTRY_COMMAND'] == "grinder" && !Debugger.started?
             puts "Got exception: #{e.message}" if e
             puts "Backtrace: #{e.backtrace.join("\n")}" if e
             puts "Pausing for inspection before continuing to raise Exception..."
@@ -72,14 +75,34 @@ module VirtualMonkey
     def test_case_interface_init(options = {})
       @log_checklists = {"whitelist" => [], "blacklist" => [], "needlist" => []}
       @rerun_last_command = []
+
+      # Trace-related Variables
       # @stack_objects is an array of referenced arrays in the current call stack
       @stack_objects = []
-      # @iterating_stack is the current scope of same-depth calls to which strings are appended
+      # @iterating_stack is the current scope of same-depth calls to which hashes of strings mapped to arrays are appended
       @iterating_stack = []
+      # @index_stack is the array indices for each of the objects currently found in @stack_objects
+      @index_stack = []
+      # @expected_stack_depths tracks the resume stack
+      @expected_stack_depths = []
+      # @retry_loop is the stack of the number of retries attempted in the current scope
       @retry_loop = []
       @done_resuming = true
+      # @in_transaction tracks how deeply nested the current transaction is
       @in_transaction = []
-      @max_retries = 10
+
+      @all_trace_variables = [
+        "@stack_objects",
+        "@iterating_stack",
+        "@index_stack",
+        "@expected_stack_depths",
+        "@retry_loop",
+        "@done_resuming",
+        "@in_transaction",
+        "@rerun_last_command"
+      ]
+
+      @max_retries = VirtualMonkey::config[:max_retries] || 10
       @options = options
       @options[:additional_logs] ||= []
       @deprecation_error = `curl -s "www.kdegraaf.net/cgi-bin/bofh" | grep -o "<b>.*</b>"`
@@ -90,6 +113,13 @@ module VirtualMonkey
       end
 
       # Setup runner_options
+      # PUT THIS IN FEATURE FILE:
+      # set "my_var", [1,2,3]
+      # set :runner_options, "my-other-var" => "hello world"
+      #
+      # TO USE THIS IN RUNNER CLASS:
+      # my_var.each { |i| print i }
+      # my_other_var += " foobar"
       if @options[:runner_options] && @options[:runner_options].is_a?(Hash)
         @options[:runner_options].keys.each { |opt|
           sym = opt.gsub(/-/,"_").to_sym
@@ -100,17 +130,16 @@ module VirtualMonkey
 
       # Set-up relative logs in case we're being run in parallel
       # TODO: Additional logs should include each server's logs from the lists
-      @log_map = {}
-      @options[:additional_logs].each { |log|
+      # PUT THIS IN FEATURE FILE:
+      # set :logs, "my_special_report.html"
+      #
+      # TO USE THIS IN RUNNER CLASS:
+      # File.open(@log_map["my_special_report.html"], "w") { |f| f.write("blah") }
+      @log_map = @options[:additional_logs].map_to_h { |log|
         file_name = "#{@deployment.nickname}.#{File.basename(log)}"
         base_dir = ENV['MONKEY_LOG_BASE_DIR'] || File.dirname(log)
-        @log_map[log] = File.join(base_dir, file_name)
+        File.join(base_dir, file_name)
       }
-      # USE THIS IN RUNNER CLASS:
-      # File.open(@log_map["my_special_report.html"], "w") { |f| f.write("blah") }
-      #
-      # USE THIS IN FEATURE FILE:
-      # set :logs, "my_special_report.html"
 
       VirtualMonkey::trace_log << { "feature_file" => @options[:file] }
       write_readable_log("feature_file: #{@options[:file]}")
@@ -144,6 +173,7 @@ module VirtualMonkey
         push_rerun_test
         #pre-command
         populate_settings if @deployment
+        done_resuming?
         #command
         result = __send__(behave_sym, *args, &block)
         #post-command
@@ -160,6 +190,7 @@ module VirtualMonkey
     # * Exception Handling
     # * Runner-Contextual Debugging
     # * Built-in retrying
+=begin
     def verify(sym, *args, &block)
       @retry_loop << 0
       execution_stack_trace(sym, args)
@@ -176,15 +207,16 @@ module VirtualMonkey
         continue_test
       rescue Exception => e
         if block and e.message !~ /^FATAL: Failed behavior verification/
-          raise e if not yield(e)
+          raise if not yield(e)
         else
-          raise e
+          raise
         end
       end while @rerun_last_command.pop
       clean_stack_trace
       @retry_loop.pop
       result
     end
+=end
 
     # Launches an irb debugging session if
     def launch_irb_session(debug = false)
@@ -215,15 +247,7 @@ module VirtualMonkey
       begin
         @in_transaction.push(true)
         populate_settings if @deployment
-        if not @done_resuming
-          if VirtualMonkey::trace_log == []
-            if real_trace_log == YAML::load(IO.read(@options[:resume_file]))
-              @done_resuming = true
-            end
-          elsif VirtualMonkey::trace_log == YAML::load(IO.read(@options[:resume_file]))
-            @done_resuming = true
-          end
-        end
+        done_resuming?(real_trace_log)
 
         # Retry loop
         begin
@@ -232,11 +256,21 @@ module VirtualMonkey
           continue_test
         rescue VirtualMonkey::TestCaseInterface::Retry
         rescue VirtualMonkey::TestCaseInterface::UnhandledException => e
-          orig_raise e
+          begin
+            orig_raise e.exception
+          rescue Exception => e
+            orig_raise
+          end
         rescue Exception => e
           begin
             raise e # Need to use the internal raise
           rescue VirtualMonkey::TestCaseInterface::Retry
+          rescue VirtualMonkey::TestCaseInterface::UnhandledException => e
+            begin
+              orig_raise e.exception
+            rescue Exception => e
+              orig_raise
+            end
           end
         end while @rerun_last_command.pop
 
@@ -253,12 +287,12 @@ module VirtualMonkey
       result
     end
 
-    def write_readable_log(data)
+    def write_readable_log(data, io=STDOUT)
       data_ary = data.split("\n")
       data_ary.each_index do |i|
         data_ary[i] = ("  " * @rerun_last_command.length) + data_ary[i]
       end
-      print "#{data_ary.join("\n")}\n"
+      io.puts "#{data_ary.join("\n")}"
     end
 
     def write_trace_log(call=nil)
@@ -280,7 +314,7 @@ module VirtualMonkey
     private
 
     def obj_behavior(obj, sym, *args)
-      puts "#{@deprecation_error.upcase} occured!  You are using a depricated method called 'obj_behavior'"
+      warn "#{@deprecation_error.upcase} occured!  You are using a deprecated method called 'obj_behavior'"
       transaction { obj.__send__(sym, *args) }
     end
 
@@ -290,7 +324,7 @@ module VirtualMonkey
       exception_handle_methods = all_methods.select { |m| m =~ /exception_handle/ and m !~ /^__/ }
 
       @retry_loop ||= []
-      return false if @retry_loop.empty? or @retry_loop.last > @max_retries # No more than 10 retries
+      return false if @retry_loop.empty? or @retry_loop.last >= @max_retries
       exception_handle_methods.each { |m|
         if self.__send__(m,e)
           # If an exception_handle method doesn't return false, it handled correctly
@@ -379,7 +413,7 @@ EOS
         end
       end
       if set.is_a?(Regexp)
-        set = match_servers_by_st(@server_templates.detect { |st| st.name =~ set })
+        set = match_servers_by_st(@server_templates.detect { |st| st.name =~ set || st.nickname =~ set })
       end
       set = match_servers_by_st(set) if set.is_a?(ServerTemplate)
       set = __send__(set) if set.is_a?(Symbol)
@@ -444,13 +478,57 @@ EOS
       add_hash = { call => referenced_ary }
       # Add string to proper place
       if @rerun_last_command.length < @stack_objects.length # shallower or same level call
-        @stack_objects.pop(Math.abs(@stack_objects.length - @rerun_last_command.length))
+        diff = Math.abs(@stack_objects.length - @rerun_last_command.length)
+        unless @done_resuming
+          begin
+            # Check Length & Depth Expectations
+            if @stack_objects.length < @expected_stack_depths.length
+              msg = "Expected Stack Depth not met, cancelling resume."
+              warn "#{__FILE__}::#{__LINE__}: #{msg}"
+              inspect_trace_objects
+              @done_resuming = true
+            end
+            if @iterating_stack.length < @expected_stack_depths.last
+              msg = "Expected number of sub-function calls not met, cancelling resume."
+              warn "#{__FILE__}::#{__LINE__}: #{msg}"
+              inspect_trace_objects
+              @done_resuming = true
+            end
+          rescue Exception => e
+            warn "RESUME EXCEPTION: Got \"#{e}\". Cancelling resume and continuing"
+            inspect_trace_objects
+            warn "Exception Backtrace:\n#{e.backtrace.join("\n")}"
+            @done_resuming = true
+          end
+        end
+        @stack_objects.pop(diff)
+        @index_stack.pop(diff)
+        @expected_stack_depths.pop(diff)
+      end
+      unless @done_resuming
+        begin
+          # Check Depth Expectations
+          if @stack_objects.length < @expected_stack_depths.length
+            msg = "Expected Stack Depth not met, cancelling resume."
+            warn "#{__FILE__}::#{__LINE__}: #{msg}"
+            inspect_trace_objects
+            @done_resuming = true
+          end
+        rescue Exception => e
+          warn "RESUME EXCEPTION: Got \"#{e}\". Cancelling resume and continuing"
+          inspect_trace_objects
+          warn "Exception Backtrace:\n#{e.backtrace.join("\n")}"
+          @done_resuming = true
+        end
       end
       if @stack_objects.empty?
+        @index_stack << VirtualMonkey::trace_log.length
         VirtualMonkey::trace_log << add_hash
       else
         @iterating_stack = @stack_objects.last # get the last object from the object stack
         @iterating_stack << add_hash # here were are adding to iterating stack
+        @index_stack[-1] += 1
+        @index_stack << 0
       end
       @stack_objects << referenced_ary
     end
@@ -462,6 +540,152 @@ EOS
       call = stringify_arg(obj) + "." + call if obj
       call += block_text.gsub(/proc /, " ") if block_text != ""
       return call
+    end
+
+    def done_resuming?(real_trace_log = nil)
+      resume_stack_objects = nil
+      begin
+        return true if @done_resuming
+        return false unless @in_transaction.empty? # Can only resume from OUTSIDE a transaction
+        # Rebuild Stack from Resume Log
+        # Build Stack Length and Depth Expectations Simultaneously
+        resume_log = YAML::load(IO.read(@options[:resume_file]))
+        if VirtualMonkey::trace_log == []
+          if real_trace_log == resume_log
+            return @done_resuming = true
+          end
+        elsif VirtualMonkey::trace_log == resume_log
+          return @done_resuming = true
+        end
+
+        if VirtualMonkey::trace_log[0] != resume_log[0]
+          # The runner is still being instantiated if these two aren't equal.
+          return false
+        end
+        resume_stack_objects = []
+        @expected_stack_depths = []
+
+        build_resume_stack = proc do |key,ary|
+          resume_stack_objects << ary
+          if ary.first
+            @expected_stack_depths << ary.length
+            new_key = ary.first.first.first
+            new_ary = ary.first.first.last
+            build_resume_stack.call(new_key, new_ary)
+          end
+        end
+
+        next_key, next_ary = nil, nil
+        @index_stack.each_with_index { |stack_index,i|
+          if next_ary
+            if next_ary.length < stack_index
+              # TODO STATE CHECK: Have we finished resuming?
+              # Number of functions called from previous run in this scope is less than number of functions called in current run
+              # Check that they're at the end of the resume stack
+              msg = "Number of functions called from previous run in this scope is less than number of functions called in current run"
+              warn "#{__FILE__}::#{__LINE__}: #{msg}"
+              inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
+              return @done_resuming = true
+            else
+              @expected_stack_depths << next_ary.length
+            end
+            next_key = next_ary[stack_index].first.first
+            next_ary = next_ary[stack_index].first.last
+          else
+            if resume_log.length < stack_index
+              # TODO STATE CHECK: Have we finished resuming?
+              # Number of functions called from previous run in this scope is less than number of functions called in current run
+              # Check that they're at the end of the resume stack
+              msg = "Number of functions called from previous run in this scope is less than number of functions called in current run"
+              warn "#{__FILE__}::#{__LINE__}: #{msg}"
+              inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
+              return @done_resuming = true
+            else
+              @expected_stack_depths << resume_log.length
+            end
+            next_key = resume_log[stack_index].first.first
+            next_ary = resume_log[stack_index].first.last
+          end
+          resume_stack_objects << next_ary
+        }
+        unless resume_stack_objects.last.empty?
+          next_key = resume_stack_objects.last.first.first.first
+          next_ary = resume_stack_objects.last.first.first.last
+          build_resume_stack.call(next_key, next_ary)
+        end
+
+        # Check State Expectations
+        # First, check function signature
+        fn_signatures_equal = resume_stack_objects.zip(@stack_objects, Array(0...@index_stack.length)).reduce(true) { |bool,set|
+          idx = (set[-1] == (@index_stack.length - 1) ? 0 : @index_stack[set[-1] + 1])
+          bool && (set[0][idx].first.first == set[1][idx].first.first)
+        }
+        unless fn_signatures_equal
+          msg = "Function Signature mismatch!"
+          warn "#{__FILE__}::#{__LINE__}: #{msg}"
+          inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
+          return @done_resuming = true
+        end
+
+        # Next, check stack depths against expected depths
+        if @index_stack.length <= @expected_stack_depths.length
+          # In acceptable boundaries
+          if @index_stack[-1] < @expected_stack_depths[@index_stack.length - 1]
+            # In acceptable boundaries
+            return @done_resuming = false
+          else
+            if @expected_stack_depths.length > 1
+              if @index_stack[-2] < @expected_stack_depths[@index_stack.length - 2]
+                msg = "Current scope has executed more lines than expected"
+                warn "#{__FILE__}::#{__LINE__}: #{msg}"
+                inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
+                return @done_resuming = true
+              else
+                # Should never get here...
+                msg = "Unaccounted-for anomaly while checking resume"
+                warn "#{__FILE__}::#{__LINE__}: #{msg}"
+                inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
+                return @done_resuming = true
+              end
+            else
+              # Should never get here...
+              msg = "Unaccounted-for anomaly while checking resume"
+              warn "#{__FILE__}::#{__LINE__}: #{msg}"
+              inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
+              return @done_resuming = true
+            end
+          end
+        else
+          # Have gone farther than the resume
+          if @index_stack[@expected_stack_depths.length - 1] < @expected_stack_depths[-1]
+            msg = "Current stack is deeper than expected"
+            warn "#{__FILE__}::#{__LINE__}: #{msg}"
+            inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
+            return @done_resuming = true
+          else
+            # Should never get here...
+            msg = "Unaccounted-for anomaly while checking resume"
+            warn "#{__FILE__}::#{__LINE__}: #{msg}"
+            inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
+            return @done_resuming = true
+          end
+        end
+        return false
+      rescue Exception => e
+        warn "RESUME EXCEPTION: Got \"#{e}\". Cancelling resume and continuing"
+        inspect_trace_objects("resume_stack_objects" => resume_stack_objects)
+        warn "Exception Backtrace:\n#{e.backtrace.join("\n")}"
+        return @done_resuming = true
+      end
+    end
+
+    def inspect_trace_objects(*args)
+      # Each Argument should be a hash
+      obj_hsh = @all_trace_variables.map_to_h { |var| instance_variable_get(var) }
+      args.each { |hsh| obj_hsh.merge! hsh }
+      obj_hsh["trace_log"] = VirtualMonkey::trace_log
+      obj_hsh["resume_log"] = YAML::load(IO.read(@options[:resume_file]))
+      obj_hsh.each { |name,val| warn "\n#{name}:\n#{val.pretty_inspect}" }
     end
 
     # Stringify stack_trace args
@@ -484,4 +708,7 @@ EOS
       return arg.class.to_s
     end
   end
+end
+
+class TransactionSet
 end

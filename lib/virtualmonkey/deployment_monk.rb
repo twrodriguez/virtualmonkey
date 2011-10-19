@@ -7,15 +7,21 @@ class DeploymentMonk
   attr_accessor :deployments
 
   # Returns an Array of Deployment objects whose nicknames start with @prefix
-  def from_prefix
-    variations = Deployment.find_by_tags("info:prefix=#{@prefix}")
+  def from_prefix_tag(prefix = @prefix)
+    variations = Deployment.find_by_tags("info:prefix=#{prefix}")
+    puts "loading #{variations.size} deployments matching your prefix"
+    return variations
+  end
+
+  def self.from_name(prefix = @prefix)
+    variations = Deployment.find_by(:nickname) { |n| n =~ Regexp.new("^#{Regexp.escape(prefix)}") }
     puts "loading #{variations.size} deployments matching your prefix"
     return variations
   end
 
   # Lists the nicknames of Array of Deployment objects whose nicknames start with prefix
   def self.list(prefix, verbose = false)
-    deployments = Deployment.find_by_tags("info:prefix=#{@prefix}")
+    deployments = Deployment.find_by_tags("info:prefix=#{prefix}")
     if verbose
       pp deployments.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
     else
@@ -36,7 +42,8 @@ class DeploymentMonk
     @clouds = []
     @single_deployment = single_deployment
     @prefix = prefix
-    @deployments = from_prefix
+    @deployments = from_prefix_tag
+    @errors = []
     @server_templates = []
     @common_inputs = {}
     @variables_for_cloud = {}
@@ -98,7 +105,7 @@ class DeploymentMonk
     multi_cloud_images
   end
 
-  def generate_variations(options = {})
+  def generate_variations(options = {}, create_command=nil)
     # Count the max number of images that we can select from (@image_count)
     # Get list of supported clouds (@clouds)
     dep_image_names = nil  # This variable holds the names of the images in the deployment
@@ -144,11 +151,19 @@ class DeploymentMonk
         end
       }
     }
-    
+
+=begin # TODO: Display the Deployments that it will try to create
+    unless options[:yes]
+      unless ask("Are these the correct images that should be used?", lambda { |ans| ans =~ /^[yY]/ })
+        error "Aborting on user input."
+      end
+    end
+=end
+
     dep_tempname = ""
     new_deploy = nil
-    nick_name_holder = [] # this variable is used when we want to create a single deployment and we use it to name the deployment properly 
-    deployment_created = false # this variable is used to control creating a single deployment 
+    nick_name_holder = [] # this variable is used when we want to create a single deployment and we use it to name the deployment properly
+    deployment_created = false # this variable is used to control creating a single deployment
     @image_count.times do |index|
       @clouds.each do |cloud|
 
@@ -159,20 +174,43 @@ class DeploymentMonk
         end
 
         # Check the candidate MCI or Skip if the selected MCI doesn't support the cloud
-        mci_supports_cloud = true
+        mci_supports_cloud = nil
         @server_templates.each do |st|
-          if @mci_order[index][st.href]
+          mci = nil
+          alt_mci = nil
+          if @mci_order[index][st.href] && @mci_order[index][st.href].supported_cloud_ids.include?(cloud.to_i)
             mci = @mci_order[index][st.href]
           else
-            pair = @mci_order.detect { |idx,st_hash| st_hash[st.href] && st_hash[st.href].supported_cloud_ids.include?(cloud.to_i) }
-            pair ||= @mci_order.detect { |idx,st_hash| st_hash[st.href] }
-            mci = @mci_order[pair.first][st.href]
+            @image_count.times do |idx|
+              if @mci_order[idx][st.href] && @mci_order[idx][st.href].supported_cloud_ids.include?(cloud.to_i)
+                alt_mci = @mci_order[idx][st.href]
+                break
+              end
+            end
           end
-          mci_supports_cloud &&= mci.supported_cloud_ids.include?(cloud.to_i)
+          # We don't want to create extra deployments if the mci for this "index" doesn't support the cloud
+          if mci
+            mci_supports_cloud = true if mci_supports_cloud.nil?
+            mci_supports_cloud &&= mci && mci.supported_cloud_ids.include?(cloud.to_i)
+          elsif alt_mci.nil?
+            mci_supports_cloud = false
+          end
         end
         unless mci_supports_cloud
-          puts "MCI doesn't contain an image that supports cloud #{cloud}. Skipping..."
+          warn "Computed MCI Set ##{index} contains an MCI that doesn't support cloud #{cloud}. Skipping..."
           next
+        end
+
+
+        # Before Create Hooks?
+        if not options[:runner].before_destroy.empty?
+          puts "Executing before_create hooks..."
+          runner_class = options[:runner]
+          runner_class.assert_integrity!
+          runner_class.before_create.each { |fn|
+            (fn.is_a?(Proc) ? runner_class.instance_eval(&fn) : runner_class.__send__(fn))
+          }
+          puts "Finished executing before_create hooks."
         end
 
         # Create Deployment for this MCI and cloud
@@ -190,18 +228,31 @@ class DeploymentMonk
           @deployments << new_deploy
         end
 
+        tags = {"cloud" => (@single_deployment ? "multicloud" : cloud),
+                "troop" => options[:config_file],
+                "command" => VirtualMonkey::Command::last_command_line}
+        new_deploy.set_info_tags(tags)
+
         dep_image_list = []
         @server_templates.each do |st|
           nick_name_holder << st.nickname.gsub(/ /,'_')  ## place the nickname into the array
+          mci = nil
           #Select an MCI to use
-          if @mci_order[index][st.href]
+          if @mci_order[index][st.href] && @mci_order[index][st.href].supported_cloud_ids.include?(cloud.to_i)
             mci = @mci_order[index][st.href]
           else
-            pair = @mci_order.detect { |idx,st_hash| st_hash[st.href] && st_hash[st.href].supported_cloud_ids.include?(cloud.to_i) }
-            pair ||= @mci_order.detect { |idx,st_hash| st_hash[st.href] }
-            mci = @mci_order[pair.first][st.href]
+            @image_count.times do |idx|
+              if @mci_order[idx][st.href] && @mci_order[idx][st.href].supported_cloud_ids.include?(cloud.to_i)
+                mci = @mci_order[idx][st.href]
+                break
+              end
+            end
           end
-          dep_image_list << dep_image_names = mci.name.gsub(/ /,'_')
+          dep_image_list << dep_image_names = URI.escape(mci.name.gsub(/ |\t/,'_'))
+          if dep_image_names != mci.name.gsub(/ |\t/,'_')
+            warn "MCI name has HREF-sensitive characters, this can cause trouble for reporting to S3"
+          end
+
           use_this_image = mci.href
 
           # Load Cloud Variables from all_clouds.json
@@ -255,20 +306,40 @@ class DeploymentMonk
             end
           end
 
-          begin
+          # Create Server
+          if options[:force]
+            begin
+              server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
+            rescue Exception => e
+              msg = "GOT EXCEPTION: \"#{e.message}\""
+              warn "#\n# #{msg}\n#\n\n"
+              cmd = "ServerInterface.new(#{cloud}).create(#{server_params.deep_merge(@variables_for_cloud[cloud]).pretty_inspect})"
+              @errors << "#{msg} for #{cmd}"
+              next
+            end
+          else
             server = ServerInterface.new(cloud).create(server_params.deep_merge(@variables_for_cloud[cloud]))
-          rescue Exception => e
-            msg = "#\n# GOT EXCEPTION: #{e.message}\n#\n"
-            STDERR.print(msg)
-            next
           end
+
+          # Set info tags on deployment
+          tags = {}
+          tags["server_#{server.rs_id}-servertemplate_id"] = "#{st.rs_id}"
+          unless @single_deployment
+            # MCI info isn't available from RightScale Server API
+            if options[:use_mci] && !options[:use_mci].empty?
+              tags["mci_id"] = options[:use_mci].split(/\//).last
+            else
+              tags["server_#{server.rs_id}-mci_id"] = use_this_image.split(/\//).last
+            end
+          end
+          new_deploy.set_info_tags(tags)
 
           # AWS Cloud-specific Code XXX LEGACY XXX
           if cloud.to_i < 10
             # since the create call does not set the parameters, we need to set them separate
             server.set_inputs(@variables_for_cloud[cloud]['parameters'])
 
-            # WHY WE NEED THIS? create maybe already does this 
+            # WHY WE NEED THIS? create maybe already does this
             # uses a special internal call for setting the MCI on the server
             sint = ServerInternal.new(:href => server.href)
             sint.set_multi_cloud_image(use_this_image) unless options[:use_mci] && !options[:use_mci].empty?
@@ -277,7 +348,7 @@ class DeploymentMonk
             unless options[:no_spot]
               server.reload
               server.settings
-              if server.ec2_instance_type =~ /small/ 
+              if server.ec2_instance_type =~ /small/
                 server.max_spot_price = "0.085"
               elsif server.ec2_instance_type =~ /large/
                 server.max_spot_price = "0.38"
@@ -294,12 +365,39 @@ class DeploymentMonk
 
           # Set the inputs at the deployment level
           new_deploy.set_inputs(@common_inputs.deep_merge(@variables_for_cloud[cloud]['parameters']))
+        end # @server_templates.each do |st|
+
+        # After Create Hooks for multiple deployments?
+        if not options[:runner].before_destroy.empty? and not @single_deployment
+          puts "Executing after_create hooks..."
+          runner = options[:runner].new(new_deploy.href)
+          options[:runner].after_create.each { |fn|
+            (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
+          }
+          puts "Finished executing after_create hooks."
         end
-      end
-    end
+      end # @clouds.each do |cloud|
+    end # @image_count.times do |index|
+
     if @single_deployment
       new_deploy.nickname = dep_tempname + nick_name_holder.uniq.join("_AND_") + "-ALL_IN_ONE"
       new_deploy.save
+
+      # After Create Hooks for single deployment?
+      if not options[:runner].before_destroy.empty?
+        puts "Executing after_create hooks..."
+        runner = options[:runner].new(new_deploy.href)
+        options[:runner].after_create.each { |fn|
+          (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
+        }
+        puts "Finished executing after_create hooks."
+      end
+    end
+    puts "\nError Summary:\n#{@errors.join("\n")}".apply_color(:red) if !@errors.empty?
+    if @deployments.length > 0
+      puts "\nCreated #{@deployments.length} deployments:\n#{@deployments.pretty_inspect}".apply_color(:green)
+    else
+      error "\nNo deployments created!"
     end
   end
 
@@ -312,7 +410,7 @@ class DeploymentMonk
   end
 
   def load_clouds(cloud_ids)
-    VirtualMonkey::Toolbox::populate_all_cloud_vars(:force)
+    VirtualMonkey::Toolbox::populate_all_cloud_vars(cloud_ids, {:force => true})
     all_clouds = JSON::parse(IO.read(File.join(VirtualMonkey::CLOUD_VAR_DIR, "all_clouds.json")))
     cloud_ids.each { |id| @variables_for_cloud.deep_merge!(id.to_s => all_clouds[id.to_s]) }
   end

@@ -1,21 +1,24 @@
 module VirtualMonkey
   module Command
-  
-# monkey destroy --tag unique_tag
-    def self.destroy(*args)
-      self.init(*args)
-      @@options = Trollop::options do
-        text @@available_commands[:destroy]
-        eval(VirtualMonkey::Command::use_options( :config_file, :only, :keep, :prefix, :yes, :clouds,
-                                                  :verbose))
-      end
-
-      raise "--config_file is required" unless @@options[:config_file]
+    # monkey destroy --tag unique_tag
+    add_command("destroy", [:config_file, :only, :keep, :prefix, :yes, :clouds, :verbose, :force]) do
       load_config_file
       @@dm = DeploymentMonk.new(@@options[:prefix], [], [], @@options[:allow_meta_monkey])
       select_only_logic("Really destroy")
-      destroy_all_logic
+      if @@options[:force]
+        begin
+          destroy_all_logic
+        rescue Exception => e
+          warn "WARNING: got \"#{e.message}\", forcing destruction of deployments."
+          @@do_these.each { |deploy|
+            deploy.servers_no_reload.each { |s| s.stop if s.state =~ /operational|booting/ }
+            deploy.destroy
+          }
+          SharedDns.release_all_unused_domains
+        end
+      else
+        destroy_all_logic
+      end
     end
-
   end
 end

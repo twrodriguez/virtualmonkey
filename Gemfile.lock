@@ -1,9 +1,21 @@
+GIT
+  remote: git://github.com/twrodriguez/rest_connection.git
+  revision: 9e52fe05b6ee1a005e12d6a90b34046efd12270c
+  branch: multicloud
+  specs:
+    rest_connection (0.0.22)
+      activesupport (= 2.3.10)
+      json
+      net-ssh (= 2.1.4)
+
 GEM
   remote: http://rubygems.org/
   specs:
-    activesupport (3.0.6)
+    activesupport (2.3.10)
     builder (3.0.0)
+    colorize (0.5.8)
     columnize (0.3.2)
+    daemons (1.1.4)
     diff-lcs (1.1.2)
     eventmachine (0.12.10)
     excon (0.6.2)
@@ -30,11 +42,10 @@ GEM
     mime-types (1.16)
     net-ssh (2.1.4)
     nokogiri (1.4.4)
+    rack (1.3.4)
+    rack-protection (1.1.4)
+      rack
     rake (0.8.7)
-    rest_connection (0.0.99999)
-      activesupport
-      json
-      net-ssh
     right_popen (1.0.11)
       eventmachine (>= 0.12.10)
     rspec (2.5.0)
@@ -51,21 +62,29 @@ GEM
     ruby-debug-base (0.10.4)
       linecache (>= 0.3)
     ruby-hmac (0.4.0)
+    sinatra (1.3.1)
+      rack (~> 1.3, >= 1.3.4)
+      rack-protection (~> 1.1, >= 1.1.2)
+      tilt (~> 1.3, >= 1.3.3)
+    tilt (1.3.3)
     trollop (1.16.2)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
-  eventmachine
+  colorize
+  daemons
+  eventmachine (= 0.12.10)
   fog
   gemedit
   highline
   i18n
   jeweler
   json
-  rest_connection
-  right_popen
+  rest_connection!
+  right_popen (= 1.0.11)
   rspec (>= 1.2.9)
   ruby-debug
+  sinatra
   trollop

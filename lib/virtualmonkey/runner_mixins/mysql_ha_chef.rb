@@ -1,19 +1,25 @@
 module VirtualMonkey
   module Mixin
     module ChefMysqlHA
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
 
+      before_destroy do
+        release_container
+        set_variation_lineage
+        cleanup_volumes
+        cleanup_snapshots
+      end
+
+      after_destroy do
+        SharedDns.release_from_all_domains(@deployment.href)
+      end
+
       def mysql_servers
-        res = []
-        @servers.each do |server|
-          st = ServerTemplate.find(resource_id(server.server_template_href))
-          if st.nickname =~ /Database Manager/
-            res << server
-          end
-        end
+        res = select_set(/Database Manager/)
         raise "FATAL: No Database Manager servers found" unless res.length > 0
         res
       end
@@ -44,7 +50,7 @@ module VirtualMonkey
                  ]
         raise "FATAL: Need 1 MySQL servers in the deployment" unless servers.size >= 1
 
-        st = ServerTemplate.find(resource_id(mysql_servers.first.server_template_href))
+        st = match_st_by_server(mysql_servers.first)
         load_script_table(st,scripts,st)
       end
 
@@ -370,7 +376,7 @@ module VirtualMonkey
 
   #    def run_restore_with_timestamp_override
   #      obj_behavior(s_one, :relaunch)
-  #      s_one.dns_name = nil
+  #      s_one['dns_name'] = nil
   #      obj_behavior(s_one, :wait_for_operational_with_dns)
   #     run_script('restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
   #    end
@@ -511,8 +517,8 @@ EOS
             print "value\n"+ value.to_s + "\n"
             if value.to_s.match(/master_active/)
               potential_time_stamp = value.to_s.split("=")[1]
-              if(Integer(potential_time_stamp) > current_max_master_timestamp)
-              current_max_master_timestamp = Integer(potential_time_stamp)
+              if((potential_time_stamp).to_i > current_max_master_timestamp)
+              current_max_master_timestamp = (potential_time_stamp).to_i
               current_max_master_server    = potential_new_master
               end
            end

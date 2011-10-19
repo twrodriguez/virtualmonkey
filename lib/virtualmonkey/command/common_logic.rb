@@ -1,7 +1,16 @@
 module VirtualMonkey
   module Command
     def self.load_config_file
-      raise "--config_file is required!" unless @@options[:config_file]
+      if @@options[:prefix] and not @@options[:config_file] and @@command =~ /run|destroy/
+        # Try loading from deployment tag
+        deployments = DeploymentMonk.from_name(@@options[:prefix])
+        if deployments.unanimous? { |d| d.get_info_tags["self"]["troop"] }
+          @@options[:config_file] = deployments.first.get_info_tags["self"]["troop"]
+        else
+          raise "FATAL: Inconsistent 'info:troop=...' tags on deployments"
+        end
+      end
+      raise "FATAL: --config_file is required!" unless @@options[:config_file]
       config = JSON::parse(IO.read(@@options[:config_file]))
       @@options[:prefix] += "-" if @@options[:prefix]
       @@options[:prefix] = "" unless @@options[:prefix]
@@ -12,6 +21,28 @@ module VirtualMonkey
       @@options[:terminate] = true if @@command =~ /troop|destroy/
       @@options[:clouds] = load_clouds(config) unless @@options[:clouds] and @@options[:clouds].length > 0
       @@options[:server_template_ids] = config['server_template_ids']
+      if (@@options[:revisions] ||= []).empty?
+        @@options[:revisions] = [0] * config['server_template_ids'].length
+      else
+        rev_len, st_len = @@options[:revisions].length, config['server_template_ids'].length
+        if rev_len != st_len
+          raise "FATAL: #{rev_len} revisions specified. This troop is configured for #{st_len} servers."
+        end
+        pp config['server_template_ids'].zip(@@options[:revisions]).map { |stid, rev|
+          {ServerTemplate.find(stid.to_i).nickname => "[rev #{rev}]"}
+        }.to_h
+        unless @@options[:yes]
+          unless ask("Are these the correct revisions that should be used?", lambda { |ans| ans =~ /^[yY]/ })
+            error "Aborting on user input."
+          end
+        end
+      end
+      # TODO - Blocked on API 1.5 Revision History
+      #st_revision_map = config['server_template_ids'].zip(@@options[:revisions]).to_h
+      #@@options[:server_template_ids] = []
+      #st_revision_map.each { |st_id|
+      #  ServerTemplate.find_by(:nickname) { |n| n == ServerTemplate.find(st_id) }
+      #}
     end
 
     def self.load_clouds(config)
@@ -45,14 +76,15 @@ module VirtualMonkey
         pp @@do_these.map { |d| d.nickname }
       end
       unless @@options[:yes] or @@command == "troop"
-        confirm = ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
-        raise "Aborting." unless confirm
+        unless ask("#{message} these #{@@do_these.size} deployments (y/n)?", lambda { |ans| ans =~ /^[yY]/ })
+          error "Aborting on user input."
+        end
       end
     end
 
     # Encapsulates the logic for loading the necessary variables to create a set of deployments
     def self.create_logic
-      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      error "Need Internal Testing API access to use this command." unless VirtualMonkey::Toolbox::api0_1?
       if @@options[:clouds]
         @@dm.load_clouds(@@options[:clouds])
 #      elsif @@options[:cloud_variables]
@@ -68,7 +100,7 @@ module VirtualMonkey
     # with a test case. Included is the logic for optionally destroying "successful" servers or
     # running "successful" servers through the log auditor/trainer.
     def self.run_logic
-      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      error "Need Internal Testing API access to use this command." unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] ||= get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
 
@@ -91,28 +123,34 @@ module VirtualMonkey
             end
 
             if @@options[:terminate] and not (@@options[:list_trainer] or @@options[:qa])
+#   TODO: Daemons           destroy_job_set_logic(@@remaining_jobs.select { |job| job.status == 0 })
               @@remaining_jobs.each do |job|
                 if job.status == 0
                   destroy_job_logic(job)
                 end
               end
             end
-          rescue Interrupt
-            exit(1)
+=begin
+            # TODO
+            if @@options[:list_trainer] or @@options[:qa]
+              @@remaining_jobs.each do |job|
+                if job.status == 0
+                  audit_log_deployment_logic(job.deployment, :interactive)
+                  destroy_job_logic(job) if @@options[:terminate]
+                end
+              end
+            end
+=end
+          rescue Interrupt, NameError, ArgumentError, TypeError => e
+            raise
           rescue Exception => e
-            puts "WARNING: Got #{e.message} from #{e.backtrace.first}"
+            warn "WARNING: Got \"#{e.message}\" from #{e.backtrace.first}"
           end
         }
-        if @@options[:list_trainer] or @@options[:qa]
-          @@remaining_jobs.each do |job|
-            if job.status == 0
-              audit_log_deployment_logic(job.deployment, :interactive)
-              destroy_job_logic(job) if @@options[:terminate]
-            end
-          end
-        end
       }
-      exit(1) unless @@gm.jobs.unanimous? { |job| job.status == 0 } and @@gm.jobs.first.status == 0
+      unless @@gm.jobs.unanimous? { |job| job.status == 0 } and @@gm.jobs.first.status == 0
+        error "Some jobs failed. Inspect the results at the given URL"
+      end
     end
 
     # Encapsulates the logic for running through the log auditor/trainer on a single deployment
@@ -129,79 +167,134 @@ module VirtualMonkey
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
       runner = @@options[:runner].new(job.deployment.nickname)
       puts "Destroying successful deployment: #{runner.deployment.nickname}"
-      runner.stop_all(false)
-      #Release DNS logic
-      if runner.respond_to?(:release_dns) and not @@options[:keep]
-        release_all_dns_domains(runner.deployment.href)
+
+      # Before Destroy Hooks? (Only executes in the troop command)
+      retry_block { before_destroy_logic(runner) } unless @@options[:keep] or @@command =~ /run|clone/
+
+      # Call stop_all
+      retry_block { runner.stop_all(false) }
+
+      # After Destroy Hooks? (Only executes in the troop command)
+      # TODO use threads to wait for servers to stop before destroying deployment
+      unless @@options[:keep] or @@command =~ /run|clone/
+        retry_block { runner.deployment.destroy }
+        retry_block { after_destroy_logic(runner) }
+        cleanup_state_dir(runner.deployment)
       end
-      if runner.respond_to?(:release_container) and not @@options[:keep]
-        runner.release_container
-      end
-      runner.deployment.destroy unless @@options[:keep] or @@command =~ /run|clone/
       @@remaining_jobs.delete(job)
     end
 
+=begin
+    # Encapsulates the logic for destroying the deployments from a set of jobs
+    def self.destroy_job_set_logic(job_set)
+      # TODO: Daemons
+      @@options[:runner] ||= get_runner_class
+      raise "FATAL: Could not determine runner class" unless @@options[:runner]
+      runner_hsh = {}
+      job_set.each do |job|
+        deploy = job.deployment
+        runner_hsh[deploy.nickname] = @@options[:runner].new(deploy.nickname)
+        runner = runner_hsh[deploy.nickname]
+
+        # Before Destroy Hooks?
+        unless @@options[:keep] or @@command =~ /run|clone/
+          retry_block { before_destroy_logic(runner) } unless @@options[:keep]
+          retry_block { runner.stop_all(false) }
+        end
+      end
+
+      unless @@options[:keep]
+        job_set.each do |job|
+          deploy = job.deployment
+          unless runner_hsh[deploy.nickname]
+            runner_hsh[deploy.nickname] = @@options[:runner].new(deploy.nickname)
+          end
+          runner = runner_hsh[deploy.nickname]
+          retry_block do
+            deploy.servers_no_reload.each { |s|
+              s.wait_for_state("stopped")
+            }
+          end
+          retry_block { deploy.destroy }
+          # After Destroy Hooks?
+          retry_block { after_destroy_logic(runner) }
+          cleanup_state_dir(deploy)
+          @@remaining_jobs.delete(job)
+        end
+      end
+    end
+=end
+
     # Encapsulates the logic for destroying all matched deployments
     def self.destroy_all_logic
-      raise "Aborting" unless VirtualMonkey::Toolbox::api0_1?
+      error "Need Internal Testing API access to use this command." unless VirtualMonkey::Toolbox::api0_1?
       @@options[:runner] ||= get_runner_class
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
       @@do_these ||= @@dm.deployments
+      runner_hsh = {}
       @@do_these.each do |deploy|
-        runner = @@options[:runner].new(deploy.nickname)
-        runner.stop_all(false)
-        complete = false
-        begin
-          state_dir = File.join(@@global_state_dir, deploy.nickname)
-          if File.directory?(state_dir)
-            puts "Deleting state files for #{deploy.nickname}..."
-            Dir.new(state_dir).each do |state_file|
-              if File.extname(state_file) =~ /((rb)|(feature))/
-                File.delete(File.join(state_dir, state_file))
-              end
-            end
-            FileUtils.rm_rf(state_dir)
-          end
-          #Release DNS logic
-          if runner.respond_to?(:release_dns) and not @@options[:keep]
-            release_all_dns_domains(deploy.href)
-          end
-          if runner.respond_to?(:release_container) and not @@options[:keep]
-            runner.release_container
-          end
-          # Cleanup volumes and snapshots for runners that support it.
-          if runner.respond_to?(:set_variation_lineage) and not @@options[:keep]
-            runner.set_variation_lineage
-          end
-          if runner.respond_to?(:cleanup_volumes) and not @@options[:keep]
-            runner.cleanup_volumes
-          end
-          if runner.respond_to?(:cleanup_snapshots) and not @@options[:keep]
-            runner.cleanup_snapshots
-          end
-          complete = true
-        rescue Interrupt
-          exit(1)
-        rescue Exception => e
-          puts "WARNING: Got #{e.message} from #{e.backtrace.first}"
-          sleep 5
-        end while not complete
+        runner_hsh[deploy.nickname] = @@options[:runner].new(deploy.nickname)
+        runner = runner_hsh[deploy.nickname]
+
+        # Before Destroy Hooks?
+        retry_block { before_destroy_logic(runner) } unless @@options[:keep]
+        retry_block { runner.stop_all(false) }
       end
 
-      @@dm.destroy_all unless @@options[:keep]
+      unless @@options[:keep]
+        @@do_these.each do |deploy|
+          unless runner_hsh[deploy.nickname]
+            runner_hsh[deploy.nickname] = @@options[:runner].new(deploy.nickname)
+          end
+          runner = runner_hsh[deploy.nickname]
+          retry_block do
+            deploy.servers_no_reload.each { |s|
+              s.wait_for_state("stopped")
+            }
+          end
+          retry_block { deploy.destroy }
+          # After Destroy Hooks?
+          retry_block { after_destroy_logic(runner) }
+          cleanup_state_dir(deploy)
+        end
+      end
     end
 
-    # Encapsulates the logic for releasing the DNS entries for a single deployment, no matter what DNS it used
-    def self.release_all_dns_domains(deploy_href)
-      ["virtualmonkey_shared_resources", "virtualmonkey_awsdns", "virtualmonkey_dyndns", "dnsmadeeasy_new", "virtualmonkey_awsdns_new", "virtualmonkey_dyndns_new"].each { |domain|
-        begin
-          dns = SharedDns.new(domain)
-          raise "Unable to reserve DNS" unless dns.reserve_dns(deploy_href)
-          dns.release_dns
-        rescue Exception => e
-          raise e unless e.message =~ /Unable to reserve DNS/
+    def self.cleanup_state_dir(deploy)
+      retry_block do
+        state_dir = File.join(@@global_state_dir, deploy.nickname)
+        if File.directory?(state_dir)
+          puts "Deleting state files for #{deploy.nickname}..."
+          Dir.new(state_dir).each do |state_file|
+            if File.extname(state_file) =~ /((rb)|(feature))/
+              File.delete(File.join(state_dir, state_file))
+            end
+          end
+          FileUtils.rm_rf(state_dir)
         end
-      }
+      end
+    end
+
+    # Encapsulates the logic for running the before_destroy hooks for a particular runner
+    def self.before_destroy_logic(runner)
+      if not @@options[:runner].before_destroy.empty?
+        puts "Executing before_destroy hooks..."
+        @@options[:runner].before_destroy.each { |fn|
+          retry_block { (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn)) }
+        }
+        puts "Finished executing vefore_destroy hooks."
+      end
+    end
+
+    # Encapsulates the logic for running the after_destroy hooks for a particular runner
+    def self.after_destroy_logic(runner)
+      if not @@options[:runner].after_destroy.empty?
+        puts "Executing after_destroy hooks..."
+        @@options[:runner].after_destroy.each { |fn|
+          retry_block { (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn)) }
+        }
+        puts "Finished executing after_destroy hooks."
+      end
     end
 
     # Encapsulates the logic for detecting what runner is used in a test case file
@@ -232,21 +325,79 @@ module VirtualMonkey
       @@options[:feature] = features
     end
 
+    def self.reconstruct_command_line(as=:String)
+      if as == :String
+        cmd_line = "#{@@command}"
+      elsif as == :Array
+        cmd_line = ["#{@@command}"]
+      end
+      command_flags = @@options.keys.map { |k| k.to_s =~ /^(.*)_given$/; $1 }.compact
+      command_flags.map! { |k| k.to_sym }
+      command_flags.each { |flag|
+        if @@options["#{flag}_given".to_sym]
+          actual_flag = "--#{flag.to_s.gsub(/_/, "-")}"
+          if as == :String
+            cmd_line += " #{actual_flag}"
+            unless @@options[flag].is_a?(TrueClass) || @@options[flag].is_a?(FalseClass)
+              cmd_line += " #{[@@options[flag]].flatten.map { |arg| arg.inspect }.join(" ")}"
+            end
+          elsif as == :Array
+            cmd_line << "#{actual_flag}"
+            unless @@options[flag].is_a?(TrueClass) || @@options[flag].is_a?(FalseClass)
+              cmd_line += [@@options[flag]].flatten.map { |arg| "#{arg}" }
+            end
+          end
+        end
+      }
+      return cmd_line
+    end
+
+    def self.retry_block(max_retries=(VirtualMonkey::config[:max_retries] || 10), &block)
+      begin
+        yield()
+      rescue Interrupt, NameError, ArgumentError, TypeError => e
+        raise
+      rescue Exception => e
+        warn "WARNING: Got \"#{e.message}\" from: #{e.backtrace.first}"
+        sleep 5
+        max_reties -= 1
+        (max_retries > 0) ? (retry) : (raise)
+      end
+    end
+
+    def self.countdown(secs)
+      begin
+        Array(1..secs).reverse.each do |i|
+          if i < (secs / 4)
+            puts "#{i}...".apply_color(:red)
+          elsif i < (secs / 2)
+            puts "#{i}...".apply_color(:yellow)
+          else
+            puts "#{i}..."
+          end
+          sleep 1
+        end
+        return true
+      rescue Interrupt
+        return false
+      end
+    end
+
     ##################################
     # Onboarding/File-Creation Logic #
     ##################################
 
     def self.build_scenario_names(underscore_name = " ")
       if underscore_name != " "
-        if ask("Is \"#{underscore_name.gsub(/ /,"_")}\" an acceptable name for this scenario (y/n)?", lambda { |ans| true if (ans =~ /^[y,Y]{1}/) })
-          underscore_name.gsub!(/ /,"_")
+        if ask("Is \"#{underscore_name.gsub(/ |\./,"_")}\" an acceptable name for this scenario (y/n)?", lambda { |ans| ans =~ /^[yY]/ })
+          underscore_name.gsub!(/ |\./,"_")
         else
           underscore_name = " "
         end
       end
 
-      while underscore_name.gsub!(/ /,"")
-        underscore_name = ask("What is the name for this runner? (Please use underscores instead of spaces), eg. 'mysql', 'php_chef', etc.)")
+      while underscore_name.gsub!(/ |\./,"")
+        underscore_name = ask("What is the name for this runner? (Please use underscores instead of spaces and periods), eg. 'mysql', 'php_chef', etc.)")
       end
       @@underscore_name = underscore_name.downcase
       @@camel_case_name = @@underscore_name.camelcase
@@ -304,7 +455,7 @@ module VirtualMonkey
             end
           }
           puts st_ary.map { |st| st.nickname }.join("\n")
-          correct = ask("Are these the ServerTemplates that you wish to use with this runner? (y/n)", lambda { |ans| true if (ans =~ /^[yY]{1}/) })
+          correct = ask("Are these the ServerTemplates that you wish to use with this runner? (y/n)", lambda { |ans| ans =~ /^[yY]/ })
         end
 
         puts "Available Clouds for this Account (Note that your MCI's may not support all of these):"
@@ -357,7 +508,7 @@ before "script_#{index}" do
 end
 
 test "script_#{index}" do
-  run_script_on_set("script_#{index}", server_templates.detect { |st| st.nickname =~ /#{Regexp.escape(st.nickname)}/ }, true, {})
+  run_script_on_set("script_#{index}", server_templates.detect { |st| st.nickname =~ #{Regexp.new(Regexp.escape(st.nickname)).inspect} }, true, {})
 end
 
 after "script_#{index}" do
@@ -387,6 +538,7 @@ EOS
 module VirtualMonkey
   module Mixin
     module #{@@camel_case_name}
+      extend VirtualMonkey::Mixin::CommandHooks
 EOS
       # Lookup Scripts
       mixin_tpl += <<EOS
@@ -409,11 +561,13 @@ EOS
         mixin_tpl += "        #{comment_string}\n"
         mixin_tpl += "        #{"#" * comment_string.length}\n"
         mixin_tpl += "        scripts = [\n"
-        script_array = st_script_table.map { |index,script,st| "                   ['script_#{index}', '#{Regexp.escape(script)}']" }
+        script_array = st_script_table.map { |index,script,st|
+          "                   ['script_#{index}', #{Regexp.new(Regexp.escape(script)).inspect}]"
+        }
         mixin_tpl += "#{script_array.join(",\n")}\n"
         mixin_tpl += "                  ]\n"
-        mixin_tpl += "        st_ref = @server_templates.detect { |st| st.nickname =~ /#{Regexp.escape(st_ref.nickname)}/ }\n"
-        mixin_tpl += "        load_script_table(st_ref,scripts,st_ref)\n\n"
+        mixin_tpl += "        st_ref = @server_templates.detect { |st| st.nickname =~ #{Regexp.new(Regexp.escape(st_ref.nickname)).inspect} }\n"
+        mixin_tpl += "        load_script_table(st_ref, scripts, st_ref)\n\n"
       }
       mixin_tpl += "      end\n"
 
@@ -434,9 +588,13 @@ EOS
       # scenarios. Exception_handle methods should return true if they have
       # handled the exception, or return false otherwise.
       def #{@@underscore_name}_exception_handle(e)
-        if e.message =~ /INSERT YOUR ERROR HERE/
-          puts "Got 'INSERT YOUR ERROR HERE'. Retrying..."
+        if e.message =~ /INSERT YOUR RETRY-ABLE ERROR HERE/
+          warn "Got 'RETRY-ABLE ERROR'. Retrying..."
           sleep 30
+          return true # Exception Handled
+        elsif e.message =~ /INSERT YOUR IGNORE-ABLE ERROR HERE/
+          warn "Got 'IGNORE-ABLE ERROR'. Continuing tests..."
+          continue_test
           return true # Exception Handled
         else
           return false # Exception Not Handled
@@ -481,8 +639,30 @@ EOS
 module VirtualMonkey
   module Runner
     class #{@@camel_case_name}
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::#{@@camel_case_name}
+
+      # Write a meaningful description of what this Runner tests
+      description ""
+
+      ########################
+      # Monkey Command Hooks #
+      ########################
+
+      # Uncomment the next line to enable the before_create hook. NOTE: Unlike the other hooks,
+      # this hook is executed BEFORE A DEPLOYMENT EXISTS, so any code placed in here will not be
+      # able to access typical Runner methods and attributes.
+      # before_create { puts "Happens before 'monkey create' creates a deployment" }
+
+      # Uncomment the next line to enable the before_destroy hook
+      # before_destroy { puts "Happens before 'monkey destroy' destroys a deployment" }
+
+      # Uncomment the next line to enable the after_create hook
+      # after_create { puts "Happens after 'monkey create' creates a deployment" }
+
+      # Uncomment the next line to enable the after_destroy hook
+      # after_destroy { puts "Happens after 'monkey destroy' destroys a deployment" }
 
       ###########################################
       # Override any functions from mixins here #
@@ -519,7 +699,7 @@ EOS
           runner_tpl += "      def set_inputs\n"
           input_ref.each { |st_id,ary|
             st = @@st_table.select { |s,st| st.rs_id.to_i == st_id }.first.last
-            runner_tpl += "        server_array = select_set(@server_templates.detect { |st| st.nickname =~ /#{Regexp.escape(st.nickname)}/ })\n"
+            runner_tpl += "        server_array = select_set(@server_templates.detect { |st| st.nickname =~ #{Regexp.new(Regexp.escape(st.nickname)).inspect} })\n"
             ary.each_with_index { |input_hsh,idx|
               runner_tpl += "        server_array[#{idx}].set_inputs(#{input_hsh.inspect})\n"
             }

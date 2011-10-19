@@ -1,15 +1,18 @@
 module VirtualMonkey
   module Runner
     class SimpleWindowsAD
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::SimpleWindows
-  
+
+      description "TODO"
+
       def server_ad
-          @servers.select { |s| s.nickname =~ /Active/i }.first
+        @servers.select { |s| s.nickname =~ /Active/i }.first
       end
-  
+
       def oleg_windows_ad_lookup_scripts
-       scripts = [
+        scripts = [
                    [ 'AD Create a new user', 'AD Create a new user' ],
                    [ 'AD Create a new group', 'AD Create a new group' ],
                    [ 'AD Create system state backup', 'AD Create system state backup' ],
@@ -21,8 +24,8 @@ module VirtualMonkey
                    [ 'SYS Change to safe boot mode', 'SYS Change to safe boot mode' ],
                    [ 'SYS Change to normal boot mode', 'SYS Change to normal boot mode' ],
                    [ 'SYS Install AD backup policy', 'SYS Install AD backup policy' ],
-                 ]
-        st = ServerTemplate.find(resource_id(server_ad.server_template_href))
+                  ]
+        st = match_st_by_server(server_ad)
         load_script_table(st,scripts)
         load_script('AD monkey test', RightScript.new('href' => "/api/acct/2901/right_scripts/438784"))
         load_script('SYS Install AD Backup Policy CHECK', RightScript.new('href' => "/api/acct/2901/right_scripts/438867"))

@@ -1,25 +1,26 @@
 module VirtualMonkey
   module Mixin
     module NginxApplicationFrontend
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::Frontend
       include VirtualMonkey::Mixin::Application
       include VirtualMonkey::Mixin::UnifiedApplication
       include VirtualMonkey::Mixin::ApplicationFrontend
-  
+
       def log_rotation_checks
         detect_os
-  
+
         fe_servers.each do |server|
          force_log_rotation(server)
          log_check(server, "/var/log/nginx/*access.log.1*")
         end
       end
-  
+
       def frontend_checks
        detect_os
-  
+
        run_unified_application_checks(fe_servers, 80)
-  
+
         # check that all application servers exist in the Nginx config file on all fe_servers
         server_ips = Array.new
         app_servers.each { |app| server_ips << app['private-ip-address'] }
@@ -34,7 +35,7 @@ module VirtualMonkey
             end
           end
         end
-  
+
         # restart Nginx and check that it succeeds
         run_script_on_set('nginx_restart', fe_servers, true)
         fe_servers.each_with_index do |server,i|
@@ -48,9 +49,9 @@ module VirtualMonkey
           end
           raise "Nginx status failed" unless response
         end
-  
+
       end
-  
+
       def frontend_lookup_scripts
         fe_scripts = [
                       [ 'nginx_restart', 'WEB Nginx.* \(re\)start' ]
@@ -58,9 +59,9 @@ module VirtualMonkey
         app_scripts = [
                        [ 'connect', 'LB Application to Nginx connect' ]
                       ]
-        st = ServerTemplate.find(resource_id(fe_servers.first.server_template_href))
+        st = match_st_by_server(fe_servers.first)
         load_script_table(st,fe_scripts)
-        st = ServerTemplate.find(resource_id(app_servers.first.server_template_href))
+        st = match_st_by_server(app_servers.first)
         load_script_table(st,app_scripts)
       end
     end

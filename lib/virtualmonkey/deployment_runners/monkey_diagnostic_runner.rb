@@ -1,8 +1,11 @@
 module VirtualMonkey
   module Runner
     class MonkeyDiagnostic
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::MonkeyDiagnostic
+
+      description "Tests the $0 aspects of the VirtualMonkey ServerTemplate and codebase"
 
       def initialize(*args)
         super(*args)
@@ -19,7 +22,7 @@ module VirtualMonkey
                    ['generate cloud data', 'RB virtualmonkey generate cloud test data'],
                    ['destroy cloud data', 'RB virtualmonkey destroy cloud test data']
                   ]
-        st = ServerTemplate.find(resource_id(VirtualMonkey::my_api_self.server_template_href))
+        st = ServerTemplate.find(VirtualMonkey::my_api_self.server_template_href)
         load_script_table(st,scripts)
       end
 

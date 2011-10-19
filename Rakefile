@@ -7,9 +7,9 @@ begin
     gem.name = "virtualmonkey"
     gem.summary = %Q{testing cluster deployments}
     gem.description = %Q{monkey see, monkey do, monkey repeat}
-    gem.email = "jeremy@rightscale.com"
-    gem.homepage = "http://github.com/jeremyd/virtualmonkey"
-    gem.authors = ["Jeremy Deininger"]
+    gem.email = "timothy@rightscale.com"
+    gem.homepage = "http://github.com/rightscale/virtualmonkey"
+    gem.authors = ["Jeremy Deininger", "Timothy Rodriguez"]
     gem.add_development_dependency "rspec", ">= 1.2.9"
     gem.add_development_dependency "jeweler"
     gem.add_development_dependency "gemedit"
@@ -22,6 +22,9 @@ begin
     gem.add_dependency "right_popen", "1.0.11"
     gem.add_dependency "eventmachine", "0.12.10"
     gem.add_dependency "ruby-debug"
+    gem.add_dependency "colorize"
+    gem.add_dependency "daemons"
+    gem.add_dependency "sinatra"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
   Jeweler::GemcutterTasks.new

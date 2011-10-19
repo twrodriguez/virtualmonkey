@@ -1,6 +1,18 @@
 module VirtualMonkey
   module Mixin
     module DrToolbox
+      extend VirtualMonkey::Mixin::CommandHooks
+
+      before_destroy do
+        release_container
+        set_variation_lineage
+        cleanup_volumes
+        cleanup_snapshots
+      end
+
+      after_destroy do
+        SharedDns.release_from_all_domains(@deployment.href)
+      end
 
       # Stolen from ::EBS need to consolidate or dr_toolbox needs a terminate script to include ::EBS instead
       # take the lineage name, find all snapshots and sleep until none are in the pending state.
@@ -114,6 +126,8 @@ module VirtualMonkey
         if s_one.cloud_id.to_i == 232 and type == "CloudFiles"
           puts "Skipping Rackspace Object Backup since Volume uses CloudFiles"
         else
+          @backup_methods_tested ||= {}
+          return true if @backup_methods_tested[type]
           type = "CloudFiles" if s_one.cloud_id.to_i == 232 and type == :volume
           set_variation_storage_type((type == :volume ? type : "ros"))
           provider = type.to_s.underscore
@@ -140,6 +154,7 @@ module VirtualMonkey
             raise "FATAL: no files found in the backup" if result == nil || result.empty?
             true
           end
+          @backup_methods_tested[type] = true
         end
       end
 

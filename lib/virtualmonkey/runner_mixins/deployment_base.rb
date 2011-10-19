@@ -1,6 +1,7 @@
 module VirtualMonkey
   module Mixin
     module DeploymentBase
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::TestCaseInterface
       attr_accessor :deployment, :servers, :server_templates
       attr_accessor :scripts_to_run
@@ -13,18 +14,35 @@ module VirtualMonkey
         raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
         test_case_interface_init(opts)
         populate_settings
+        assert_integrity!
       end
 
       # Select a server based on the info tags attached to it
       # If a hash of tags is passed, the server needs to match all of them by value
-      # If a block is passed, all info tags will be passed to the block as an array
-      def server_by_info_tag(tags = {}, &block)
+      # If a block is passed, all info tags will be passed to the block as a hash
+      def server_by_info_tags(tags = {}, &block)
         set = @servers
         if block
           set = set.select { |s| yield(s.get_info_tags["self"]) }
         else
           tags.each { |key,val|
             set = set.select { |s| s.get_info_tags(key)["self"][key] == val }
+          }
+        end
+        set.first
+      end
+
+      # Select a server based on the tags in a namespace attached to it
+      # e.g. "namespace:key=value"
+      # If a hash of tags is passed, the server needs to match all of them by value
+      # If a block is passed, all info tags will be passed to the block as a hash
+      def server_by_namespace_tags(namespace, tags = {}, &block)
+        set = @servers
+        if block
+          set = set.select { |s| yield(s.get_tags_by_namespace(namespace)["self"]) }
+        else
+          tags.each { |key,val|
+            set = set.select { |s| s.get_tags_by_namespace(namespace)["self"][key] == val }
           }
         end
         set.first
@@ -51,25 +69,29 @@ module VirtualMonkey
 
       # Makes this exception_handle available for all runners
       def deployment_base_exception_handle(e)
-        if e.message =~ /Insufficient capacity/
-          puts "Got \"Insufficient capacity\". Retrying...."
+        if e.message =~ /Insufficient capacity/i
+          warn "Got \"Insufficient capacity\". Retrying...."
           sleep 60
           return true # Exception Handled
-        elsif e.message =~ /execution expired/i
-          puts "Got \"execution expired...\". Retrying...."
+        elsif e.message =~ /execution expired/i # Response timed out
+          warn "Got \"execution expired\". Retrying...."
           sleep 5
           return true # Exception Handled
-        elsif e.message =~ /Service Unavailable|Service Temporarily Unavailable/
-          puts "Got \"Service Temporarily Unavailable\". Retrying...."
+        elsif e.message =~ /Service Unavailable|Service Temporarily Unavailable/i # 503
+          warn "Got \"Service Temporarily Unavailable\". Retrying...."
+          sleep 30
+          return true # Exception Handled
+        elsif e.message =~ /Bad Gateway/i     # 502: Rackspace sometimes forgets instances exist
+          warn "Got \"Bad Gateway\". Retrying...."
+          sleep 90
+          return true # Exception Handled
+        elsif e.message =~ /Internal error/i  # 500: For mysql deadlocks only
+          warn "Got \"Internal Error\". Retrying...."
           sleep 10
           return true # Exception Handled
-        elsif e.message =~ /Bad Gateway/
-          puts "Got \"Bad Gateway\". Retrying...."
-          sleep 10
-          return true # Exception Handled
-        elsif e.message =~ /Internal error/i  #for mysql deadlocks only
-          puts "Internal Error"
-          sleep 10
+        elsif e.message =~ /Another launch is in progress/i # 422: Rackspace seems to have gotten two launch commands
+          warn "Got \"Another launch is in progress\". Continuing...."
+          continue_test
           return true # Exception Handled
         else
           return false # Exception Not Handled
@@ -92,10 +114,10 @@ module VirtualMonkey
         end
       end
 
-      # Loads a table of [friendly_name, script/recipe regex] from reference_template, attaching them to all templates in the deployment unless add_only_to_this_st is set
-      def load_script_table(reference_template, table, add_only_to_this_st = nil)
+      # Loads a table of [friendly_name, script/recipe regex] from ref_template, attaching them to all templates in the deployment unless add_only_to_this_st is set
+      def load_script_table(ref_template, table, add_only_to_this_st = nil)
         if add_only_to_this_st.is_a?(ServerInterface) or add_only_to_this_st.is_a?(Server)
-          sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
+          sts = [ match_st_by_server(add_only_to_this_st) ]
         elsif add_only_to_this_st.is_a?(ServerTemplate)
           sts = [ add_only_to_this_st ]
         elsif add_only_to_this_st.nil?
@@ -105,9 +127,18 @@ module VirtualMonkey
           table.each { |a|
             st_id = resource_id(st)
             @scripts_to_run[st_id] ||= {}
-            puts "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id][ a[0] ]
-            @scripts_to_run[st_id][ a[0] ] = reference_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
-            raise "FATAL: Script #{a[1]} not found for #{st.nickname}" unless @scripts_to_run[st_id][ a[0] ]
+            warn "WARNING: Overwriting '#{a[0]}' for ServerTemplate #{st.nickname}" if @scripts_to_run[st_id][a[0]]
+            exec = ref_template.executables.detect { |ex| ex.name =~ /#{a[1]}/i or ex.recipe =~ /#{a[1]}/i }
+            if exec
+              if exec.recipe =~ /#{a[1]}/i
+                # Recipes can only be run on the template they are attached to
+                @scripts_to_run[st_id][a[0]] = exec if resource_id(ref_template) == st_id
+              else
+                @scripts_to_run[st_id][a[0]] = exec
+              end
+            else
+              raise "FATAL: Executable #{a[1]} not found for #{st.nickname}"
+            end
           }
         }
       end
@@ -131,7 +162,7 @@ module VirtualMonkey
       # Loads a single hard-coded RightScript or Recipe, attaching it to all templates in the deployment unless add_only_to_this_st is set
       def load_script(friendly_name, script, add_only_to_this_st=nil)
         if add_only_to_this_st.is_a?(ServerInterface) or add_only_to_this_st.is_a?(Server)
-          sts = [ ServerTemplate.find(resource_id(add_only_to_this_st.server_template_href)) ]
+          sts = [ match_st_by_server(add_only_to_this_st) ]
         elsif add_only_to_this_st.is_a?(ServerTemplate)
           sts = [ add_only_to_this_st ]
         elsif add_only_to_this_st.nil?
@@ -176,13 +207,7 @@ module VirtualMonkey
 
       # Launch all servers in the deployment.
       def launch_all
-        @servers.each { |s|
-          begin
-            s.start
-          rescue Exception => e
-            raise e unless e.message =~ /AlreadyLaunchedError/
-          end
-        }
+        launch_set(@servers)
       end
 
       # sets the MASTER_DB_DNSNAME to this machine's ip address
@@ -194,26 +219,31 @@ module VirtualMonkey
         @deployment.set_input("db/fqdn", the_name)
       end
 
-      # Launch server(s) that match nickname_substr
-      # * nickname_substr<~String> - regex compatible string to match
-      def launch_set(nickname_substr)
-        set = select_set(nickname_substr)
+      # Launch a set of server(s)
+      def launch_set(set = @servers)
+        set = select_set(set)
         set.each { |s|
           begin
             transaction { s.start }
           rescue Exception => e
-            raise e unless e.message =~ /AlreadyLaunchedError/
+            raise unless e.message =~ /AlreadyLaunchedError/
           end
         }
       end
 
-      # Re-Launch all server
+      # Re-Launch all servers
       def relaunch_all
-        @servers.each { |s|
+        relaunch_set(@servers)
+      end
+
+      # Re-Launch a set of servers
+      def relaunch_set(set=@servers)
+        set = select_set(set)
+        set.each { |s|
           begin
             transaction { s.relaunch }
           rescue Exception => e
-            raise e #unless e.message =~ /AlreadyLaunchedError/
+            raise #unless e.message =~ /AlreadyLaunchedError/
           end
         }
       end
@@ -257,7 +287,7 @@ module VirtualMonkey
         @servers.each { |s| transaction { s.start_ebs } }
         wait_for_all("operational") if wait
         @servers.each { |s|
-          s.dns_name = nil
+          s['dns_name'] = nil
           s.private_dns_name = nil
         }
       end
@@ -266,7 +296,7 @@ module VirtualMonkey
         @servers.each { |s| transaction { s.stop_ebs } }
         wait_for_all("stopped") if wait
         @servers.each { |s|
-          s.dns_name = nil
+          s['dns_name'] = nil
           s.private_dns_name = nil
         }
       end
@@ -275,7 +305,7 @@ module VirtualMonkey
         @servers.each { |s| s.stop }
         wait_for_all("stopped") if wait
         @servers.each { |s|
-          s.dns_name = nil
+          s['dns_name'] = nil
           s.private_dns_name = nil
         }
       end
@@ -348,8 +378,8 @@ module VirtualMonkey
 
       # Run a script on server in the deployment asynchronously
       def launch_script(friendly_name, server, options = nil)
-        raise "No script registered with friendly_name #{friendly_name} for server #{server.inspect}" unless script_to_run?(friendly_name, server)
-        transaction { server.run_executable(@scripts_to_run[resource_id(server.server_template_href)][friendly_name], options) }
+        actual_name = script_to_run?(friendly_name, server)
+        transaction { server.run_executable(@scripts_to_run[resource_id(server.server_template_href)][actual_name], options) }
       end
 
       # Call run_script_on_set with out-of-order params passed in as a hash
@@ -359,22 +389,43 @@ module VirtualMonkey
         run_script_on_set(friendly_name, hash['servers'], hash['wait'], hash['options'])
       end
 
-      # Returns false or true if a script with friendly_name has been registered for all or just one server
+      # If no server argument is passed, this returns an array of friendly_script names that should be called for each server. Or raises an exception
+      # If a server argument is passed, this returs the correct friendly_script name that should be called for that server. Or raises an exception
       def script_to_run?(friendly_name, server = nil)
         if server.nil? #check for all
-          ret = true
-          @server_templates.each { |st|
-            if @scripts_to_run[resource_id(st)]
-              ret &&= @scripts_to_run[resource_id(st)][friendly_name]
-            else
-              ret = false
-            end
+          key_arys = @server_templates.map { |st|
+            raise "No scripts registered for server_template #{st.inspect}" unless @scripts_to_run[resource_id(st)]
+            @scripts_to_run[resource_id(st)].keys
           }
+          agreement = key_arys.unanimous? { |key_ary|
+            key_ary.include?(friendly_name)
+          }
+          if agreement
+            ret = @servers.map { |s| friendly_name }
+          else
+            friendly_name_ary = key_arys.map { |key_ary|
+              val = key_ary.detect { |key| key =~ /#{Regexp.escape(friendly_name)}/i }
+              warn "Found case-insensitive match for script friendly name. Searched for '#{friendly_name}', registered name was '#{key}'" if val
+              val
+            }
+            friendly_name_ary.each_with_index { |name,index|
+              raise "No script registered with friendly_name #{friendly_name} for server_template #{@server_templates[index].inspect}" unless name
+            }
+            ret = @servers.map { |s|
+              friendly_name_ary[@server_templates.find_index(match_st_by_server(s))]
+            }
+          end
         else
           if @scripts_to_run[resource_id(server.server_template_href)]
-            ret = true if @scripts_to_run[resource_id(server.server_template_href)][friendly_name]
+            if @scripts_to_run[resource_id(server.server_template_href)][friendly_name]
+              ret = friendly_name
+            else
+              ret = @scripts_to_run[resource_id(server.server_template_href)].keys.detect { |key| key =~ /#{Regexp.escape(friendly_name)}/i }
+              warn "Found case-insensitive match for script friendly name. Searched for '#{friendly_name}', registered name was '#{key}'" if ret
+              raise "No script registered with friendly_name #{friendly_name} for server_template #{match_st_by_server(server).inspect}" unless ret
+            end
           else
-            ret = false
+            raise "No scripts registered for server_template #{st.inspect}"
           end
         end
         ret
@@ -484,15 +535,18 @@ module VirtualMonkey
 
       def check_monitoring_exception_handle(e)
         if e.message =~ /CPU idle time is|No cpu idle data/i
-          puts "Got \"#{e.message}\". Adjusting monitoring window and retrying...."
+          warn "Got \"#{e.message}\". Adjusting monitoring window and retrying...."
           @monitor_start -= 45
           @monitor_end -= 45
+          return true # Exception Handled
+        elsif e.message =~ /MonitoringDataError/i
+          warn "Got \"#{e.message}\". Waiting for monitoring to become active...."
+          sleep 30
           return true # Exception Handled
         else
           return false # Exception Not Handled
         end
       end
-
 
 
   # TODO - we do not know what the RS_INSTANCE_ID available to the testing.
@@ -592,6 +646,18 @@ module VirtualMonkey
         return  @my_inputs
       end
 
+      def assert_integrity!
+        raise "FATAL: Description not set for #{self.class}!" if self.class.description.empty?
+        hook_sets = [self.class.before_destroy, self.class.after_create, self.class.after_destroy]
+        hook_sets.each { |hook_set|
+          hook_set.each { |fn|
+            if not fn.is_a?(Proc)
+              raise "FATAL: #{self.class} does not have an instance method named #{fn}" unless self.respond_to?(fn)
+            end
+          }
+        }
+        self.class.assert_integrity!
+      end
     end
   end
 end

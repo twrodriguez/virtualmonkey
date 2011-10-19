@@ -1,47 +1,52 @@
 module VirtualMonkey
   module Mixin
     module Postgres
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::EBS
       attr_accessor :scripts_to_run
       attr_accessor :db_ebs_prefix
-  
+
+      after_destroy do
+        SharedDns.release_from_all_domains(@deployment.href)
+      end
+
       # sets the lineage for the deployment
       # * kind<~String> can be "chef" or nil
       def set_variation_lineage(kind = nil)
         @lineage = "testlineage#{resource_id(@deployment)}"
         if kind == "chef"
           obj_behavior(@deployment, :set_input, 'db/backup/lineage', "text:#{@lineage}")
-          # unset all server level inputs in the deployment to ensure use of 
+          # unset all server level inputs in the deployment to ensure use of
           # the setting from the deployment level
           @servers.each do |s|
             obj_behavior(s, :set_input, 'db/backup/lineage', "text:")
           end
         else
           obj_behavior(@deployment, :set_input, 'DB_LINEAGE_NAME', "text:#{@lineage}")
-          # unset all server level inputs in the deployment to ensure use of 
+          # unset all server level inputs in the deployment to ensure use of
           # the setting from the deployment level
           @servers.each do |s|
             obj_behavior(s, :set_input, 'DB_LINEAGE_NAME', "text:")
           end
         end
       end
-  
+
       def set_variation_bucket
         bucket = "text:testingcandelete#{resource_id(@deployment)}"
         obj_behavior(@deployment, :set_input, 'remote_storage/default/container', bucket)
-        # unset all server level inputs in the deployment to ensure use of 
+        # unset all server level inputs in the deployment to ensure use of
         # the setting from the deployment level
         @servers.each do |s|
           obj_behavior(s, :set_input, 'remote_storage/default/container', "text:")
         end
       end
-  
+
       # creates a PostgreSQL enabled EBS stripe on the server
       # * server<~Server> the server to create stripe on
       def create_stripe(server)
-        options = {  
-                "EBS_STRIPE_COUNT" => "text:#{@stripe_count}", 
+        options = {
+                "EBS_STRIPE_COUNT" => "text:#{@stripe_count}",
                 "DBAPPLICATION_USER" => "text:someuser",
                 "DB_DUMP_BUCKET" => "ignore:$ignore",
                 "DB_DUMP_FILENAME" => "ignore:$ignore",
@@ -53,10 +58,10 @@ module VirtualMonkey
                 "DB_LINEAGE_NAME" => "text:#{@lineage}" }
        run_script('create_stripe', server, options)
       end
-  
+
       # creates a MySQL enabled EBS stripe on the server and uses the dumpfile to restore the DB
       def create_stripe_from_dumpfile(server)
-        options = { 
+        options = {
                 "EBS_STRIPE_COUNT" => "text:#{@stripe_count}",
                 "EBS_VOLUME_SIZE" => "text:1",
                 "DBAPPLICATION_USER" => "text:someuser",
@@ -73,7 +78,7 @@ module VirtualMonkey
                 "DB_LINEAGE_NAME" => "text:#{@lineage}" }
        run_script('create_stripe', server, options)
       end
-  
+
       # Performs steps necessary to bootstrap a MySQL Master server from a pristine state using a dumpfile.
       # * server<~Server> the server to use as MASTER
       def config_master_from_scratch_from_dumpfile(server)
@@ -84,7 +89,7 @@ module VirtualMonkey
         sleep 120
        run_script("backup", server)
       end
-  
+
       # Performs steps necessary to bootstrap a PostgreSQL Master server from a pristine state.
       # * server<~Server> the server to use as MASTER
       def config_master_from_scratch(server)
@@ -95,22 +100,22 @@ module VirtualMonkey
         sleep 120
        run_script("backup", server)
       end
-  
+
       # Runs a query on specified server.
       # * database<~String> Database to connect to
       # * query<~String> a SQL query string to execute
-      # * server<~Server> the server to run the query on 
+      # * server<~Server> the server to run the query on
       def run_query(query, server, database = "postgres")
         query_command = "psql -d #{database} -U postgres -c \"#{query}\""
         probe(server, query_command)
       end
-  
+
       # Sets DNS record for the Master server to point at server
       # * server<~Server> the server to use as MASTER
       def set_master_dns(server)
        run_script('master_init', server)
       end
-  
+
       # Use the termination script to stop all the servers (this cleans up the volumes)
       def stop_all(wait=true)
         if script_to_run?('terminate')
@@ -120,12 +125,12 @@ module VirtualMonkey
         else
           @servers.each { |s| obj_behavior(s, :stop) }
         end
-  
+
        wait_for_all("stopped") if wait
         # unset dns in our local cached copy..
-        @servers.each { |s| s.params['dns-name'] = nil } 
+        @servers.each { |s| s.params['dns-name'] = nil }
       end
-  
+
       # uses SharedDns to find an available set of DNS records and sets them on the deployment
       def setup_dns(domain)
   # TODO should we just use the ID instead of the full href?
@@ -134,36 +139,36 @@ module VirtualMonkey
         raise "Unable to reserve DNS" unless @dns.reserve_dns(owner)
         @dns.set_dns_inputs(@deployment)
       end
-  
+
       # releases records back into the shared DNS pool
       def release_dns
         @dns.release_dns
       end
-  
+
       def promote_server(server)
        run_script("promote", server)
       end
-  
+
       def slave_init_server(server)
        run_script("slave_init", server)
       end
-  
+
       def restore_server(server)
        run_script("restore", server)
       end
-  
+
       # These are PostgreSQL specific checks
       def run_checks
         # check that backup cron script exits success
         [s_one, s_two].each do |server|
           chk1 = probe(server, "/usr/local/bin/pgsql-binary-backup.rb --if-master --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
-  
+
           chk2 = probe(server, "/usr/local/bin/pgsql-binary-backup.rb --if-slave --max-snapshots 10 -D 4 -W 1 -M 1 -Y 1")
-  
-          raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2) 
+
+          raise "CRON BACKUPS FAILED TO EXEC, Aborting" unless (chk1 || chk2)
         end
       end
-  
+
       def init_slave_from_slave_backup
        config_master_from_scratch(s_one)
        run_script("freeze_backups", s_one)
@@ -177,24 +182,24 @@ module VirtualMonkey
         #sleep 300
        slave_init_server(s_two)
       end
-  
+
       def run_promotion_operations
        config_master_from_scratch(s_one)
         obj_behavior(s_one, :relaunch)
-        s_one.dns_name = nil
+        s_one['dns_name'] = nil
        wait_for_snapshots
   # need to wait for ebs snapshot, otherwise this could easily fail
        restore_server(s_two)
         obj_behavior(s_one, :wait_for_operational_with_dns)
-  
+
         options = { "DB_NAME" => "text:i_heart_monkey" }
         @servers.each { |s|run_script('monitor_add', s, options) }
-  
+
         sleep 300 # Waiting for new snapshot to show
        slave_init_server(s_one)
        promote_server(s_one)
       end
-  
+
       def run_reboot_operations
   # Duplicate code here because we need to wait between the master and the slave time
         #reboot_all(true) # serially_reboot = true
@@ -205,7 +210,7 @@ module VirtualMonkey
        wait_for_all("operational")
        run_reboot_checks
       end
-  
+
       # This is where we perform multiple checks on the deployment after a reboot.
       def run_reboot_checks
         # one simple check we can do is the backup.  Backup can fail if anything is amiss
@@ -213,14 +218,14 @@ module VirtualMonkey
          run_script("backup", server)
         end
       end
-  
+
       def run_restore_with_timestamp_override
         obj_behavior(s_one, :relaunch)
-        s_one.dns_name = nil
+        s_one['dns_name'] = nil
         obj_behavior(s_one, :wait_for_operational_with_dns)
        run_script('restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
       end
-  
+
   # Check for specific PostgreSQL data.
       def check_db_monitoring
         db_plugins = [
@@ -259,57 +264,57 @@ module VirtualMonkey
           end
         end
       end
-  
+
       def create_master
        config_master_from_scratch(s_one)
       end
-  
+
       def create_master_from_dumpfile
        config_master_from_scratch_from_dumpfile(s_one)
       end
-  
+
       def dump_export
         options = {
                 "DB_NAME" => "text:test"
         }
        run_script('dump_export', s_one, options)
       end
-  
+
       def dump_import_dump
         options = {
                 "DB_DUMP_FILENAME" => "text:dump-test-dump"
         }
        dump_import(options)
       end
-  
+
       def dump_import_dumpall
         options = {
                 "DB_DUMP_FILENAME" => "text:dumpall-dump"
         }
        dump_import(options)
       end
-  
+
       def dump_import_dumpfc
         options = {
                 "DB_DUMP_FILENAME" => "text:fc-test-dump"
         }
        dump_import(options)
       end
-  
+
       def run_dump_import
        dump_import_dump
        dump_import_dumpfc
        dump_import_dumpall
       end
-  
+
       def dump_import(options)
         # Need to stop collectd before dropping the database since it is connected.
         probe(s_one, "service collectd stop")
        run_query("DROP DATABASE test", s_one)
-  
+
         options['DB_NAME'] = "text:test"
        run_script('dump_import', s_one, options)
-  
+
        run_query("SELECT * FROM test", s_one, "test")
       end
     end

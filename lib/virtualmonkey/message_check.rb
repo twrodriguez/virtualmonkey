@@ -75,7 +75,7 @@ class MessageCheck
     }
   end
 
-  # Returns nil or the the first matched list entry for a given message 
+  # Returns nil or the the first matched list entry for a given message
   def match?(msg, st_name, list)
     res = @db[list].select { |logfile,st_rgx,msg_rgx|
       logfile == @logfile and msg =~ /#{msg_rgx}/i and st_name =~ /#{st_rgx}/i
@@ -94,7 +94,7 @@ class MessageCheck
     }
     return ret_list
   end
-  
+
   # Encapsulates the formatting for printing matches and their context
   def print_entry(entry, msg = nil)
     ret = ""
@@ -122,7 +122,7 @@ class MessageCheck
     elsif object.is_a?(Server) or object.is_a?(ServerInterface)
       # Check the logs
       print_msg << "Checking \"#{@logfile}\" for Server \"#{object.nickname}\"...\n"
-      messages = object.spot_check_command("cat #{@logfile}", nil, object.dns_name, true)[:output].split("\n")
+      messages = object.spot_check_command("cat #{@logfile}", nil, object.reachable_ip, true)[:output].split("\n")
       st = ServerTemplate.find(object.server_template_href)
 
       # needlist
@@ -268,7 +268,7 @@ class MessageCheck
   # Longest Common Subsequence from http://rosettacode.org/
   # Modified to create regular expressions instead of raw subsequences
   # NOTE: Not a perfect solution...watch out for '\' and (".*a.+b.*", "a\000bgoo") -> ".*a\000b.*"
-  def self.lcs(first, second) 
+  def self.lcs(first, second)
     a, b = first, second
     a = first.split(/\.(\*|\+)/).join("\000") if first =~ /\.(\*|\+)/
     b = second.split(/\.(\*|\+)/).join("\000") if second =~ /\.(\*|\+)/

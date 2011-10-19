@@ -1,8 +1,11 @@
 module VirtualMonkey
   module Runner
     class SimpleWindowsSqlsMirroring
+      extend VirtualMonkey::Mixin::CommandHooks
       include VirtualMonkey::Mixin::DeploymentBase
       include VirtualMonkey::Mixin::SimpleWindows
+
+      description "TODO"
 
       def principal_mirror_server
         mirror_servers.detect { |s| s.get_info_tags['self']['principal'] == 'true' }
@@ -11,14 +14,14 @@ module VirtualMonkey
       def secondary_mirror_server
         mirror_servers.detect { |s| s.get_info_tags['self']['secondary'] == 'true' }
       end
- 
+
       def mirror_servers
-        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server HA/i } 
+        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server HA/i }
         match_servers_by_st(st)
       end
 
       def toolbox_server
-        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server Toolbox/i } 
+        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server Toolbox/i }
         match_servers_by_st(st)
       end
 
@@ -37,14 +40,14 @@ module VirtualMonkey
         m_servers[1].set_inputs({"MIRRORING_ROLE" => "text:Mirror"})
         m_servers[1].set_info_tags('secondary' => 'true')
       end
-      
+
       def vitaly_windows_sqls_toolbox_lookup_scripts
         scripts = [
                     [ 'DNS DNSMadeEasy register IP', 'DNS DNSMadeEasy register IP' ],
                     [ 'DB SQLS Manual failover', 'DB SQLS Manual failover' ],
                     [ 'DB SQLS Switch mirroring off', 'DB SQLS Switch mirroring off' ]
                   ]
-        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server HA/i } 
+        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server HA/i }
         load_script_table(st,scripts)
         load_script('SQLS CHECK principal connected', RightScript.new('href' => "/api/acct/2901/right_scripts/434994"))
         load_script('SQLS CHECK dns updated', RightScript.new('href' => "/api/acct/2901/right_scripts/435041"))
@@ -64,7 +67,7 @@ module VirtualMonkey
                     [ 'DB SQLS Norecovery snapshot', 'DB SQLS Norecovery snapshot' ],
                     [ 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes', 'DB SQLS DISABLE SERVER - snapshot, detach and delete volumes' ]
                   ]
-        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server Toolbox/i } 
+        st = @server_templates.detect{ |st| st.nickname =~ /Microsoft SQL Server Toolbox/i }
         load_script_table(st,scripts)
         load_script('SQLS CHECK volumes created', RightScript.new('href' => "/api/acct/2901/right_scripts/434990"))
         load_script('SQLS CHECK backup volume created', RightScript.new('href' => "/api/acct/2901/right_scripts/435042"))

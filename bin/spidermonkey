@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+ENV['ENTRY_COMMAND'] = File.basename(__FILE__, ".rb")
+
+require 'rubygems'
+require 'daemons'
+
+# Control by running:
+#  bin/spidermonkey start
+#  bin/spidermonkey restart
+#  bin/spidermonkey stop
+#
+# Testing in-process:
+#  bin/spidermonkey run
+
+Daemons.run(File.join("..", "lib", "spidermonkey", "sinatra_app.rb"))
