@@ -128,11 +128,11 @@ module VirtualMonkey
         end
       end
 
-      def import_unified_app_sqldump
-        load_script('import_dump', RightScript.new('href' => '/api/acct/2901/right_scripts/187123'))
-        raise "Did not find script: import_dump" unless script_to_run?('import_dump')
-        run_script_on_set('import_dump', mysql_servers, true, { 'DBAPPLICATION_PASSWORD' => 'cred:DBAPPLICATION_PASSWORD', 'DBAPPLICATION_USER' => 'cred:DBAPPLICATION_USER' })
-      end
+      #def import_unified_app_sqldump
+       # load_script('import_dump', RightScript.new('href' => '/api/acct/2901/right_scripts/187123'))
+       # raise "Did not find script: import_dump" unless script_to_run?('import_dump')
+       # run_script_on_set('import_dump', mysql_servers, true, { 'DBAPPLICATION_PASSWORD' => 'cred:DBAPPLICATION_PASSWORD', 'DBAPPLICATION_USER' => 'cred:DBAPPLICATION_USER' })
+     # end
 
       # sets the lineage for the deployment
       # * kind<~String> can be "chef" or nil
@@ -179,25 +179,6 @@ module VirtualMonkey
         end
       end
 
-      def test_primary_backup
-        run_script("setup_block_device", s_one)
-        probe(s_one, "touch /mnt/storage/monkey_was_here")
-        run_script("do_backup", s_one)
-        wait_for_snapshots
-        run_script("do_force_reset", s_one)
-        run_script("do_restore", s_one)
-        probe(s_one, "ls /mnt/storage") do |result, status|
-          raise "FATAL: no files found in the backup" if result == nil || result.empty?
-          true
-        end
-        run_script("do_force_reset", s_one)
-        run_script("do_restore", s_one, {"db/backup/timestamp_override" =>
-                                         "text:#{find_snapshot_timestamp(s_one)}" })
-        probe(s_one, "ls /mnt/storage") do |result, status|
-          raise "FATAL: no files found in the backup" if result == nil || result.empty?
-          true
-        end
-      end
 
       def set_secondary_backup_inputs(location="S3")
         @secondary_container = "testsecondary#{resource_id(@deployment)}"
@@ -211,32 +192,6 @@ module VirtualMonkey
         @deployment.set_input( "db/backup/secondary_location", "text:#{location}")
         @servers.each do |server|
           server.set_inputs({"db/backup/secondary_location" => "text:#{location}"})
-        end
-      end
-
-      def test_secondary_backup(location="S3")
-        cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
-        if cid == 232 && location == "CloudFiles"
-          puts "Skipping secondary backup to cloudfiles on Rax -- this is already used for primary backup."
-        else
-          set_secondary_backup_inputs(location)
-          run_script("setup_block_device", s_one)
-          probe(s_one, "touch /mnt/storage/monkey_was_here")
-          run_script("do_secondary_backup", s_one)
-          wait_for_snapshots
-          run_script("do_force_reset", s_one)
-          run_script("do_secondary_restore", s_one)
-          probe(s_one, "ls /mnt/storage") do |result, status|
-            raise "FATAL: no files found in the backup" if result == nil || result.empty?
-            true
-          end
-          run_script("do_force_reset", s_one)
-          run_script("do_secondary_restore", s_one, { "db/backup/timestamp_override" =>
-                                                      "text:#{find_snapshot_timestamp(s_one,location)}" })
-          probe(s_one, "ls /mnt/storage") do |result, status|
-            raise "FATAL: no files found in the backup" if result == nil || result.empty?
-            true
-          end
         end
       end
 
@@ -338,10 +293,6 @@ module VirtualMonkey
         end
       end
 
-      def make_master(server)
-          run_script('do_tag_as_master', server)
-      end
-
       # create master slave setup
       # verify master and reboot each server in the deployment
       def run_HA_reboot_operations
@@ -373,13 +324,6 @@ module VirtualMonkey
         create_table_replication(s_two ,"moo")
         check_table_replication(s_one, "moo")
       end
-
-  #    def run_restore_with_timestamp_override
-  #      obj_behavior(s_one, :relaunch)
-  #      s_one['dns_name'] = nil
-  #      obj_behavior(s_one, :wait_for_operational_with_dns)
-  #     run_script('restore', s_one, { "OPT_DB_RESTORE_TIMESTAMP_OVERRIDE" => "text:#{find_snapshot_timestamp}" })
-  #    end
 
   # Check for specific MySQL data.
       def check_mysql_monitoring
@@ -444,32 +388,7 @@ EOS
         @deployment.set_input("web_apache/ssl_enable", "text:false")
       end
 
-      def config_master_from_scratch(server)
-       create_stripe(server)
-        probe(server, "service mysqld start") # TODO Check that it started?
-        #TODO the service name depends on the OS
-        #      server.spot_check_command("service mysql start")
-       run_query("create database mynewtest", server)
-       set_master_dns(server)
-        # This sleep is to wait for DNS to settle - must sleep
-        sleep 120
-        run_script("do_backup", server)
-      end
-
-      def slave_init_server(server)
-        run_script("do_init_slave", server)
-      end
-
-      def restore_server(server)
-        run_script("do_restore ", server)
-      end
-
-      def set_master_dns(server)
-        run_script('setup_master_dns', server)
-      end
-
        ## checks if the server is in fact a master
-
        #checks if the server is in fact a master and if the dns is pointing to the master server
       def verify_master(assumed_master_server)
 
@@ -506,42 +425,11 @@ EOS
         dns_ip = `dig +short "#{ db_fqdn}"`
 
         #raise "DNS ip #{dns_ip.to_s} does not match private ip #{assumed_master_server.private_ip.to_s}" unless (dns_ip.to_s.strip == assumed_master_server.private_ip.to_s)
-
       end
-
-       def get_master_tags(value)
-        timeout= 60
-        step=10
-        while timeout > 0
-          puts "Getting master Active tag"
-            print "value\n"+ value.to_s + "\n"
-            if value.to_s.match(/master_active/)
-              potential_time_stamp = value.to_s.split("=")[1]
-              if((potential_time_stamp).to_i > current_max_master_timestamp)
-              current_max_master_timestamp = (potential_time_stamp).to_i
-              current_max_master_server    = potential_new_master
-              end
-           end
-           break unless status.include?("pending")
-           sleep step
-           timeout -= step
-        end
-
-       end
-
 
       # creates a MySQL enabled EBS stripe on the server
       # * server<~Server> the server to create stripe on
-      def create_stripe(server)
-        options = { "block_device/volume_size" => "text:1",
-                    "db/application/user" => "text:someuser",
-                    "block_device/aws_access_key_id" => "ignore:$ignore",
-                    "block_device/aws_secret_access_key" => "ignore:$ignore",
-                    "db/application/password" => "text:somepass",
-                    "block_device/volume_size" => "text:1",
-                    "db/backup/lineage" => "text:#{@lineage}" }
-        run_script('setup_block_device', server, options)
-      end
+
       def remove_master_tags
         servers.each { |server|
           server.settings
@@ -588,7 +476,6 @@ EOS
          raise "Slave backup failed!!" unless result.include?(string_written_to_slave.to_s)
          true
        }
-
      end
 
       # disables backups on all servers
@@ -596,10 +483,6 @@ EOS
         servers.each{|server|
         run_script('disable_backups',server)
         }
-      end
-
-      def do_force_reset(server)
-        run_script("do_force_reset", server)
       end
 
       def do_restore_and_become_master(server)
@@ -623,26 +506,6 @@ EOS
        run_script('disable_backups',server)
       end
 
-      def sequential_test
-        create_table_replication(s_one ,"foo")
-        do_init_slave(s_two)
-
-        # check if the banana table is there
-        # check for foo database
-        check_table_bananas(s_two)
-        check_table_replication(s_two, "foo")
-
-        #      **** VERIFY PROMOTE ****
-
-        do_promote_to_master(s_two)
-        verify_master(s_two)
-        create_table_replication(s_two ,"bar")
-        check_table_replication(s_one, "bar")
-        
-        #   **** Verify Reboot **** 
-        run_HA_reboot_operations
-      end
-
       def test_secondary_backup_ha(location="S3")
         cid = VirtualMonkey::Toolbox::determine_cloud_id(s_one)
         if cid == 232 && location == "CloudFiles"
@@ -658,69 +521,7 @@ EOS
 
         end
       end
-
-      # tests restore and become master
-      # verifies master and slave setup with replication checks
-      def restore_and_become_master
-        run_script("do_force_reset", s_one)
-
-        # s_one is un-init
-
-        do_restore_and_become_master(s_two)
-        verify_master(s_two)
-        do_init_slave(s_one)
-
-        # verify master slave setup by a replication test
-        create_table_replication(s_two ,"real_master")
-        check_table_replication(s_one, "real_master")
-
-        check_table_bananas(s_one)
-        check_table_bananas(s_two)
-      end
-
-      # creates master and slave from slave backup
-      def create_master_from_slave_backup
-
-        verify_master(s_one)
-        do_init_slave(s_two)
-
-        # write to slave file system so later we can verify if the backup came from a slave 
-        write_to_slave("monkey_slave",s_two) 
-        do_backup(s_two)
-        run_script("do_force_reset", s_one)
-        run_script("do_force_reset", s_two)
-
-        do_restore_and_become_master(s_two)
-        check_table_bananas(s_two)
-        check_slave_backup(s_two, "monkey_slave") # looks for a file that was written to the slave
-        verify_master(s_two)
-
-        do_init_slave(s_one)
-        # s_one is slave
-        # s_two is master
-        create_table_replication(s_two, "replication_works")
-        check_table_replication(s_one, "replication_works")
-      end
-
-      def promote_slave_with_dead_master
-        verify_master(s_one)
-
-        do_init_slave(s_two)
-        run_script("do_force_reset", s_one) # kill the master
-
-        do_promote_to_master(s_two)
-        verify_master(s_two)
-
-        do_init_slave(s_one)
-
-        # verify master slave with replication
-        create_table_replication(s_two, "dead_master")
-        check_table_replication(s_one, "dead_master")
-
-        check_table_bananas(s_one)
-        check_table_bananas(s_two)
-      end
-
     end
   end
 end
+

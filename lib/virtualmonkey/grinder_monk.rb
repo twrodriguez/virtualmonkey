@@ -328,6 +328,7 @@ class GrinderMonk
       d = deployment_hsh.first.last.last
       total_keys = test_cases[feature].get_keys
       total_keys &= set unless set.nil? || set.empty?
+      deployment_tests = [total_keys]
 
       unless VirtualMonkey::config[:test_ordering] == "strict"
         deployment_tests = [total_keys].map { |ary| ary.shuffle }
