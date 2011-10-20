@@ -75,3 +75,8 @@ elif [[ "$useremail" == "setyouremail@rightscale.com" || "$useremail" == "" ]] |
   echo "Please set your git user.email by running 'git config user.email <your github email>'"
   exit 1
 fi
+
+# Check that Runners and Mixins are defined only once
+ruby git_hooks/pre-commit-chk-collateral || exit 1
+
+exit 0

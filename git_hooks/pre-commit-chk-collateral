@@ -1,0 +1,70 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+
+module VirtualMonkey
+  def self.const_missing(sym); Kernel; end
+  module Mixin; end
+  module Runner; end
+  module Command
+    def self.const_missing(sym); true; end
+  end
+end
+
+def freeze_check_hook(file)
+  old_mixin_constants = VirtualMonkey::Mixin.constants
+  old_runner_constants = VirtualMonkey::Runner.constants
+  modifiable_mixins = ["CommandHooks"]
+  modifiable_runners = []
+
+  begin
+    ret = require file
+  rescue TypeError => e
+    if e.message =~ /frozen/i
+      warn "File '#{file}' has a duplicate module or class."
+      warn "VirtualMonkey collateral is required to be defined only once. Aborting commit."
+      exit 1
+    else
+      raise
+    end
+  end
+
+  if ret
+    new_mixin_constants = VirtualMonkey::Mixin.constants
+    new_runner_constants = VirtualMonkey::Runner.constants
+
+    # Freeze any new mixins
+    (new_mixin_constants - old_mixin_constants - modifiable_mixins).each do |const|
+      VirtualMonkey::Mixin.const_get(const).freeze
+    end
+
+    # Freeze any new runners
+    (new_runner_constants - old_runner_constants - modifiable_runners).each do |const|
+      VirtualMonkey::Runner.const_get(const).freeze
+    end
+  end
+  ret
+end
+
+def automatic_require(full_path)
+  some_not_included = true
+  files = Dir.glob(File.join(File.expand_path(full_path), "**"))
+  retry_loop = 0
+  while some_not_included and retry_loop < (files.size ** 2) do
+    begin
+      some_not_included = false
+      for f in files do
+        val = freeze_check_hook(f.chomp(".rb")) if f =~ /\.rb$/
+        some_not_included ||= val
+      end
+    rescue NameError => e
+      raise unless "#{e}" =~ /uninitialized constant/i
+      some_not_included = true
+      files.push(files.shift)
+    end
+    retry_loop += 1
+  end
+end
+
+automatic_require(File.join(File.dirname(__FILE__), "..", "lib", "virtualmonkey", "runner_mixins"))
+automatic_require(File.join(File.dirname(__FILE__), "..", "lib", "virtualmonkey", "deployment_runners"))
