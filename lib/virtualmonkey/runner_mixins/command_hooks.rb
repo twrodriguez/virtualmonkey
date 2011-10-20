@@ -46,7 +46,7 @@ module VirtualMonkey
 
       def assert_integrity!
         if self.description.empty?
-          msg = "FATAL: Description not set for #{self}.\nRunners are required to have a"
+          msg = "FATAL: Description not set for #{self}.\nRunners are required to have a "
           msg += "simple desription of functionality defined in the class by specifying:\n\n"
           msg += "'description \"My Description Here\"'.\n\nYou will need to ensure that your "
           msg += "Runner class (#{self}) also extends VirtualMonkey::Mixin::CommandHooks using:\n\n"

@@ -382,12 +382,12 @@ module VirtualMonkey
     def self.countdown(secs)
       begin
         Array(1..secs).reverse.each do |i|
-          if i < (secs / 4)
+          if i <= (secs / 4)
             puts "#{i}...".apply_color(:red)
-          elsif i < (secs / 2)
+          elsif i <= (secs / 2)
             puts "#{i}...".apply_color(:yellow)
           else
-            puts "#{i}..."
+            puts "#{i}...".apply_color(:green)
           end
           sleep 1
         end
