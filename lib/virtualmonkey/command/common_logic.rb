@@ -318,6 +318,7 @@ module VirtualMonkey
       end
       @@options[:runner] = test_cases.first.options[:runner]
       unless @@options[:runner].respond_to?(:assert_integrity!)
+        warn "#{@@options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
         @@options[:runner].extend(VirtualMonkey::Mixin::CommandHooks)
       end
       @@options[:runner].assert_integrity!

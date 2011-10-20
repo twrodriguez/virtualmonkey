@@ -651,7 +651,6 @@ module VirtualMonkey
         unless self.class.respond_to?(:description)
           error "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
         end
-        raise "FATAL: Description not set for #{self.class}!" if self.class.description.empty?
         [:before_destroy, :after_create, :after_destroy].each do |hook_set|
           unless self.class.respond_to?(hook_set)
             error "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
