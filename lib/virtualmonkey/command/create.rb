@@ -13,9 +13,7 @@ module VirtualMonkey
                                 [],
                                 @@options[:allow_meta_monkey],
                                 @@options[:one_deploy])
-      if @@dm.deployments.size < 1
-        create_logic
-      elsif @@options[:overwrite]
+      if @@options[:overwrite]
         if @@options[:force]
           begin
             destroy_all_logic
@@ -38,6 +36,8 @@ module VirtualMonkey
 
         # Restore last_command_line
         @@last_command_line = create_command_string
+      elsif @@dm.deployments.size < 1 || @@options[:force]
+        create_logic
       else
         warn "Existing deployments matching --prefix #{@@options[:prefix]} found. Skipping deployment creation."
       end
