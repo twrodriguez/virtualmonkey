@@ -406,7 +406,7 @@ class DeploymentMonk
     end
     puts "\nError Summary:\n#{@errors.join("\n")}".apply_color(:red) if !@errors.empty?
     if @deployments.length > 0
-      puts "\nCreated #{@deployments.length} deployments:\n#{@deployments.pretty_inspect}".apply_color(:green)
+      puts "\n#{@deployments.length} deployments now available:\n#{@deployments.pretty_inspect}".apply_color(:green)
     else
       error "\nNo deployments created!"
     end
