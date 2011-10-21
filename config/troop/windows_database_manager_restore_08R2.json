@@ -1,9 +1,0 @@
-{
-  "feature":"windows_ms_sql_restore.rb",
-  "cloud_variables":"aws_clouds.json",
-  "common_inputs":"windows_ms_sql_08R2.json",
-  "prefix":"MD_MS_SQL_TROOP_08R2",
-  "server_template_ids":[
-    "112763"
-  ]
-}

@@ -1,9 +1,0 @@
-{
-  "feature":"base.rb",
-  "common_inputs":"none.json",
-  "prefix":"API_TRIAGE",
-  "server_template_ids":[
-    "119454"
-  ],
-}
-

@@ -1,9 +1,0 @@
-{
-  "feature":"windows_ad_backup.rb",
-  "cloud_variables":"aws_clouds.json",
-  "common_inputs":"windows_ad_secondary.json",
-  "prefix":"AD",
-  "server_template_ids":[
-    "131420"
-  ]
-}

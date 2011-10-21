@@ -1,7 +1,0 @@
-[
-  [
-    "/var/log/messages",
-    ".*",
-    "destination(d_httperror)=0"
-  ]
-]

@@ -1,3 +1,0 @@
-{
-  "rs_utils/hostname": "env:EC2_PUBLIC_HOSTNAME"
-}

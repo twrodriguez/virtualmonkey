@@ -15,15 +15,12 @@ tmtags
 *.swo
 
 ## PROJECT::GENERAL
-coverage
 rdoc
 pkg
 log
 
 ## PROJECT::SPECIFIC
-virtualmonkey.gemspec
-config/cloud_variables/*
 test_states/
-config/cloud_variables/backup/
-features/*.combo.rb
+cloud_variables/
+collateral/
 .config.yaml

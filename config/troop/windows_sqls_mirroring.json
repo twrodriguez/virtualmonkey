@@ -1,8 +1,0 @@
-{
-  "feature":"windows_ms_sql_mirroring.rb",
-  "common_inputs":"windows_ms_sql_mirroring.json",
-  "prefix":"MD_MS_SQL_MIRRORING_TROOP",
-  "server_template_ids":[
-    "130010","129982","129982"
-  ]
-}
