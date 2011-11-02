@@ -78,6 +78,14 @@ if test -e "Gemfile"; then
   fi
 fi
 
+# Check that project metadata files exist
+for FILE in ".gitignore"; do
+  if test ! -e $FILE; then
+    echo "$FILE not present. Aborting commit"
+    exit 1
+  fi
+done
+
 # Check that username and user emails are filled properly
 username=`git config --get user.name`
 useremail=`git config --get user.email`

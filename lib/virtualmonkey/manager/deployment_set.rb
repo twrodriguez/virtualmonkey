@@ -380,7 +380,7 @@ module VirtualMonkey
             if options[:runner].respond_to?(:after_create)
               if not options[:runner].after_create.empty? and not @single_deployment
                 puts "Executing after_create hooks..."
-                runner = options[:runner].new(new_deploy.href)
+                runner = options[:runner].new(new_deploy.nickname)
                 options[:runner].after_create.each { |fn|
                   (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
                 }
@@ -400,7 +400,7 @@ module VirtualMonkey
           if options[:runner].respond_to?(:after_create)
             if not options[:runner].after_create.empty?
               puts "Executing after_create hooks..."
-              runner = options[:runner].new(new_deploy.href)
+              runner = options[:runner].new(new_deploy.nickname)
               options[:runner].after_create.each { |fn|
                 (fn.is_a?(Proc) ? runner.instance_eval(&fn) : runner.__send__(fn))
               }

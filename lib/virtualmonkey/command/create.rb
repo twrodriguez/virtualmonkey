@@ -21,7 +21,6 @@ module VirtualMonkey
               deploy.servers_no_reload.each { |s| s.stop if s.state =~ /operational|booting/ }
               deploy.destroy
             }
-            SharedDns.release_all_unused_domains
           end
         else
           destroy_all_logic

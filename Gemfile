@@ -1,6 +1,5 @@
 # A sample Gemfile
 source "http://rubygems.org"
-gem "rspec", ">=1.2.9", :group => :development
 gem "jeweler", :group => :development
 gem "gemedit", :group => :development
 gem "json"
