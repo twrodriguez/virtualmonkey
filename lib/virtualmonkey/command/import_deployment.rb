@@ -1,6 +1,8 @@
 module VirtualMonkey
   module Command
-  add_command("import_deployment", [:deployment]) do
+  add_command("import_deployment", [:deployment, :project]) do
+      self.interactive_select_project_logic()
+      
       # Find Model Deployment
       deploy_name = @@options[:deployment]
       if @@options[:deployment]
@@ -111,6 +113,9 @@ module VirtualMonkey
       say("Created runner file:         #{@@runner_file}")
 
       say("\nScenario created! DON'T FORGET TO CUSTOMIZE THESE FILES!");
+
+      # Refresh Projects index
+      VirtualMonkey::Manager::Collateral.refresh()
     end
   end
 end

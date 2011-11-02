@@ -1,5 +1,5 @@
 module VirtualMonkey
-  module Mixin
+  module RunnerCore
     module CommandHooks
       #
       # Monkey Create/Destroy API Hooks
@@ -47,10 +47,10 @@ module VirtualMonkey
       def assert_integrity!
         if self.description.empty?
           msg = "FATAL: Description not set for #{self}.\nRunners are required to have a "
-          msg += "simple desription of functionality defined in the class by specifying:\n\n"
+          msg += "simple description of functionality defined in the class by specifying:\n\n"
           msg += "'description \"My Description Here\"'.\n\nYou will need to ensure that your "
-          msg += "Runner class (#{self}) also extends VirtualMonkey::Mixin::CommandHooks using:\n\n"
-          msg += "'extend VirtualMonkey::Mixin::CommandHooks'"
+          msg += "Runner class (#{self}) also extends VirtualMonkey::RunnerCore::CommandHooks using:\n\n"
+          msg += "'extend VirtualMonkey::RunnerCore::CommandHooks'"
           error msg
         end
         self.before_create.each { |fn|

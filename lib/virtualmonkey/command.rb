@@ -10,6 +10,7 @@ module VirtualMonkey
     AvailableCommands = {
       :api_check                  => "Verify API version connectivity",
       :clone                      => "Clone a deployment n times and run though feature tests",
+      :collateral                 => "Manage test collateral repositories using git",
       :config                     => "Get and set advanced variables that control VirtualMonkey behavior",
       :create                     => "Create MCI and Cloud permutation Deployments for a set of ServerTemplates",
       :destroy                    => "Destroy a set of Deployments",
@@ -44,69 +45,104 @@ module VirtualMonkey
     }
 
     Flags = {
-      :terminate       => "opt :terminate, 'Terminate if tests successfully complete. (No destroy)',            :short => '-a', :type => :boolean",
-      :common_inputs   => "opt :common_inputs, 'Input JSON files to be set at Deployment AND Server levels',    :short => '-c', :type => :strings",
-      :deployment      => "opt :deployment, 'regex string to use for matching deployment',                      :short => '-d', :type => :string",
-      :config_file     => "opt :config_file, 'Troop Config JSON File',                                          :short => '-f', :type => :string",
-      :clouds          => "opt :clouds, 'Space-separated list of cloud_ids to use',                             :short => '-i', :type => :integers",
-      :keep            => "opt :keep, 'Do not delete servers or deployments after terminating',                 :short => '-k', :type => :boolean",
-      :use_mci         => "opt :use_mci, 'List of MCI hrefs to substitute for the ST-attached MCIs',            :short => '-m', :type => :string, :multi => true",
-      :n_copies        => "opt :n_copies, 'Number of clones to make',                                           :short => '-n', :type => :integer, :default => 1",
-      :only            => "opt :only, 'Regex string to use for subselection matching on MCIs',                  :short => '-o', :type => :string",
-      :no_spot         => "opt :no_spot, 'do not use spot instances',                                           :short => '-p', :type => :boolean, :default => true",
-      :no_resume       => "opt :no_resume, 'Do not use trace info to resume a previous test',                   :short => '-r', :type => :boolean",
-      :tests           => "opt :tests, 'List of test names to run across Deployments (default is all)',         :short => '-t', :type => :strings",
-      :verbose         => "opt :verbose, 'Print all output to STDOUT as well as the log files',                 :short => '-v', :type => :boolean",
-      :revisions       => "opt :revisions, 'Specify a list of revision numbers for templates (0 = HEAD)',       :short => '-w', :type => :integers",
-      :prefix          => "opt :prefix, 'Prefix of the Deployments',                                            :short => '-x', :type => :string",
-      :yes             => "opt :yes, 'Turn off confirmation',                                                   :short => '-y', :type => :boolean",
-      :one_deploy      => "opt :one_deploy, 'Load all variations of a single ST into one Deployment',           :short => '-z', :type => :boolean",
+      :terminate       => "opt :terminate, 'Terminate if tests successfully complete. (No destroy)',            :short => '-a',   :type => :boolean",
+      :common_inputs   => "opt :common_inputs, 'Input JSON files to be set at Deployment AND Server levels',    :short => '-c',   :type => :strings",
+      :deployment      => "opt :deployment, 'regex string to use for matching deployment',                      :short => '-d',   :type => :string",
+      :exclude_tests   => "opt :exclude_tests, 'List of test names to exclude from running across Deployments', :short => '-e',   :type => :strings",
+      :config_file     => "opt :config_file, 'Troop Config JSON File',                                          :short => '-f',   :type => :string",
+      :clouds          => "opt :clouds, 'Space-separated list of cloud_ids to use',                             :short => '-i',   :type => :integers",
+      :keep            => "opt :keep, 'Do not delete servers or deployments after terminating',                 :short => '-k',   :type => :boolean",
+      :use_mci         => "opt :use_mci, 'List of MCI hrefs to substitute for the ST-attached MCIs',            :short => '-m',   :type => :string, :multi => true",
+      :n_copies        => "opt :n_copies, 'Number of clones to make',                                           :short => '-n',   :type => :integer, :default => 1",
+      :only            => "opt :only, 'Regex string to use for subselection matching on MCIs',                  :short => '-o',   :type => :string",
+      :no_spot         => "opt :no_spot, 'do not use spot instances',                                           :short => :none,  :type => :boolean, :default => true",
+      :no_resume       => "opt :no_resume, 'Do not use trace info to resume a previous test',                   :short => '-r',   :type => :boolean",
+      :tests           => "opt :tests, 'List of test names to run across Deployments (default is all)',         :short => '-t',   :type => :strings",
+      :verbose         => "opt :verbose, 'Print all output to STDOUT as well as the log files',                 :short => '-v',   :type => :boolean",
+      :revisions       => "opt :revisions, 'Specify a list of revision numbers for templates (0 = HEAD)',       :short => '-w',   :type => :integers",
+      :prefix          => "opt :prefix, 'Prefix of the Deployments',                                            :short => '-x',   :type => :string",
+      :yes             => "opt :yes, 'Turn off confirmation',                                                   :short => '-y',   :type => :boolean",
+      :one_deploy      => "opt :one_deploy, 'Load all variations of a single ST into one Deployment',           :short => '-z',   :type => :boolean",
 
       :force           => "opt :force, 'Forces command to attempt to continue even if an exception is raised',  :short => '-F', :type => :boolean",
       :overwrite       => "opt :overwrite, 'Replace existing resources with fresh ones',                        :short => '-O', :type => :boolean",
       :report_metadata => "opt :report_metadata, 'Report metadata to SimpleDB',                                 :short => '-R', :type => :boolean",
-      :report_tags     => "opt :report_tags, 'Additional tags to help database sorting (e.g. -T sprint28)',     :short => '-T', :type => :strings"
+      :report_tags     => "opt :report_tags, 'Additional tags to help database sorting (e.g. -T sprint28)',     :short => '-T', :type => :strings",
+      :project         => "opt :project, 'Specify which collateral project to use',                             :short => '-P', :type => :string"
     }
 
     ConfigOptions = {
-      "set"     => "Set a configurable variable               'monkey config [-s|--set|set] name value'",
-      "edit"    => "Open config file in your git editor       'monkey config [-e|--edit|edit]'",
-      "unset"   => "Unset a configurable variable             'monkey config [-u|--unset|unset] name'",
-      "list"    => "List current config variables             'monkey config [-l|--list|list]'",
-      "catalog" => "List all possible configurable variables  'monkey config [-c|--catalog|catalog]'",
-      "get"     => "Get the value of one variable             'monkey config [-g|--get|get] name'",
-      "help"    => "Print this help message                   'monkey config [-h|--help|help]'"
+      "set"     => {"description" => "Set a configurable variable",
+                    "usage"       => "'monkey config (-s|--set|set) <name> <value>'"},
+
+      "edit"    => {"description" => "Open config file in your git editor",
+                    "usage"       => "'monkey config (-e|--edit|edit)'"},
+
+      "unset"   => {"description" => "Unset a configurable variable",
+                    "usage"       => "'monkey config (-u|--unset|unset) <name>'"},
+
+      "list"    => {"description" => "List current config variables",
+                    "usage"       => "'monkey config (-l|--list|list)'"},
+
+      "catalog" => {"description" => "List all possible configurable variables",
+                    "usage"       => "'monkey config (-c|--catalog|catalog)'"},
+
+      "get"     => {"description" => "Get the value of one variable",
+                    "usage"       => "'monkey config (-g|--get|get) <name>'"},
+
+      "help"    => {"description" => "Print this help message",
+                    "usage"       => "'monkey config (-h|--help|help)'"}
     }
 
     ConfigVariables = {
       "test_permutation"    => {"description" => "Controls how individual test cases in a feature file get assigned per deployment",
-                              "values" => ["distributive", "exhaustive"]},
+                                "values"      => ["distributive", "exhaustive"]},
+
       "test_ordering"       => {"description" => "Controls how individual test cases in a feature file are ordered for execution",
-                              "values" => ["random", "strict"]},
+                                "values"      => ["random", "strict"]},
+
       "feature_mixins"      => {"description" => "Controls how multiple features are distributed amongst available deployments",
-                              "values" => ["spanning", "parallel"]},
+                                "values"      => ["spanning", "parallel"]},
+
       "load_progress"       => {"description" => "Turns on/off the display of load progress info for 'monkey' commands",
-                              "values" => ["show", "hide"]},
+                                "values"      => ["show", "hide"]},
+
       "colorized_text"      => {"description" => "Turns on/off colorized console text",
-                              "values" => ["show", "hide"]},
+                                "values"      => ["show", "hide"]},
+
       "max_retries"         => {"description" => "Controls how many retries to attempt in a scope stack before giving up",
-                              "values" => Integer},
+                                "values"      => Integer},
+
       "grinder_subprocess"  => {"description" => "Turns on/off the ability of Grinder to load into the current process",
-                              "values" => ["allow_same_process", "force_subprocess"]}
+                                "values"      => ["allow_same_process", "force_subprocess"]}
+    }
+
+    CollateralOptions = {
+      "clone"     => {"description" => "Clone a remote repository into the local collateral",
+                      "usage"       => "'monkey collateral (-c|--clone|clone) <repository> <project> [--bare] [--depth <i>]'"},
+
+      "init"      => {"description" => "Create a new local collateral project",
+                      "usage"       => "'monkey collateral (-i|--init|init) <project>'"},
+
+      "checkout"  => {"description" => "Checkout a branch or paths to the working tree of the specified collateral project",
+                      "usage"       => "'monkey collateral (-k|--checkout|checkout) <project> <name> [-f|--force]'"},
+
+      "pull"      => {"description" => "Fetch from and merge with a local collateral project",
+                      "usage"       => "'monkey collateral (-p|--pull|pull) <project> [<remote> [<branch>]]'"},
+
+      "list"      => {"description" => "List the local collateral projects, origin repositories, and current branches",
+                      "usage"       => "'monkey collateral (-l|--list|list)'"},
+
+      "delete"    => {"description" => "Delete a local collateral project",
+                      "usage"       => "'monkey collateral (-d|--delete|delete) <project>'"},
+
+      "help"      => {"description" => "Print this help message",
+                      "usage"       => "'monkey collateral (-h|--help|help)'"}
     }
 
     @@command_flags ||= {}
 
     def self.init(*args)
-      @@global_state_dir = VirtualMonkey::TEST_STATE_DIR
-      @@features_dir = VirtualMonkey::FEATURE_DIR
-      @@cfg_dir = VirtualMonkey::CONFIG_DIR
-      @@runner_dir = VirtualMonkey::RUNNER_DIR
-      @@mixin_dir = VirtualMonkey::MIXIN_DIR
-      @@cv_dir = VirtualMonkey::CLOUD_VAR_DIR
-      @@ci_dir = VirtualMonkey::COMMON_INPUT_DIR
-      @@troop_dir = VirtualMonkey::TROOP_DIR
-
       # Monkey available_commands
       @@available_commands = AvailableCommands
 
@@ -120,21 +156,18 @@ module VirtualMonkey
       # Regular message
       unless class_variable_defined?("@@usage_msg")
         @@usage_msg = "\nValid commands for #{@@version_string}:\n\n"
-        max_width = @@available_commands.keys.map { |k| k.to_s.length }.max
-        temp = @@available_commands.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
-        @@usage_msg += temp.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
+        @@usage_msg += pretty_help_message(@@available_commands)
         @@usage_msg += "\n\nHelp usage: 'monkey help <command>' OR 'monkey <command> --help'\n"
-        @@usage_msg += "If this is your first time using VirtualMonkey, start with new_runner and new_config.\n"
-        @@usage_msg += "Or, if you already have an example deployment, you can use import_deployment.\n\n"
+        @@usage_msg += "If this is your first time using VirtualMonkey, start with 'new_runner' and 'new_config'."
+        @@usage_msg += " If you already have an example deployment, you can use 'import_deployment'.\n\n"
+        @@usage_msg = word_wrap(@@usage_msg)
       end
 
       # QA Mode message
 =begin
       unless class_variable_defined?("@@qa_usage_msg")
         @@qa_usage_msg = "\nValid commands for #{@@version_string} (QA mode):\n\n"
-        qa_max_width = @@available_qa_commands.keys.map { |k| k.to_s.length }.max
-        temp = @@available_qa_commands.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
-        @@qa_usage_msg += temp.map { |k,v| "  %#{qa_max_width}s:   #{v}" % k }.join("\n")
+        @@qa_usage_msg += pretty_help_message(@@available_qa_commands)
         @@qa_usage_msg += "\n\nHelp usage: 'qa help <command>' OR 'qa <command> --help'\n\n"
       end
 =end
@@ -159,6 +192,7 @@ module VirtualMonkey
       @@st_inputs = nil
       @@common_inputs = nil
       @@last_command_line = nil
+      @@selected_project = nil
     end
 
     # Parses the initial command string, removing it from ARGV, then runs command.
@@ -228,7 +262,7 @@ EOS
       reset()
     end
 
-    # Config command
+    # Config commands
     @@command_flags.merge!("config" => [])
     def self.config(*args)
       self.init(*args)
@@ -237,30 +271,34 @@ EOS
       unless class_variable_defined?("@@config_help_message")
         @@config_help_message = "  monkey config [options...]\n\n "
         @@config_help_message += @@available_commands[@@command.to_sym] + "\n"
-        max_width = ConfigOptions.keys.map { |k| k.to_s.length }.max
-        temp = ConfigOptions.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
-        @@config_help_message += temp.map { |k,v| "  %#{max_width}s:   #{v}" % k }.join("\n")
+        @@config_help_message += pretty_help_message(ConfigOptions)
       end
 
-      @@last_command_line = ARGV.join(" ")
+      @@last_command_line = "#{@@command} #{ARGV.join(" ")}"
 
+      # Variable Initialization
+      config_file = VirtualMonkey::ROOT_CONFIG
+      configuration = VirtualMonkey::config.dup
+
+      # Print Help?
       if ARGV.empty? or not (ARGV & ['--help', '-h', 'help']).empty?
+        if ARGV.empty?
+          puts pretty_help_message(configuration) unless configuration.empty?
+        end
         puts "\n#{@@config_help_message}\n\n"
         exit(0)
       end
 
-      config_file = VirtualMonkey::ROOT_CONFIG
-      configuration = VirtualMonkey::config.dup
-      improper_argument_error = "FATAL: Improper arguments for command '#{ARGV[0]}'.\n\n#{@@config_help_message}\n"
+      # Subcommands
+      improper_argument_error = word_wrap("FATAL: Improper arguments for command '#{ARGV[0]}'.\n\n#{@@config_help_message}\n")
 
       case ARGV[0]
       when "set", "-s", "--set", "add", "-a", "--add"
         if ARGV.length == 1
           # print catalog
-          puts "\n  Available config variables:\n\n#{self.config_catalog_message}\n\n"
+          puts "\n  Available config variables:\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
         else
           error improper_argument_error if ARGV.length != 3
-
           if check_variable_value(ARGV[1], ARGV[2])
             configuration[ARGV[1].to_sym] = convert_value(ARGV[2], ConfigVariables[ARGV[1].to_s]["values"])
           else
@@ -271,11 +309,10 @@ EOS
 
       when "edit", "-e", "--edit"
         error improper_argument_error if ARGV.length != 1
-
         editor = `git config --get core.editor`.chomp
         editor = "vim" if editor.empty?
         config_ok = false
-        puts "\n  Available config variables:\n\n#{self.config_catalog_message}\n\n"
+        puts "\n  Available config variables:\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
         ask("Press Enter to edit using #{editor}")
         until config_ok
           exit_status = system("#{editor} '#{config_file}'")
@@ -293,39 +330,33 @@ EOS
 
       when "unset", "-u", "--unset"
         error improper_argument_error if ARGV.length != 2
-
         if ConfigVariables.keys.include?(ARGV[1])
           configuration.delete(ARGV[1].to_sym)
         else
-          error "FATAL: '#{ARGV[1]}' is an invalid variable.\n  Available config variables:\n\n#{self.config_catalog_message}\n\n"
+          error "FATAL: '#{ARGV[1]}' is an invalid variable.\n  Available config variables:\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
         end
         File.open(config_file, "w") { |f| f.write(configuration.to_yaml) }
 
       when "list", "-l", "--list"
         error improper_argument_error if ARGV.length != 1
-
         message = ""
         if configuration.empty?
           message = "  No variables configured.".apply_color(:yellow)
         else
-          max_width = configuration.keys.map { |k| k.to_s.length }.max
-          message = configuration.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
-          message = message.map { |k,v| "  %#{max_width}s:   #{configuration[k]}" % k }.join("\n")
+          message = pretty_help_message(configuration)
         end
         puts "\n  monkey config list\n\n#{message}\n\n"
 
       when "catalog", "-c", "--catalog"
         error improper_argument_error if ARGV.length != 1
-
-        puts "\n  monkey config catalog\n\n#{self.config_catalog_message}\n\n"
+        puts "\n  monkey config catalog\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
 
       when "get", "-g", "--get"
         error improper_argument_error if ARGV.length != 2
-
         if ConfigVariables.keys.include?(ARGV[1])
           puts configuration[ARGV[1]]
         else
-          error "FATAL: '#{ARGV[1]}' is an invalid variable.\n  Available config variables:\n\n#{self.config_catalog_message}\n\n"
+          error "FATAL: '#{ARGV[1]}' is an invalid variable.\n  Available config variables:\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
         end
 
       else
@@ -364,16 +395,81 @@ EOS
       key_exists && val_valid
     end
 
-    def self.config_catalog_message
-      max_key_width = ConfigVariables.keys.map { |k| k.to_s.length }.max
-      max_desc_width = ConfigVariables.values.map { |v| v["description"].to_s.length }.max
-      message = ConfigVariables.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
-      message = message.map { |k,v| "  %#{max_key_width}s:   %-#{max_desc_width}s  Values: #{v["values"].inspect}" % [k, v["description"]] }
-      message.join("\n")
-    end
-
     def self.last_command_line
       @@last_command_line ||= ""
+    end
+
+    def self.pretty_help_message(content_hash)
+      double_spaced = false
+      return "" if content_hash.empty?
+      max_key_width = content_hash.keys.map { |k| k.to_s.length }.max
+      remaining_width = (ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last).to_i - (max_key_width + "  :   ".size + 2)
+      key_format_string = "  %#{max_key_width}s:   "
+      field_format_string = "%-#{remaining_width}s"
+      base_format_string = key_format_string + field_format_string
+      val_format_string = "#{" " * (max_key_width + 6)}#{field_format_string}"
+      sorted_content_ary = content_hash.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
+      message = []
+      case content_hash.values.first
+      when String
+        message = sorted_content_ary.map do |k,v|
+          ret = ""
+          if v.size <= remaining_width
+            ret = base_format_string % [k,v]
+          else
+            double_spaced = true
+            wrapped_ary = word_wrap(v, remaining_width).split("\n")
+            fmt_string = ([base_format_string] + ([val_format_string] * (wrapped_ary.size - 1))).join("\n")
+            ret = fmt_string % ([k] + wrapped_ary)
+          end
+          ret
+        end
+      when Hash
+        double_spaced = true
+        message = sorted_content_ary.map do |k,v|
+          fmt_string_ary = []
+          wrapped_ary = []
+          if v["description"]
+            fmt_string_ary << base_format_string
+            text = v["description"]
+            if text.size <= remaining_width
+              wrapped_ary << text
+            else
+              wrapped_val_ary = word_wrap(text, remaining_width).split("\n")
+              fmt_string_ary += [val_format_string] * (wrapped_val_ary.size - 1)
+              wrapped_ary += wrapped_val_ary
+            end
+          end
+          v.keys.sort.each { |type|
+            text = ""
+            case type
+            when "description" then next
+            when "values", "origin", "branch" then text = "#{type.titlecase}: #{v[type].inspect}"
+            when "usage" then text = "#{type.titlecase}: #{v[type]}"
+            end
+            if text.size <= remaining_width
+              fmt_string_ary << val_format_string
+              wrapped_ary << text
+            else
+              wrapped_val_ary = word_wrap(text, remaining_width).split("\n")
+              fmt_string_ary += [val_format_string] * wrapped_val_ary.size
+              wrapped_ary += wrapped_val_ary
+            end
+          }
+          unless v["description"]
+            fmt_string_ary.shift
+            fmt_string_ary.unshift(field_format_string)
+          end
+          fmt_string = fmt_string_ary.join("\n")
+          fmt_string = key_format_string + fmt_string unless v["description"]
+          fmt_string % ([k] + wrapped_ary)
+        end
+      end
+      (double_spaced ? message.join("\n\n") : message.join("\n"))
+    end
+
+    def self.word_wrap(txt, width=(ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last).to_i)
+      txt.gsub(/(.{1,#{width}})( +|$\n?)|(.{1,#{width}})/, "\\1\\3\n")
     end
   end
 end

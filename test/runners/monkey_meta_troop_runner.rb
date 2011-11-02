@@ -1,8 +1,8 @@
 module VirtualMonkey
   module Runner
     class MonkeyMetaTroop
-      extend VirtualMonkey::Mixin::CommandHooks
-      include VirtualMonkey::Mixin::DeploymentBase
+      extend VirtualMonkey::RunnerCore::CommandHooks
+      include VirtualMonkey::RunnerCore::DeploymentBase
 
       description <<EOS
 Tests the VirtualMonkey ServerTemplate in full permutation and verifies that it can run in multiple

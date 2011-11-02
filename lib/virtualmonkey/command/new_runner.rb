@@ -1,6 +1,8 @@
 module VirtualMonkey
   module Command
-    add_command("new_runner") do
+    add_command("new_runner", [:project]) do
+      interactive_select_project_logic()
+
       build_scenario_names()
       build_troop_config()
       write_common_inputs_file()
@@ -16,6 +18,9 @@ module VirtualMonkey
       say("Created runner file:         #{@@runner_file}")
 
       say("\nScenario created! DON'T FORGET TO CUSTOMIZE THESE FILES!")
+
+      # Refresh Projects index
+      VirtualMonkey::Manager::Collateral.refresh()
     end
   end
 end

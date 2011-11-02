@@ -101,13 +101,13 @@ module VirtualMonkey
 
     # Initializes most of the important class variables
     def setup_paths
-      @@cloud_vars_dir = VirtualMonkey::CLOUD_VAR_DIR
+      # This sets up the Framework's cloud_var dir so it doesn't interfere with collateral-specific cloud_vars
+      @@cloud_vars_dir = VirtualMonkey::GENERATED_CLOUD_VAR_DIR
+      FileUtils.mkdir_p(@@cloud_vars_dir)
       @@ssh_dir = File.expand_path(File.join("~", ".ssh"))
       @@sgs_file = File.join(@@cloud_vars_dir, "security_groups.json")
       @@dcs_file = File.join(@@cloud_vars_dir, "datacenters.json")
       @@keys_file = File.join(@@cloud_vars_dir, "ssh_keys.json")
-      @@rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
-      @@rest_yaml = File.join("", "etc", "rest_connection", "rest_api_config.yaml") unless File.exists?(@@rest_yaml)
       @@ssh_key_file_basename = "monkey-cloud-"
     end
 
@@ -209,7 +209,7 @@ module VirtualMonkey
 
       ssh_key_id_ary ||= {}
       multicloud_key_file = File.join(@@ssh_dir, "api_user_key")
-      rest_settings = YAML::load(IO.read(@@rest_yaml))
+      rest_settings = YAML::load(IO.read(VirtualMonkey::REST_YAML))
       rest_settings[:ssh_keys] = [] unless rest_settings[:ssh_keys]
       multicloud_key_data = IO.read(multicloud_key_file) if File.exists?(multicloud_key_file)
       keys = {}
@@ -288,6 +288,8 @@ module VirtualMonkey
           File.chmod(0700, priv_key_file)
           # Configure rest_connection config
           rest_settings[:ssh_keys] |= [priv_key_file]
+        rescue Interrupt
+          raise
         rescue Exception => e
           raise unless force
           warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
@@ -297,7 +299,7 @@ module VirtualMonkey
       keys_out = keys.to_json(:indent => "  ", :object_nl => "\n", :array_nl => "\n")
       rest_out = rest_settings.to_yaml
       File.open(@@keys_file, "w") { |f| f.write(keys_out) }
-      File.open(@@rest_yaml, "w") { |f| f.write(rest_out) }
+      File.open(VirtualMonkey::REST_YAML, "w") { |f| f.write(rest_out) }
     end
 
     # Destroys all monkey-generated ssh keys that are not in use by monkey-generated servers
@@ -330,7 +332,7 @@ module VirtualMonkey
       return puts("No clouds to destroy ssh keys for") if cloud_ids.empty?
       puts "Destroying SSH Keys for clouds: #{cloud_ids.join(", ")}"
 
-      rest_settings = YAML::load(IO.read(@@rest_yaml))
+      rest_settings = YAML::load(IO.read(VirtualMonkey::REST_YAML))
 
       # Find key_hrefs
       key_name = "#{ENV['RS_API_URL'].split("/").last}"
@@ -354,6 +356,8 @@ module VirtualMonkey
           temp_key = Ec2SshKey.new('href' => href)
           temp_key.reload
           temp_key.destroy if temp_key.aws_key_name =~ /monkey/
+        rescue Interrupt
+          raise
         rescue Exception => e
           raise unless force
           warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
@@ -367,7 +371,7 @@ module VirtualMonkey
           File.delete(f) if File.exists?(f) and ret
           ret
         end
-        File.open(@@rest_yaml, "w") { |f| f.write(rest_settings.to_yaml) }
+        File.open(VirtualMonkey::REST_YAML, "w") { |f| f.write(rest_settings.to_yaml) }
       end
 
       # Delete keys from cloud_variables file
@@ -442,6 +446,8 @@ module VirtualMonkey
               sgs["#{cloud}"] = {}
             end
           end
+        rescue Interrupt
+          raise
         rescue Exception => e
           raise unless force
           warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
@@ -491,6 +497,8 @@ module VirtualMonkey
               dcs["#{cloud}"] = {}
             end
           end
+        rescue Interrupt
+          raise
         rescue Exception => e
           raise unless force
           warn "WARNING: Got \"#{e.message}\". Forcing continuation..."

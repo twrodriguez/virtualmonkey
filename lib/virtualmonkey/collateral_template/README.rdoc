@@ -4,24 +4,26 @@
   "gem install virtualmonkey"
 
 === from source
-  "git clone http://github.com/rightscale/virtualmonkey"
-  "gem install jeweler rspec bundler"
-  "bundle install --system" <- Install any gems listed.
+  "git clone http://github.com/jeremyd/virtualmonkey"
+  "gem install jeweler rspec"
+  "rake check_dependencies" <- Install any gems listed.
   "rake install"
 
 == Configuration
-  You need to setup ~/.fog and ~/.rest_connection with configuration options to match your RightScale account (for using the RightScale API), your AWS credentials (for SimpleDB and S3), and your Rackspace Cloud credentials.
+  You need to setup ~/.fog and ~/.rest_connection with configuration options to match your RightScale account (for using the RightScale API) and your AWS credentials (for SimpleDB and S3).
   Just run the monkey, and it will tell you how to setup your missing credentials.
 
 == Usage
   The command line client is "monkey".  It lives in your gem binary path.
   See the help pages for usage:
-    "monkey help"
+    "monkey create --help"
+    "monkey run --help"
+    "monkey destroy --help"
 
 = Virtual Monkey Architecture
 
 == RightScale API access
-  Uses rest_connection library from http://github.com/twrodriguez/rest_connection.git -b multicloud
+  Uses rest_connection library from http://github.com/jeremyd/rest_connection.git
   
 == S3 and SimpleDB access
   Uses Fog library from http://github.com/geemus/fog.git
@@ -35,17 +37,14 @@
   Shared Resources like DNS_IDs and EIPs will be shared among clients using conditional PUT operations to SimpleDB.
   SharedDns
 
-== Manager Classes
+== Management Classes
 
-===  DeploymentSet - handles create/load/delete of DeploymentSets
+===  DeploymentMonk - handles create/load/delete of DeploymentSets
    Using the RS API we create a set of all the 'basic variations' a deployment can have.
    Basic variations currently are generated using permutations of Images, Clouds, and Instance Types. 
-===  Grinder
-   handles running grinder tests and collecting and posting results to S3
-===  Collateral
-   Manages test collateral projects consisting of troops, common_inputs, cloud_variable overrides, runners, mixins, lists, and features
-
-=== VirtualMonkey::RunnerCore::DeploymentBase
+===  GrinderMonk 
+  handles running grinder tests and collecting and posting results to S3
+=== VirtualMonkey::DeploymentRunner
 *  These are a set of specialty mixins per Deployment type for cluster management of a single deployment. 
 
 *  This keeps our grinder features from getting cluttered.  Each step definition needs an equivalent DeploymentRunner method.
@@ -53,18 +52,14 @@
 *  'One-off' variations are setup by the DeploymentRunner(s) and will be applied during a test run. 
       ex: OPT_PHP_VHOST_PORT, SLAVE_DNS_ID
 
-=== VirtualMonkey::RunnerCore::CommandHooks
-   This special mixin provides a API hooks that allow certain actions to be taken before and after "monkey create" and "monkey destroy"
-
-=== VirtualMonkey::TestCaseInterface
-   This mixin contains the control structures for execution tracing, deep resuming, exception handling, and in-line debugging
+*  VirtualMonkey::MysqlRunner, VirtualMonkey::FeAppRunner, VirtualMonkey::EBSRunner, VirtualMonkey::Mysql, VirtualMonkey::EBS
 
 
 === Grinder feature tests
 *  Grinder Features live in GEM_HOME/features
-*  These features can be run by hand -or- by the Grinder Manager class via "monkey run" command.
-*  See the grinder help page for usage:
-*  "grinder --help"
+*  These features can be run by hand -or- by GrinderMonk via "monkey run" command.
+*  The features have one ENVIRONMENT variable that is used to pass in the Deployment nickname.  To run by hand:
+* "grinder features/php.feature DEPLOYMENT=testing_deploy_x86_64"
 ===  A Feature will:
  1) setup one-off variations using the VirtualMonkey::DeploymentRunner .
  2) exercise a cluster deployment using the VirtualMonkey::DeploymentRunner.
@@ -72,7 +67,6 @@
 == Note on Patches/Pull Requests
 
 * Fork the project.
-* Set up the
 * Make your feature addition or bug fix.
 * Commit, do not mess with rakefile, version, or history.
 (if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
@@ -80,4 +74,4 @@
 
 == Copyright
 
-Copyright (c) 2010-2011 Jeremy Deininger, Timothy Rodriguez. See LICENSE for details.
+Copyright (c) 2010 Jeremy Deininger. See LICENSE for details.

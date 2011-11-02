@@ -290,7 +290,7 @@ module VirtualMonkey
     def write_readable_log(data, io=STDOUT)
       data_ary = data.split("\n")
       data_ary.each_index do |i|
-        data_ary[i] = ("  " * @rerun_last_command.length) + data_ary[i]
+        data_ary[i] = ("  " * (@rerun_last_command || []).length) + data_ary[i]
       end
       io.puts "#{data_ary.join("\n")}"
     end

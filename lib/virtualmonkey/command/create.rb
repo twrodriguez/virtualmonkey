@@ -8,15 +8,13 @@ module VirtualMonkey
       create_command_ary = VirtualMonkey::Command::reconstruct_command_line(:Array)
 
       load_config_file
-      @@dm = DeploymentMonk.new(@@options[:prefix],
-                                @@options[:server_template_ids],
-                                [],
-                                @@options[:allow_meta_monkey],
-                                @@options[:one_deploy])
+      @@dm = VirtualMonkey::Manager::DeploymentSet.new(@@options)
       if @@options[:overwrite]
         if @@options[:force]
           begin
             destroy_all_logic
+          rescue Interrupt
+            raise
           rescue Exception => e
             warn "WARNING: got \"#{e.message}\", forcing destruction of deployments."
             @@do_these.each { |deploy|

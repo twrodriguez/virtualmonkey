@@ -69,5 +69,5 @@ def automatic_require(full_path)
   end
 end
 
-automatic_require(File.join(File.dirname(__FILE__), "..", "test", "mixins"))
-automatic_require(File.join(File.dirname(__FILE__), "..", "test", "runners"))
+automatic_require(File.join(File.dirname(__FILE__), "..", "mixins"))
+automatic_require(File.join(File.dirname(__FILE__), "..", "runners"))

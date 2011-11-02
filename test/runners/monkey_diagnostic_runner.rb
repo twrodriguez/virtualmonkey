@@ -1,8 +1,8 @@
 module VirtualMonkey
   module Runner
     class MonkeyDiagnostic
-      extend VirtualMonkey::Mixin::CommandHooks
-      include VirtualMonkey::Mixin::DeploymentBase
+      extend VirtualMonkey::RunnerCore::CommandHooks
+      include VirtualMonkey::RunnerCore::DeploymentBase
       include VirtualMonkey::Mixin::MonkeyDiagnostic
 
       description "Tests the $0 aspects of the VirtualMonkey ServerTemplate and codebase"

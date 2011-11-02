@@ -3,7 +3,6 @@
 ENV['ENTRY_COMMAND'] = File.basename(__FILE__, ".rb")
 
 require 'rubygems'
-require 'bundler/setup'
 require 'daemons'
 
 # Control by running:

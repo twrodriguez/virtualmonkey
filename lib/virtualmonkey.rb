@@ -2,20 +2,25 @@ require 'yaml'
 
 module VirtualMonkey
   ROOTDIR = File.expand_path(File.join(File.dirname(__FILE__), ".."))
-  CONFIG_DIR = File.join(ROOTDIR, "config")
+  GENERATED_CLOUD_VAR_DIR = File.join(ROOTDIR, "cloud_variables")
   TEST_STATE_DIR = File.join(ROOTDIR, "test_states")
-  FEATURE_DIR = File.join(ROOTDIR, "features")
+
   LOG_DIR = File.join(ROOTDIR, "log")
   BIN_DIR = File.join(ROOTDIR, "bin")
   LIB_DIR = File.join(ROOTDIR, "lib", "virtualmonkey")
+
   COMMAND_DIR = File.join(LIB_DIR, "command")
-  RUNNER_DIR = File.join(LIB_DIR, "deployment_runners")
-  MIXIN_DIR = File.join(LIB_DIR, "runner_mixins")
-  CLOUD_VAR_DIR = File.join(CONFIG_DIR, "cloud_variables")
-  COMMON_INPUT_DIR = File.join(CONFIG_DIR, "common_inputs")
-  TROOP_DIR = File.join(CONFIG_DIR, "troop")
-  LIST_DIR = File.join(CONFIG_DIR, "lists")
+  MANAGER_DIR = File.join(LIB_DIR, "manager")
+  UTILITY_DIR = File.join(LIB_DIR, "utility")
+  RUNNER_CORE_DIR = File.join(LIB_DIR, "runner_core")
+  PROJECT_TEMPLATE_DIR = File.join(LIB_DIR, "collateral_template")
+
+  LIST_DIR = File.join("", "lists") # TODO: Delete
+
   WEB_APP_DIR = File.join(ROOTDIR, "lib", "spidermonkey")
+
+  REGRESSION_TEST_DIR = File.join(ROOTDIR, "test")
+  COLLATERAL_TEST_DIR = File.join(ROOTDIR, "collateral")
 
   @@rest_yaml = File.join(File.expand_path("~"), ".rest_connection", "rest_api_config.yaml")
   @@rest_yaml = File.join("", "etc", "rest_connection", "rest_api_config.yaml") unless File.exists?(@@rest_yaml)
@@ -84,6 +89,9 @@ def automatic_require(full_path, progress=nil)
     end
     retry_loop += 1
   end
+  if some_not_included
+    raise "Couldn't auto-include all files in #{File.expand_path(full_path)}"
+  end
 end
 
 progress_require('rubygems', 'dependencies')
@@ -101,20 +109,13 @@ progress_require('ruby2ruby')
 progress_require('colorize')
 
 progress_require('virtualmonkey/patches', 'virtualmonkey')
-progress_require('virtualmonkey/deployment_monk')
-progress_require('virtualmonkey/grinder_monk')
-progress_require('virtualmonkey/shared_dns')
-progress_require('virtualmonkey/message_check')
-progress_require('virtualmonkey/test_case_interface')
+progress_require('virtualmonkey/runner_core')
 progress_require('virtualmonkey/test_case_dsl')
 
+progress_require('virtualmonkey/manager', 'managers')
+progress_require('virtualmonkey/utility', 'utilities')
 progress_require('virtualmonkey/command', 'commands')
-progress_require('virtualmonkey/toolbox')
-
-progress_require('virtualmonkey/runner_mixins', 'mixins')
-
-progress_require('virtualmonkey/deployment_runners', 'runners')
 
 progress_require('spidermonkey.rb', 'spidermonkey')
 puts "\n"
-VirtualMonkey::config
+VirtualMonkey::config # Verify config files

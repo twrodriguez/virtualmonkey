@@ -3,7 +3,7 @@ module VirtualMonkey
     def self.load_config_file
       if @@options[:prefix] and not @@options[:config_file] and @@command =~ /run|destroy/
         # Try loading from deployment tag
-        deployments = DeploymentMonk.from_name(@@options[:prefix])
+        deployments = VirtualMonkey::Manager::DeploymentSet.from_name(@@options[:prefix])
         if deployments.unanimous? { |d| d.get_info_tags["self"]["troop"] }
           @@options[:config_file] = deployments.first.get_info_tags["self"]["troop"]
         else
@@ -12,14 +12,31 @@ module VirtualMonkey
       end
       raise "FATAL: --config_file is required!" unless @@options[:config_file]
       config = JSON::parse(IO.read(@@options[:config_file]))
+
+      # Find Project that troop file is a part of
+      @@selected_project = VirtualMonkey::Manager::Collateral.get_project_from_file(@@options[:config_file])
+
+      # Build Prefix
       @@options[:prefix] += "-" if @@options[:prefix]
       @@options[:prefix] = "" unless @@options[:prefix]
       @@options[:prefix] += config['prefix']
-      @@options[:common_inputs] = config['common_inputs'].map { |cipath| File.join(@@ci_dir, cipath) }
+
+      # Find Common Inputs
+      @@options[:common_inputs] = config['common_inputs'].map do |cipath|
+        File.join(@@selected_project.paths["common_inputs"], cipath)
+      end
+
+      # Load feature files & get runner class
       @@options[:feature] = load_features(config)
       @@options[:runner] ||= get_runner_class
+
+      # Set the terminate option?
       @@options[:terminate] = true if @@command =~ /troop|destroy/
+
+      # Load cloud variables
       @@options[:clouds] = load_clouds(config) unless @@options[:clouds] and @@options[:clouds].length > 0
+
+      # Get server_template_ids
       @@options[:server_template_ids] = config['server_template_ids']
       if (@@options[:revisions] ||= []).empty?
         @@options[:revisions] = [0] * config['server_template_ids'].length
@@ -61,9 +78,9 @@ module VirtualMonkey
       }
       unless @@options[:no_resume] or @@command =~ /destroy|audit/
         temp = @@do_these.select do |d|
-          files_to_check = @@options[:feature] + [GrinderMonk.combo_feature_name(@@options[:feature])]
+          files_to_check = @@options[:feature] + [VirtualMonkey::Manager::Grinder.combo_feature_name(@@options[:feature])]
           files_to_check.any? { |feature|
-            File.exist?(File.join(@@global_state_dir, d.nickname, File.basename(feature)))
+            File.exist?(File.join(VirtualMonkey::TEST_STATE_DIR, d.nickname, File.basename(feature)))
           }
         end
         @@do_these = temp if temp.length > 0
@@ -105,8 +122,8 @@ module VirtualMonkey
       raise "FATAL: Could not determine runner class" unless @@options[:runner]
 
       EM.run {
-        @@gm ||= GrinderMonk.new
-        @@dm ||= DeploymentMonk.new(@@options[:prefix], [], [], @@options[:allow_meta_monkey])
+        @@gm ||= VirtualMonkey::Manager::Grinder.new
+        @@dm ||= VirtualMonkey::Manager::DeploymentSet.new(@@options)
         @@options[:runner] ||= get_runner_class
         select_only_logic("Run tests on")
 
@@ -262,7 +279,7 @@ module VirtualMonkey
 
     def self.cleanup_state_dir(deploy)
       retry_block do
-        state_dir = File.join(@@global_state_dir, deploy.nickname)
+        state_dir = File.join(VirtualMonkey::TEST_STATE_DIR, deploy.nickname)
         if File.directory?(state_dir)
           puts "Deleting state files for #{deploy.nickname}..."
           Dir.new(state_dir).each do |state_file|
@@ -286,7 +303,7 @@ module VirtualMonkey
           puts "Finished executing vefore_destroy hooks."
         end
       else
-        warn "#{@@options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
+        warn "#{@@options[:runner]} doesn't extend VirtualMonkey::RunnerCore::CommandHooks"
       end
     end
 
@@ -301,7 +318,7 @@ module VirtualMonkey
           puts "Finished executing after_destroy hooks."
         end
       else
-        warn "#{@@options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
+        warn "#{@@options[:runner]} doesn't extend VirtualMonkey::RunnerCore::CommandHooks"
       end
     end
 
@@ -318,15 +335,17 @@ module VirtualMonkey
       end
       @@options[:runner] = test_cases.first.options[:runner]
       unless @@options[:runner].respond_to?(:assert_integrity!)
-        warn "#{@@options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
-        @@options[:runner].extend(VirtualMonkey::Mixin::CommandHooks)
+        warn "#{@@options[:runner]} doesn't extend VirtualMonkey::RunnerCore::CommandHooks"
+        @@options[:runner].extend(VirtualMonkey::RunnerCore::CommandHooks)
       end
       @@options[:runner].assert_integrity!
       return @@options[:runner]
     end
 
     def self.load_features(config)
-      features = [config['feature']].flatten.map { |feature| File.join(@@features_dir, feature) }
+      features = [config['feature']].flatten.map do |feature|
+        File.join(@@selected_project.paths["features"], feature)
+      end
       test_cases = features.map { |feature| VirtualMonkey::TestCase.new(feature) }
       unless test_cases.unanimous? { |tc| tc.options[:runner] }
         raise ":runner options MUST match for multiple feature files"
@@ -397,9 +416,32 @@ module VirtualMonkey
       end
     end
 
+    def self.selected_project
+      @@selected_project ||= nil
+    end
+
+    def self.selected_project=(proj)
+      proj = nil unless proj.is_a?(VirtualMonkey::CollateralProject)
+      @@selected_project = proj || selected_project
+    end
+
     ##################################
     # Onboarding/File-Creation Logic #
     ##################################
+    def self.interactive_select_project_logic
+      @@selected_project = VirtualMonkey::Manager::Collateral[@@options[:project]]
+      @@selected_project ||= case VirtualMonkey::Manager::Collateral::Projects.size
+      when 0 then error "No collateral projects available locally. Please run 'monkey collateral --help'"
+      when 1 then VirtualMonkey::Manager::Collateral::Projects.first
+      else
+        proj_name = choose do |menu|
+          menu.prompt = "Which project should be used?"
+          menu.index = :number
+          menu.choices(*(VirtualMonkey::Manager::Collateral::Projects.map { |proj| proj.name }))
+        end
+        VirtualMonkey::Manager::Collateral[proj_name]
+      end
+    end
 
     def self.build_scenario_names(underscore_name = " ")
       if underscore_name != " "
@@ -415,11 +457,11 @@ module VirtualMonkey
       end
       @@underscore_name = underscore_name.downcase
       @@camel_case_name = @@underscore_name.camelcase
-      @@common_inputs_file = File.join(@@ci_dir, "#{@@underscore_name}.json")
-      @@feature_file = File.join(@@features_dir, "#{@@underscore_name}.rb")
-      @@mixin_file = File.join(@@mixin_dir, "#{@@underscore_name}.rb")
-      @@runner_file = File.join(@@runner_dir, "#{@@underscore_name}_runner.rb")
-      @@troop_file = File.join(@@troop_dir, "#{@@underscore_name}.json")
+      @@common_inputs_file = File.join(@@selected_project.paths["common_inputs"], "#{@@underscore_name}.json")
+      @@feature_file = File.join(@@selected_project.paths["features"], "#{@@underscore_name}.rb")
+      @@mixin_file = File.join(@@selected_project.paths["mixins"], "#{@@underscore_name}.rb")
+      @@runner_file = File.join(@@selected_project.paths["runners"], "#{@@underscore_name}_runner.rb")
+      @@troop_file = File.join(@@selected_project.paths["troops"], "#{@@underscore_name}.json")
 
       @@script_table = []
     end
@@ -552,7 +594,7 @@ EOS
 module VirtualMonkey
   module Mixin
     module #{@@camel_case_name}
-      extend VirtualMonkey::Mixin::CommandHooks
+      extend VirtualMonkey::RunnerCore::CommandHooks
 EOS
       # Lookup Scripts
       mixin_tpl += <<EOS
@@ -653,8 +695,8 @@ EOS
 module VirtualMonkey
   module Runner
     class #{@@camel_case_name}
-      extend VirtualMonkey::Mixin::CommandHooks
-      include VirtualMonkey::Mixin::DeploymentBase
+      extend VirtualMonkey::RunnerCore::CommandHooks
+      include VirtualMonkey::RunnerCore::DeploymentBase
       include VirtualMonkey::Mixin::#{@@camel_case_name}
 
       # Write a meaningful description of what this Runner tests

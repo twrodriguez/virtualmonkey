@@ -1,12 +1,14 @@
 module VirtualMonkey
   module Command
-    add_command("new_config") do
+    add_command("new_config", [:project]) do
+      self.interactive_select_project_logic()
+
       # PATHs SETUP
-      features_glob = Dir.glob(File.join(@@features_dir, "**")).collect { |c| File.basename(c) }
-      cloud_variables_glob = Dir.glob(File.join(@@cv_dir, "**")).collect { |c| File.basename(c) }
-      common_inputs_glob = Dir.glob(File.join(@@ci_dir, "**")).collect { |c| File.basename(c) }
+      features_glob = @@selected_project.features.map { |c| File.basename(c) }
+      cloud_variables_glob = @@selected_project.cloud_variables.map { |c| File.basename(c) }
+      common_inputs_glob = @@selected_project.common_inputs.map { |c| File.basename(c) }
       name = ask("Filename?").strip
-      @@troop_file = File.join(@@troop_dir, "#{name}.json")
+      @@troop_file = File.join(@@selected_project.paths["troops"], "#{name}.json")
 
       # CREATE NEW CONFIG
       @@troop_config = {}
@@ -38,6 +40,9 @@ module VirtualMonkey
 
       write_troop_file()
       say("Created config file: #{@@troop_file}")
+
+      # Refresh Projects index
+      VirtualMonkey::Manager::Collateral.refresh()
     end
   end
 end

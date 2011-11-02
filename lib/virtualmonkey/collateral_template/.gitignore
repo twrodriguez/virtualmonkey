@@ -15,12 +15,10 @@ tmtags
 *.swo
 
 ## PROJECT::GENERAL
+coverage
 rdoc
 pkg
 log
 
 ## PROJECT::SPECIFIC
-test_states/
-cloud_variables/*
-collateral/*
-.config.yaml
+features/*.combo.rb

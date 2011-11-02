@@ -5,7 +5,8 @@ module VirtualMonkey
     STAGES = [:hard_reset, :soft_reset, :before, :test, :after]
 
     def mixin_feature(file, isolate_feature_set = false)
-      file = File.join(VirtualMonkey::FEATURE_DIR, File.basename(file))
+      project = VirtualMonkey::Manager::Collateral::get_project_from_file(file)
+      file = File.join(project.paths["features"], File.basename(file))
       if @features.keys.include? file
         puts "NOTE: Feature #{file} already mixed in. Skipping."
         return @current_file
@@ -26,7 +27,8 @@ module VirtualMonkey
     end
 
     def initialize(file, options = {})
-      file = File.join(VirtualMonkey::FEATURE_DIR, File.basename(file))
+      project = VirtualMonkey::Manager::Collateral::get_project_from_file(file)
+      file = File.join(project.paths["features"], File.basename(file))
       @blocks = STAGES.map_to_h { |s| {} }
       @features = {}
       @tests_to_resume, @feature_in_progress = nil, nil
@@ -108,8 +110,9 @@ module VirtualMonkey
         tests_to_run = @tests_to_resume if @tests_to_resume
         tests_to_run.compact!
         tests = get_keys(feature)
-        tests.shuffle! unless VirtualMonkey::config[:test_ordering] == "strict"
+        tests.shuffle! if VirtualMonkey::config[:test_ordering] == "random"
         tests &= tests_to_run unless tests_to_run.empty?
+        tests -= @options[:exclude_tests] unless @options[:exclude_tests].nil? || @options[:exclude_tests].empty?
         # Add the tests to the tracelog
         VirtualMonkey::trace_log.first["tests"] = tests_to_run
         VirtualMonkey::trace_log.first["feature"] = feature

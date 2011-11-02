@@ -73,6 +73,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  bundler
   colorize
   daemons
   eventmachine (= 0.12.10)

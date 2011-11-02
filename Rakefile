@@ -15,7 +15,7 @@ begin
     gem.add_development_dependency "gemedit"
     gem.add_dependency('json')
     gem.add_dependency('trollop')
-    gem.add_dependency "rest_connection"
+    gem.add_dependency "rest_connection", ">= 0.1"
     gem.add_dependency "fog"
     gem.add_dependency "highline"
     gem.add_dependency "rspec"

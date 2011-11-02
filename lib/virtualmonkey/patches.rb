@@ -11,6 +11,7 @@ class Hash
   def to_h
     self
   end
+  alias_method :to_hash, :to_h
 end
 
 # Array Patches
@@ -91,10 +92,7 @@ class Array
     end
     ret
   end
-
-  def to_hash
-    to_h
-  end
+  alias_method :to_hash, :to_h
 
   def map_to_h(&block)
     [self, map(&block)].transpose.to_h

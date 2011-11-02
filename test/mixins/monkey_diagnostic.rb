@@ -1,7 +1,7 @@
 module VirtualMonkey
   module Mixin
     module MonkeyDiagnostic
-      extend VirtualMonkey::Mixin::CommandHooks
+      extend VirtualMonkey::RunnerCore::CommandHooks
 
       def load_inputs
         s = VirtualMonkey::my_api_self

@@ -1,7 +1,7 @@
 module VirtualMonkey
-  module Mixin
+  module RunnerCore
     module DeploymentBase
-      extend VirtualMonkey::Mixin::CommandHooks
+      extend VirtualMonkey::RunnerCore::CommandHooks
       include VirtualMonkey::TestCaseInterface
       attr_accessor :deployment, :servers, :server_templates
       attr_accessor :scripts_to_run
@@ -14,7 +14,7 @@ module VirtualMonkey
         raise "Fatal: Could not find a deployment named #{deployment}" unless @deployment
         test_case_interface_init(opts)
         populate_settings
-        self.class.extend(VirtualMonkey::Mixin::CommandHooks) unless self.class.respond_to?(:before_create)
+        self.class.extend(VirtualMonkey::RunnerCore::CommandHooks) unless self.class.respond_to?(:before_create)
         assert_integrity!
       end
 
@@ -225,7 +225,13 @@ module VirtualMonkey
         set = select_set(set)
         set.each { |s|
           begin
-            transaction { s.start }
+            transaction {
+              # NOTE: The following two lines are a workaround for a bug in Eucalyptus Cloud pre-3.0
+              clouds = VirtualMonkey::Toolbox::get_available_clouds.to_h("cloud_id", "name")
+              McInstance.find_all(s.cloud_id.to_i) if clouds[s.cloud_id.to_i] =~ /euca/i
+
+              s.start
+            }
           rescue Exception => e
             raise unless e.message =~ /AlreadyLaunchedError/
           end
@@ -649,11 +655,11 @@ module VirtualMonkey
 
       def assert_integrity!
         unless self.class.respond_to?(:description)
-          error "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
+          error "#{options[:runner]} doesn't extend VirtualMonkey::RunnerCore::CommandHooks"
         end
         [:before_destroy, :after_create, :after_destroy].each do |hook_set|
           unless self.class.respond_to?(hook_set)
-            error "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
+            error "#{options[:runner]} doesn't extend VirtualMonkey::RunnerCore::CommandHooks"
           end
           self.class.__send__(hook_set).each { |fn|
             if not fn.is_a?(Proc)
@@ -662,7 +668,7 @@ module VirtualMonkey
           }
         end
         unless self.class.respond_to?(:assert_integrity!)
-          error "#{options[:runner]} doesn't extend VirtualMonkey::Mixin::CommandHooks"
+          error "#{options[:runner]} doesn't extend VirtualMonkey::RunnerCore::CommandHooks"
         end
         self.class.assert_integrity!
       end

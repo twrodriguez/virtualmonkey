@@ -3,11 +3,13 @@ module VirtualMonkey
     # monkey destroy --tag unique_tag
     add_command("destroy", [:config_file, :only, :keep, :prefix, :yes, :clouds, :verbose, :force]) do
       load_config_file
-      @@dm = DeploymentMonk.new(@@options[:prefix], [], [], @@options[:allow_meta_monkey])
+      @@dm = VirtualMonkey::Manager::DeploymentSet.new(@@options)
       select_only_logic("Really destroy")
       if @@options[:force]
         begin
           destroy_all_logic
+        rescue Interrupt
+          raise
         rescue Exception => e
           warn "WARNING: got \"#{e.message}\", forcing destruction of deployments."
           @@do_these.each { |deploy|
