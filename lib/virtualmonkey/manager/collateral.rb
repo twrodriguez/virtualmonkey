@@ -66,6 +66,7 @@ module VirtualMonkey
     attr_reader :features, :cloud_variables, :common_inputs, :lists, :troops, :runners, :mixins
 
     def self.require_within(filename)
+      @@required_within_files ||= {}
       @@required_within_files[self.to_s] ||= []
       filename = filename + ".rb" unless filename =~ /\.rb$/
       if @@required_within_files[self.to_s].include?(filename)

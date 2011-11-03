@@ -28,7 +28,7 @@ module VirtualMonkey
         [project.name, g]
       }.to_h
       printable_hash = git_objs.map { |proj,g|
-        [File.basename(proj), {"origin" => g.config["remote.origin.url"], "branch" => g.branch.name}]
+        [File.basename(proj), {"origin" => g.config["remote.origin.url"], "branch" => g.current_branch}]
       }.to_h
 
       # Print Help?
@@ -62,7 +62,7 @@ module VirtualMonkey
         error "FATAL: #{project_path} already exists!" if File.exists?(project_path)
         FileUtils.mkdir_p(VirtualMonkey::COLLATERAL_TEST_DIR)
         Git.clone(repo_path, project_path, git_options)
-        
+
       when "init", "--init", "-i"
         # Command line check
         error improper_argument_error if ARGV.length != 1
@@ -84,7 +84,7 @@ module VirtualMonkey
         end
         FileUtils.cp_r(proj_files, project_path)
         # TODO: Generate new runner?
-        
+
       when "checkout", "--checkout", "-k"
         # Command line check
         error improper_argument_error if ARGV.length < 2
@@ -101,7 +101,7 @@ module VirtualMonkey
         error "FATAL: #{project_path} doesn't exist!" unless File.exists?(project_path)
         FileUtils.mkdir_p(VirtualMonkey::COLLATERAL_TEST_DIR)
         git_objs[project_name].checkout(refspec)
-        
+
       when "pull", "--pull", "-p"
         # Command line check
         error improper_argument_error if ARGV.length < 1 || ARGV.length > 3
@@ -114,7 +114,7 @@ module VirtualMonkey
         branch ||= 'master'
         FileUtils.mkdir_p(VirtualMonkey::COLLATERAL_TEST_DIR)
         git_objs[project_name].pull(remote, branch)
-        
+
       when "list", "--list", "-l"
         # Command line check
         error improper_argument_error unless ARGV.empty?
@@ -127,7 +127,7 @@ module VirtualMonkey
           message = pretty_help_message(printable_hash)
         end
         puts "\n  monkey collateral list\n\n#{message}\n\n"
-        
+
       when "delete", "--delete", "-d"
         # Command line check
         error improper_argument_error if ARGV.length != 1
@@ -141,7 +141,7 @@ module VirtualMonkey
         else
           error "Aborting on user input."
         end
-        
+
       else
         error "FATAL: '#{subcommand}' is an invalid command.\n\n#{@@collateral_help_message}\n"
       end
