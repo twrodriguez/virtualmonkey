@@ -100,7 +100,4 @@ elif [[ "$useremail" == "setyouremail@rightscale.com" || "$useremail" == "" ]] |
   exit 1
 fi
 
-# Check that Runners and Mixins are defined only once
-ruby git_hooks/pre-commit-chk-collateral || exit 1
-
 exit 0
