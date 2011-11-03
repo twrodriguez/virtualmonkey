@@ -67,6 +67,17 @@ module VirtualMonkey
 
     def self.require_within(filename)
       filename = filename + ".rb" unless filename =~ /\.rb$/
+      if @required_within_files.include?(filename)
+        return false
+      else
+        self.class_eval(File.read(filename), filename, 1)
+        @required_within_files << filename
+        return true
+      end
+    end
+
+    def self.load_within(filename)
+      filename = filename + ".rb" unless filename =~ /\.rb$/
       self.class_eval(File.read(filename), filename, 1)
     end
 
@@ -83,6 +94,12 @@ module VirtualMonkey
       rescue Gem::LoadError => e
         self.require_within(filename)
       end
+    end
+
+    def self.load(filename, wrap=false)
+      Kernel.load(filename, wrap)
+    rescue LoadError => e
+      self.load_within(filename)
     end
 
     def self.automatic_require_within(full_path)
@@ -112,10 +129,12 @@ module VirtualMonkey
     end
 
     def initialize(root_path)
-      self.class.automatic_require_within(VirtualMonkey::RUNNER_CORE_DIR)
       @root_path = root_path
       @gemfile = File.join(root_path, "Gemfile")
       @paths = VirtualMonkey::Manager::Collateral::DIRECTORIES.map_to_h { |dir| File.join(root_path, dir) }
+      @required_within_files = []
+
+      self.class.automatic_require_within(VirtualMonkey::RUNNER_CORE_DIR)
       # Check directory structure
       correct_structure = @paths.values.reduce(true) { |bool,path| bool && File.directory?(path) }
       unless correct_structure
