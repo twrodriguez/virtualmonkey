@@ -75,6 +75,7 @@ def automatic_require(full_path, progress=nil)
   some_not_included = true
   files = Dir.glob(File.join(File.expand_path(full_path), "**"))
   retry_loop = 0
+  last_err = nil
   while some_not_included and retry_loop <= (files.size ** 2) do
     begin
       some_not_included = false
@@ -83,6 +84,7 @@ def automatic_require(full_path, progress=nil)
         some_not_included ||= val
       end
     rescue NameError => e
+      last_err = e
       raise unless "#{e}" =~ /uninitialized constant/i
       some_not_included = true
       files.push(files.shift)
@@ -90,7 +92,8 @@ def automatic_require(full_path, progress=nil)
     retry_loop += 1
   end
   if some_not_included
-    raise "Couldn't auto-include all files in #{File.expand_path(full_path)}"
+    warn "Couldn't auto-include all files in #{File.expand_path(full_path)}"
+    raise last_err
   end
 end
 

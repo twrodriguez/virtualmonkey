@@ -89,6 +89,7 @@ module VirtualMonkey
       some_not_included = true
       files = Dir.glob(File.join(File.expand_path(full_path), "**"))
       retry_loop = 0
+      last_err = nil
       while some_not_included and retry_loop <= (files.size ** 2) do
         begin
           some_not_included = false
@@ -97,6 +98,7 @@ module VirtualMonkey
             some_not_included ||= val
           end
         rescue NameError => e
+          last_err = e
           raise unless "#{e}" =~ /uninitialized constant/i
           some_not_included = true
           files.push(files.shift)
@@ -104,7 +106,8 @@ module VirtualMonkey
         retry_loop += 1
       end
       if some_not_included
-        raise "Couldn't auto-include all files in #{File.expand_path(full_path)}"
+        warn "Couldn't auto-include all files in #{File.expand_path(full_path)}"
+        raise last_err
       end
     end
 
@@ -122,20 +125,25 @@ module VirtualMonkey
         warn msg
       end
 
+      # Load Gems
       if gemfile?
-        if Kernel.const_get("VirtualMonkey")::config[:load_progress] != "hide"
+        if ::VirtualMonkey::config[:load_progress] != "hide"
           print "Installing gems for #{self.name}..."
           STDOUT.flush
         end
 
         `cd #{root_path.inspect}; bundle install --system`
-        error "Failed to install gems for '#{root_path}'." unless $?.to_i == 0
+        raise "Failed to install gems for '#{root_path}'." unless $?.to_i == 0
         Gem.refresh
 
-        if Kernel.const_get("VirtualMonkey")::config[:load_progress] != "hide"
-          puts "Gems installed successfully!"
+        if ::VirtualMonkey::config[:load_progress] != "hide"
+          print "Gems installed successfully!"
         end
       end
+
+      # Check that Runners and Mixins are defined only once
+      msg = `ruby git_hooks/pre-commit-chk-collateral #{File.basename(root_path)} 2>&1`
+      raise "'#{root_path}' failed Runner Checks:\n#{msg}" unless $?.to_i == 0
 
       self.class.automatic_require_within(@paths["mixins"])
       self.class.automatic_require_within(@paths["runners"])
@@ -254,7 +262,7 @@ module VirtualMonkey
           begin
             ret = project_class.new(p)
           rescue Exception => e
-            puts "WARNING: Could not initialize Project: #{project_class}\n#{e.message}"
+            warn "WARNING: Could not initialize #{project_class}: #{e.message}\n#{e.backtrace.join("\n")}"
           end
           ret
         end
