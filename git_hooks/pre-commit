@@ -64,6 +64,28 @@ for FILE in "LICENSE" "README.rdoc" "VERSION" "Gemfile" "Gemfile.lock" ".gitigno
   fi
 done
 
+# Check that if Gemfile exists, Gemfile.lock exists and is up to date
+if test -e "Gemfile"; then
+  # Bundler
+  old_mod_time="0"
+  if [[ -e "Gemfile.lock" ]]; then
+    old_mod_time=`stat -c %Z Gemfile.lock`
+  fi  
+
+  echo Bundling Gemfile...
+  bundle install &> /dev/null
+  echo Bundle Complete.
+
+  if [[ ! -e "Gemfile.lock" ]]; then
+    echo "Gemfile.lock not present. Aborting commit"
+    exit 1
+  fi  
+  if [[ `stat -c %Z Gemfile.lock` -ne $old_mod_time ]]; then
+    echo "Gemfile.lock updated. Please re-add 'Gemfile.lock' to your commit"
+    exit 1
+  fi  
+fi
+
 # Check that username and user emails are filled properly
 username=`git config --get user.name`
 useremail=`git config --get user.email`
@@ -77,6 +99,6 @@ elif [[ "$useremail" == "setyouremail@rightscale.com" || "$useremail" == "" ]] |
 fi
 
 # Check that Runners and Mixins are defined only once
-#ruby git_hooks/pre-commit-chk-collateral || exit 1
+ruby git_hooks/pre-commit-chk-collateral || exit 1
 
 exit 0

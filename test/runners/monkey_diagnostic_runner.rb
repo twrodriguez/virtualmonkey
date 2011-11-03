@@ -8,11 +8,11 @@ module VirtualMonkey
       description "Tests the $0 aspects of the VirtualMonkey ServerTemplate and codebase"
 
       def initialize(*args)
-        raise "FATAL: #{self.class} must be run in the cloud" unless VirtualMonkey::my_api_self
+        raise "FATAL: #{self.class} must be run in the cloud" unless ::VirtualMonkey::my_api_self
         super(*args)
         @my_inputs = {}
-        @cloud = VirtualMonkey::my_api_self.cloud_id
-        @commands = VirtualMonkey::Command::AvailableCommands.keys.map_to_h { |cmd| [] }
+        @cloud = ::VirtualMonkey::my_api_self.cloud_id
+        @commands = ::VirtualMonkey::Command::AvailableCommands.keys.map_to_h { |cmd| [] }
         populate_commands
         load_inputs
       end
@@ -22,7 +22,7 @@ module VirtualMonkey
                    ['generate cloud data', 'RB virtualmonkey generate cloud test data'],
                    ['destroy cloud data', 'RB virtualmonkey destroy cloud test data']
                   ]
-        st = ServerTemplate.find(resource_id(VirtualMonkey::my_api_self.server_template_href).to_i)
+        st = ServerTemplate.find(resource_id(::VirtualMonkey::my_api_self.server_template_href).to_i)
         load_script_table(st,scripts)
       end
 
@@ -31,7 +31,7 @@ module VirtualMonkey
         @commands[:help] = @commands.keys.map { |cmd| cmd.to_s } - ["help"]
         @commands[:api_check] += ["-a 0.1", "-a 1.0", "-a 1.5"]
         @commands[:version] << ""
-        @commands[:config] = VirtualMonkey::Command::ConfigOptions.keys - ["edit", "set", "unset", "get"] #TODO
+        @commands[:config] = ::VirtualMonkey::Command::ConfigOptions.keys - ["edit", "set", "unset", "get"] #TODO
 
         # Commands that need Scenarios
         @commands.delete :populate_all_cloud_vars
@@ -77,7 +77,7 @@ module VirtualMonkey
             raise "FATAL: Branch '#{branch}' failed syntax and dependency check:\n#{$1}"
           end
         else
-          @root_dir = VirtualMonkey::ROOTDIR
+          @root_dir = ::VirtualMonkey::ROOTDIR
         end
       end
 
@@ -88,10 +88,10 @@ module VirtualMonkey
       def run_self_diagnostic
         @commands.keys.each { |cmd|
           @commands[cmd].each { |opts|
-            if @root_dir == VirtualMonkey::ROOTDIR
+            if @root_dir == ::VirtualMonkey::ROOTDIR
               puts "Running bin/monkey #{cmd} #{opts}"
               begin
-                VirtualMonkey::Command.__send__(cmd, opts)
+                ::VirtualMonkey::Command.__send__(cmd, opts)
               rescue SystemExit => e
               end
             else

@@ -10,16 +10,16 @@ cloud environments and OSes
 EOS
 
       def initialize(*args)
+        raise "FATAL: #{self.class} must be run in the cloud" unless ::VirtualMonkey::my_api_self
         super(*args)
         @prefix = "#{prefix}_MONKEY_META_TROOP"
         @troop_log = "/tmp/troop.log"
         @exit_log = "/tmp/troop_exit_st.log"
-        @commands = {}
         @free_commands = {}
         @my_inputs = {}
         @cloud = @servers.first.cloud_id
-        VirtualMonkey::my_api_self
-        VirtualMonkey::Command::AvailableCommands.keys.each { |cmd| @commands[cmd.to_s] = [] }
+        ::VirtualMonkey::my_api_self
+        @commands = ::VirtualMonkey::Command::AvailableCommands.keys.map { |cmd| [cmd.to_s, []] }.to_h
         populate_commands
         load_inputs
       end
@@ -34,7 +34,7 @@ EOS
       end
 
       def populate_commands
-        troop_file = File.join(VirtualMonkey::ROOTDIR, "config", "troop", troop)
+        troop_file = File.join(::VirtualMonkey::ROOTDIR, "config", "troop", troop)
         # Basic (Free) Commands
         @free_commands["help"] = @commands.keys.dup - ["help"]
         @free_commands["api_check"] += ["-a 0.1", "-a 1.0", "-a 1.5"]
