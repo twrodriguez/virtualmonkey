@@ -97,7 +97,6 @@ module VirtualMonkey
             some_not_included ||= val
           end
         rescue NameError => e
-          puts "#{e}"
           raise unless "#{e}" =~ /uninitialized constant/i
           some_not_included = true
           files.push(files.shift)
@@ -251,9 +250,15 @@ module VirtualMonkey
             VirtualMonkey::Project.const_set(class_name, Class.new(VirtualMonkey::CollateralProject))
           end
           project_class = VirtualMonkey::Project.const_get(class_name)
-          project_class.new(p)
+          ret = nil
+          begin
+            ret = project_class.new(p)
+          rescue Exception => e
+            puts "WARNING: Could not initialize Project: #{project_class}\n#{e.message}"
+          end
+          ret
         end
-        Projects.replace project_ary
+        Projects.replace(project_ary.compact)
       end
 
       # Initialize Projects array
