@@ -66,12 +66,13 @@ module VirtualMonkey
     attr_reader :features, :cloud_variables, :common_inputs, :lists, :troops, :runners, :mixins
 
     def self.require_within(filename)
+      @@required_within_files[self.to_s] ||= []
       filename = filename + ".rb" unless filename =~ /\.rb$/
-      if @required_within_files.include?(filename)
+      if @@required_within_files[self.to_s].include?(filename)
         return false
       else
         self.class_eval(File.read(filename), filename, 1)
-        @required_within_files << filename
+        @@required_within_files[self.to_s] << filename
         return true
       end
     end
@@ -132,7 +133,6 @@ module VirtualMonkey
       @root_path = root_path
       @gemfile = File.join(root_path, "Gemfile")
       @paths = VirtualMonkey::Manager::Collateral::DIRECTORIES.map_to_h { |dir| File.join(root_path, dir) }
-      @required_within_files = []
 
       self.class.automatic_require_within(VirtualMonkey::RUNNER_CORE_DIR)
       # Check directory structure
