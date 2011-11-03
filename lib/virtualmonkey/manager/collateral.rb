@@ -2,7 +2,7 @@
 # VERY important patches needed to sandbox runners
 #
 
-# Need to allow transparent access to constants defined elsewhere in the framework 
+# Need to allow transparent access to constants defined elsewhere in the framework
 class Class
   def const_missing(sym)
     namespace = "#{self}"
@@ -15,7 +15,7 @@ class Class
     err_msg = "uninitialized constant " + [(self == Object ? nil : "#{self}"), sym].compact.join("::")
     raise NameError.new(err_msg)
   end
-  
+
   def namespace_defined?(str)
     str.to_s.split("::").inject(Kernel.const_get("Object")) do |ns,name|
       return false unless ns.const_defined?(name)
@@ -29,7 +29,7 @@ class Class
   end
 end
 
-# Need to allow transparent access to constants defined elsewhere in the framework 
+# Need to allow transparent access to constants defined elsewhere in the framework
 class Module
   def const_missing(sym)
     namespace = "#{self}"
@@ -89,7 +89,7 @@ module VirtualMonkey
       some_not_included = true
       files = Dir.glob(File.join(File.expand_path(full_path), "**"))
       retry_loop = 0
-      while some_not_included and retry_loop < (files.size ** 2) do
+      while some_not_included and retry_loop <= (files.size ** 2) do
         begin
           some_not_included = false
           for f in files do

@@ -4,6 +4,7 @@ module VirtualMonkey
       extend VirtualMonkey::RunnerCore::CommandHooks
 
       def load_inputs
+        @my_inputs ||= {}
         s = VirtualMonkey::my_api_self
         if s.multicloud && s.current_instance
           s.current_instance.inputs.each { |hsh|
