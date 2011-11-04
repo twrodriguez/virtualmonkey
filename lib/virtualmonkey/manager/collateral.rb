@@ -147,18 +147,9 @@ module VirtualMonkey
 
       # Load Gems
       if gemfile?
-        if ::VirtualMonkey::config[:load_progress] != "hide"
-          print "Installing gems for #{self.name}..."
-          STDOUT.flush
-        end
-
         `cd #{root_path.inspect}; bundle install --system`
         raise "Failed to install gems for '#{root_path}'." unless $?.to_i == 0
         Gem.refresh
-
-        if ::VirtualMonkey::config[:load_progress] != "hide"
-          print "Gems installed successfully!"
-        end
       end
 
       # Check that Runners and Mixins are defined only once

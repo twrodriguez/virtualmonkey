@@ -62,6 +62,11 @@ module VirtualMonkey
         error "FATAL: #{project_path} already exists!" if File.exists?(project_path)
         FileUtils.mkdir_p(VirtualMonkey::COLLATERAL_TEST_DIR)
         Git.clone(repo_path, project_path, git_options)
+        # Hook up git_hooks dir
+        if File.directory?(File.join(project_path, "git_hooks"))
+          FileUtils.rm_rf(File.join(project_path, ".git", "hooks"))
+          FileUtils.ln_s(File.join(project_path, "git_hooks"), File.join(project_path, ".git", "hooks"))
+        end
 
       when "init", "--init", "-i"
         # Command line check
@@ -83,7 +88,13 @@ module VirtualMonkey
           File.join(VirtualMonkey::PROJECT_TEMPLATE_DIR, f)
         end
         FileUtils.cp_r(proj_files, project_path)
-        # TODO: Generate new runner?
+        # Hook up git_hooks dir
+        if File.directory?(File.join(project_path, "git_hooks"))
+          FileUtils.rm_rf(File.join(project_path, ".git", "hooks"))
+          FileUtils.ln_s(File.join(project_path, "git_hooks"), File.join(project_path, ".git", "hooks"))
+        end
+
+        puts "\nTo generate new collateral, use 'monkey new_runner' or 'monkey import_deployment'\n\n".apply_color(:green)
 
       when "checkout", "--checkout", "-k"
         # Command line check
