@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'rest_connection'
 require 'pp'
+require 'base64'
 
 module VirtualMonkey
   module Manager
@@ -239,7 +240,7 @@ module VirtualMonkey
 
             tags = {"cloud" => (@single_deployment ? "multicloud" : cloud),
                     "troop" => options[:config_file],
-                    "command" => VirtualMonkey::Command::last_command_line}
+                    "command" => Base64.encode64(VirtualMonkey::Command::last_command_line).chomp}
             new_deploy.set_info_tags(tags)
 
             dep_image_list = []
