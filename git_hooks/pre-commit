@@ -1,5 +1,36 @@
 #!/bin/bash
 
+lod_message() {
+  cat <<EOS
+
+                 OMM                                              MM$
+                 MMMM                                             MMMM
+                   MMM                                              MMO
+                   =MM                                              MMM
+                   MMM                                              MMD
+MMMMMMMMMMMMMMMMMMMMM                           NMMMMMMMMMMMMMMMMMMMMM
+MMMMMMMMMMMMMMMMMMMM                            NMMMMMMMMMMMMMMMMMMM,
+   MMMM?      ?MMMM                                =MMMM       MMMMD
+ =MMM           ?MMM                              MMMM           MMMN
+:MMM              MMM                            NMM=             =MMD
+MMM               ,MMO                           MMM               DMM
+MMM      MMMD      MMM                          DMM?     ,MMM,      MMD
+MMM      MMM$      MMM                          NMM?      MMM       MMN
+MMM                MMM                          OMMM               =MMO
+MMMN              NMM$                           MMM               MMM
+ MMM?            MMMM                            DMMM             MMM$
+  MMMM:        :MMMM                              DMMMM         MMMM$
+   =MMMMMMMMMMMMMM?                                 MMMMMMMMMMMMMMM
+     MMMMMMMMMMM                                      MMMMMMMMMMM
+
+
+
+
+                       DMMMMMMMMMMMMMMMMMMMMMMM
+
+EOS
+}
+
 whitespace=""
 echo "Checking for syntax errors..."
 for FILE in `git diff-index --name-only HEAD --` ; do
@@ -72,7 +103,7 @@ if test -e "Gemfile"; then
   old_mod_time="0"
   if [[ -e "Gemfile.lock" ]]; then
     old_mod_time=`stat -c %Z Gemfile.lock`
-  fi  
+  fi
 
   echo -n Bundling Gemfile...
   bundle install &> /dev/null
@@ -81,11 +112,11 @@ if test -e "Gemfile"; then
   if [[ ! -e "Gemfile.lock" ]]; then
     echo "Gemfile.lock not present. Aborting commit"
     exit 1
-  fi  
+  fi
   if [[ `stat -c %Z Gemfile.lock` -ne $old_mod_time ]]; then
     echo "Gemfile.lock updated. Please re-add 'Gemfile.lock' to your commit"
     exit 1
-  fi  
+  fi
 fi
 
 # Check that username and user emails are filled properly

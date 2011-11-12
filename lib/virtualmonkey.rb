@@ -15,8 +15,6 @@ module VirtualMonkey
   RUNNER_CORE_DIR = File.join(LIB_DIR, "runner_core")
   PROJECT_TEMPLATE_DIR = File.join(LIB_DIR, "collateral_template")
 
-  LIST_DIR = File.join("", "lists") # TODO: Delete
-
   WEB_APP_DIR = File.join(ROOTDIR, "lib", "spidermonkey")
 
   REGRESSION_TEST_DIR = File.join(ROOTDIR, "test")

@@ -239,16 +239,21 @@ module VirtualMonkey
       end
 
       # Re-Launch all servers
-      def relaunch_all
-        relaunch_set(@servers)
+      def relaunch_all(wait=false)
+        relaunch_set(@servers, wait)
       end
 
       # Re-Launch a set of servers
-      def relaunch_set(set=@servers)
+      def relaunch_set(set=@servers, wait=false)
         set = select_set(set)
         set.each { |s|
           begin
-            transaction { s.relaunch }
+            transaction {
+              s.relaunch;
+              s.params = s.class[s.href].first.params;
+              s.settings
+            }
+            transaction { wait_for_set(s, "operational") if wait }
           rescue Exception => e
             raise #unless e.message =~ /AlreadyLaunchedError/
           end
@@ -357,12 +362,12 @@ module VirtualMonkey
             if wait.is_a?(Fixnum)
               transaction {
                 a = launch_script(friendly_name, s, options)
-                a.wait_for_completed(wait)
+                transaction { a.wait_for_completed(wait) }
               }
             else
               transaction {
                 a = launch_script(friendly_name, s, options)
-                a.wait_for_completed
+                transaction { a.wait_for_completed }
               }
             end
           end
@@ -461,19 +466,41 @@ module VirtualMonkey
       # Detect operating system on each server and stuff the corresponding values for platform into the servers params (for temp storage only)
       def detect_os
         @servers.each do |server|
-          if probe(server, "lsb_release -is | grep Ubuntu")
-            puts "setting server to ubuntu"
-            server.os = "ubuntu"
-            server.apache_str = "apache2"
-            server.apache_check = "apache2ctl status"
-            server.haproxy_check = "service haproxy status"
-          else
-            puts "setting server to centos"
-            server.os = "centos"
-            server.apache_str = "httpd"
-            server.apache_check = "service httpd status"
-            server.haproxy_check = "service haproxy check"
-          end
+          # Distro
+          probe(server, "lsb_release -is") { |result,status|
+            case result
+            when /ubuntu/i
+              puts "setting server to ubuntu"
+              server.os = "ubuntu"
+              server.apache_str = "apache2"
+              server.apache_check = "apache2ctl status"
+              server.haproxy_check = "service haproxy status"
+            when /centos/i
+              puts "setting server to centos"
+              server.os = "centos"
+              server.apache_str = "httpd"
+              server.apache_check = "service httpd status"
+              server.haproxy_check = "service haproxy check"
+            when /redhat/i
+              puts "setting server to redhat"
+              server.os = "redhat"
+              server.apache_str = "httpd"
+              server.apache_check = "service httpd status"
+              server.haproxy_check = "service haproxy check"
+            else
+              warn "Unsupported OS detected: #{result}"
+            end
+          }
+
+          # Arch
+          probe(server, "arch") { |result,status|
+            case result
+            when /i[3-6]86/i then server.arch = "i386"
+            when /x86_64/i then server.arch = "x64"
+            else
+              warn "Unsupported Architecture detected: #{result}"
+            end
+          }
         end
       end
 
@@ -650,7 +677,7 @@ module VirtualMonkey
           }
           server.reload_as_next
         end
-        return  @my_inputs
+        return @my_inputs
       end
 
       def assert_integrity!

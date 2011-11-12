@@ -15,7 +15,7 @@ EC2InstanceVars64 = { "m1.large" => "0.38",
 
 options = Trollop::options do
   text "32-bit EC2 Instance Sizes: #{EC2InstanceVars32.keys.join(", ")}\n64-bit EC2 Instance Sizes: #{EC2InstanceVars64.keys.join(", ")}"
-  opt :tag, "Tag of the DeploymentSet that you want to vary the sizes on", :type => :string, :required => true
+  opt :prefix, 'Prefix of the DeploymentSet', :short => '-x', :type => :string, :required => true
   opt :spot, "Use spot instances", :default => false
   opt :micro_mayhem, "Set everything to Micros", :default => false
   opt :href, "API 1.5 only: Set all instances to a specific InstanceType href", :type => :string, :short => "-H"
@@ -29,11 +29,11 @@ class VariationEngine
     @instance_vars32 = EC2InstanceVars32
     @instance_vars64 = EC2InstanceVars64
     if options[:micro_mayhem]
-      @instance_vars32 = { "t1.micro" => "0.02" } 
+      @instance_vars32 = { "t1.micro" => "0.02" }
       @instance_vars64 = { "t1.micro" => "0.02" }
     end
-    @deployments = Deployment.find_by(:nickname) {|n| n =~ /^#{@options[:tag]}/ }
-    puts "loading #{@deployments.size} deployments matching your tag #{@options[:tag]}"
+    @deployments = Deployment.find_by_tags("info:prefix=*").select { |d| d.nickname =~ /^#{@options[:prefix]}/ }
+    puts "loading #{@deployments.size} deployments matching your tag #{@options[:prefix]}"
     return @deployments
   end
 
