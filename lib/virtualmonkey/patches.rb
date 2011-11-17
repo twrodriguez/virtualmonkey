@@ -154,6 +154,14 @@ class String
     end
     ret
   end
+
+  def word_wrap(width=(ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last).to_i)
+    self.gsub(/(.{1,#{width}})( +|$\n?)|(.{1,#{width}})/, "\\1\\3\n")
+  end
+
+  def word_wrap!(width=(ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last).to_i)
+    self.gsub!(/(.{1,#{width}})( +|$\n?)|(.{1,#{width}})/, "\\1\\3\n")
+  end
 end
 
 class Symbol
@@ -201,5 +209,27 @@ class Object
     ret = self.methods - self.class.superclass.new.methods
     self.included_modules.each { |mod| ret -= mod.methods }
     ret
+  end
+end
+
+class Time
+  def self.duration(num)
+    raise TypeError.new("can't convert #{num.class} into Numeric") unless num.is_a?(Numeric)
+    secs  = num.to_i
+    mins  = secs / 60
+    hours = mins / 60
+    days  = hours / 24
+
+    day_str = (days == 1 ? "day" : "days")
+    hour_str = (hours == 1 ? "hour" : "hours")
+    min_str = (mins == 1 ? "minute" : "minutes")
+    sec_str = (secs == 1 ? "second" : "seconds")
+
+    str_ary = []
+    str_ary << "#{days} #{day_str}" if days > 0
+    str_ary << "#{hours % 24} #{hour_str}" if hours > 0
+    str_ary << "#{mins % 60} #{min_str}" if mins > 0
+    str_ary << "#{secs % 60} #{sec_str}" if secs > 0
+    str_ary.join(" and ")
   end
 end
