@@ -53,7 +53,7 @@ module VirtualMonkey
         @server_templates = []
         @common_inputs = {}
         @variables_for_cloud = {}
-        @ssh_keys, @security_groups, @datacenters = {}, {}, {}
+        @ssh_keys, @security_groups, @datacenters, @instance_types = {}, {}, {}, {}
         #
         # mci.href => [ st.href, st.href ]
         #
@@ -341,13 +341,6 @@ module VirtualMonkey
                                 #"instance_type" => image['aws_instance_type']
                               }
 
-              # For non-ec2 clouds we should pick an instance_type
-              if cloud.to_i > 10
-                i_types = McInstanceType.find_all(cloud)
-                select_itype = i_types[i_types.length / 2]
-                server_params["instance_type_href"] = select_itype.href
-              end
-
               # If overriding the multicloudimage need to specify the ec2 image href because you can't set an MCI that's not in the ServerTemplate
               if options[:use_mci] && !options[:use_mci].empty?
                 server_params.reject! {|k,v| k == "mci_href"}
@@ -520,6 +513,10 @@ module VirtualMonkey
           VirtualMonkey::Toolbox::populate_security_groups(cloud)
           @security_groups = JSON::parse(IO.read(File.join(VirtualMonkey::GENERATED_CLOUD_VAR_DIR, "security_groups.json")))
         end
+        unless @instance_types[cloud] and @instance_types[cloud] != {}
+          VirtualMonkey::Toolbox::populate_datacenters(cloud)
+          @instance_types = JSON::parse(IO.read(File.join(VirtualMonkey::GENERATED_CLOUD_VAR_DIR, "instance_types.json")))
+        end
         unless @datacenters[cloud] and @datacenters[cloud] != {}
           VirtualMonkey::Toolbox::populate_datacenters(cloud)
           @datacenters = JSON::parse(IO.read(File.join(VirtualMonkey::GENERATED_CLOUD_VAR_DIR, "datacenters.json")))
@@ -527,6 +524,7 @@ module VirtualMonkey
         generated_variables = {}
         generated_variables.deep_merge!(@ssh_keys[cloud])
         generated_variables.deep_merge!(@security_groups[cloud])
+        generated_variables.deep_merge!(@instance_types[cloud])
         generated_variables.deep_merge!(@datacenters[cloud])
         generated_variables.deep_merge!(@variables_for_cloud[cloud]) # Higher Priority than generated content
         @variables_for_cloud[cloud].deep_merge!(generated_variables)

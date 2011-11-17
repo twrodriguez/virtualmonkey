@@ -291,7 +291,7 @@ module VirtualMonkey
       end
 
       def exec_test(deployment, feature, test_ary, other_logs = [])
-        unless VirtualMonkey::config[:grinder_subprocess] == "force_subprocess"
+        if VirtualMonkey::config[:grinder_subprocess] == "allow_same_process"
           new_job, cmd = build_job(deployment, feature, test_ary, other_logs)
           warn "\n========== Loading Grinder into current process! =========="
           warn "\nSince you only have one deployment, it would probably be of more use to run the developer tool"
@@ -398,7 +398,7 @@ module VirtualMonkey
 
         running_string = " #{@running.size} features running "
         running_string = running_string.apply_color(:cyan) if @running.size > 0
-        running_string += "for #{Time.now - @started_at}"
+        running_string += "for #{Time.duration(Time.now - @started_at)}"
 
         puts(passed_string + failed_string + running_string)
         if new_sum < old_sum and new_sum < @jobs.size

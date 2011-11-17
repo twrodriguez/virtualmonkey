@@ -22,6 +22,7 @@ module VirtualMonkey
       :new_runner                 => "Interactively create a new testing scenario and all necessary files",
       :populate_all_cloud_vars    => "Calls \"generate_ssh_keys\", \"populate_datacenters\", and \"populate_security_groups\" for all Clouds",
       :populate_datacenters       => "Populates datacenters.json with API 1.5 hrefs per Cloud",
+      :populate_instance_types    => "Populates instance_types.json with API 1.5 hrefs per Cloud",
       :populate_security_groups   => "Populates security_groups.json with appropriate hrefs per Cloud",
       :run                        => "Execute a set of feature tests across a set of Deployments in parallel",
       :troop                      => "Calls \"create\", \"run\", and \"destroy\" for a given troop config file",

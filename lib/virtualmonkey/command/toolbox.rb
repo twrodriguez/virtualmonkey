@@ -24,6 +24,11 @@ module VirtualMonkey
                                                        @@options[:force])
     end
 
+    # Populate instance_types.json
+    add_command("populate_instance_types", [:yes, :clouds, :overwrite, :force]) do
+      VirtualMonkey::Toolbox::populate_instance_types(@@options[:clouds], @@options[:overwrite], @@options[:force])
+    end
+
     # Populate datacenters.json
     add_command("populate_datacenters", [:yes, :clouds, :overwrite, :force]) do
       VirtualMonkey::Toolbox::populate_datacenters(@@options[:clouds], @@options[:overwrite], @@options[:force])

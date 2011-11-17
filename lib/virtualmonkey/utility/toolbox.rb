@@ -106,6 +106,7 @@ module VirtualMonkey
       FileUtils.mkdir_p(@@cloud_vars_dir)
       @@ssh_dir = File.expand_path(File.join("~", ".ssh"))
       @@sgs_file = File.join(@@cloud_vars_dir, "security_groups.json")
+      @@its_file = File.join(@@cloud_vars_dir, "intance_types.json")
       @@dcs_file = File.join(@@cloud_vars_dir, "datacenters.json")
       @@keys_file = File.join(@@cloud_vars_dir, "ssh_keys.json")
       @@ssh_key_file_basename = "monkey-cloud-"
@@ -119,7 +120,8 @@ module VirtualMonkey
                     {"cloud_id" => 2, "name" => "AWS EU"},
                     {"cloud_id" => 3, "name" => "AWS US-West"},
                     {"cloud_id" => 4, "name" => "AWS AP-Singapore"},
-                    {"cloud_id" => 5, "name" => "AWS AP-Tokyo"}]
+                    {"cloud_id" => 5, "name" => "AWS AP-Tokyo"},
+                    {"cloud_id" => 6, "name" => "AWS US-Oregon"}]
         @@clouds += Cloud.find_all.map { |c| {"cloud_id" => c.cloud_id.to_i, "name" => c.name} } if api1_5?
       end
       @@clouds.select { |h| h["cloud_id"] <= up_to }
@@ -455,6 +457,50 @@ module VirtualMonkey
       File.open(@@sgs_file, "w") { |f| f.write(sgs_out) }
     end
 
+    # Grabs the API hrefs of the instance_types for each cloud. API 1.5 only
+    def populate_instance_types(cloud_id_set=nil, overwrite=false, force=false)
+      cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
+      cloud_ids &= [cloud_id_set].flatten.compact unless [cloud_id_set].flatten.compact.empty?
+      return puts("No clouds to populate instance_types for") if cloud_ids.empty?
+      puts "Populating InstanceTypes for clouds: #{cloud_ids.join(", ")}"
+
+      its = (File.exists?(@@its_file) ? JSON::parse(IO.read(@@its_file)) : {})
+
+      cloud_ids.each { |cloud|
+        begin
+          if its["#{cloud}"] and its["#{cloud}"] != {} and not overwrite
+            # We already have data for this cloud, skip
+            puts "Data found for cloud #{cloud}. Skipping..."
+            next
+          end
+          if cloud <= 10
+            warn "Cloud #{cloud} doesn't support the resource 'instance_type'"
+            its["#{cloud}"] = {}
+          elsif api1_5?
+            begin
+              i_types = McInstanceType.find_all(cloud)
+              select_itype = i_types[i_types.length / 2]
+              its["#{cloud}"] = {"instance_type_href" => select_itype.href}
+            rescue
+              warn "Cloud #{cloud} doesn't support the resource 'instance_type'"
+              its["#{cloud}"] = {}
+            end
+          end
+        rescue Interrupt
+          raise
+        rescue Exception => e
+          raise unless force
+          warn "WARNING: Got \"#{e.message}\". Forcing continuation..."
+        end
+      }
+
+      its_out = its.to_json(:indent => "  ",
+                            :object_nl => "\n",
+                            :array_nl => "\n")
+
+      File.open(@@its_file, "w") { |f| f.write(its_out) }
+    end
+
     # Grabs the API hrefs of the datacenters for each cloud. API 1.5 only
     def populate_datacenters(cloud_id_set=nil, overwrite=false, force=false)
       cloud_ids = get_available_clouds().map { |hsh| hsh["cloud_id"] }
@@ -519,6 +565,7 @@ module VirtualMonkey
 
       generate_ssh_keys(cloud_ids, options[:overwrite], options[:force], options[:ssh_key_ids])
       populate_security_groups(cloud_ids, options[:security_group_name], options[:overwrite], options[:force])
+      populate_instance_types(cloud_ids, options[:overwrite], options[:force])
       populate_datacenters(cloud_ids, options[:overwrite], options[:force])
 
       cloud_ids.each { |id|
