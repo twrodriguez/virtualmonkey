@@ -68,7 +68,11 @@ module VirtualMonkey
       :overwrite       => "opt :overwrite, 'Replace existing resources with fresh ones',                        :short => '-O', :type => :boolean",
       :report_metadata => "opt :report_metadata, 'Report metadata to SimpleDB',                                 :short => '-R', :type => :boolean",
       :report_tags     => "opt :report_tags, 'Additional tags to help database sorting (e.g. -T sprint28)',     :short => '-T', :type => :strings",
-      :project         => "opt :project, 'Specify which collateral project to use',                             :short => '-P', :type => :string"
+      :project         => "opt :project, 'Specify which collateral project to use',                             :short => '-P', :type => :string",
+
+      :security_group_name  => "opt :security_group_name, 'Populate the file with this security group',                                 :short => :none,  :type => :string",
+      :ssh_keys             => "opt :ssh_keys, 'Takes a JSON object of cloud ids mapped to ssh_key ids. (e.g. {1: 123456, 2: 789012})', :short => :none,  :type => :string",
+      :api_version          => "opt :api_version, 'Check to see if the monkey has RightScale API access',                               :short => '-a',   :type => :float"
     }
 
     ConfigOptions = {

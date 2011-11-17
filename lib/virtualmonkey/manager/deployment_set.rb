@@ -159,13 +159,65 @@ module VirtualMonkey
           }
         }
 
-=begin # TODO: Display the Deployments that it will try to create
+        # Calculate Deployments
+        num_deployments = 0
+        @image_count.times do |index|
+          @clouds.each do |cloud|
+            # Skip if the cloud hasn't been specified
+            next if @variables_for_cloud[cloud] == nil
+
+            # Check the candidate MCI or Skip if the selected MCI doesn't support the cloud
+            dep_image_list = []
+            mci_supports_cloud = nil
+            @server_templates.each do |st|
+              mci = nil
+              alt_mci = nil
+              if @mci_order[index][st.href] && @mci_order[index][st.href].supported_cloud_ids.include?(cloud.to_i)
+                mci = @mci_order[index][st.href]
+              else
+                @image_count.times do |idx|
+                  if @mci_order[idx][st.href] && @mci_order[idx][st.href].supported_cloud_ids.include?(cloud.to_i)
+                    alt_mci = @mci_order[idx][st.href]
+                    break
+                  end
+                end
+              end
+              # We don't want to create extra deployments if the mci for this "index" doesn't support the cloud
+              if mci
+                mci_supports_cloud = true if mci_supports_cloud.nil?
+                mci_supports_cloud &&= mci && mci.supported_cloud_ids.include?(cloud.to_i)
+                dep_image_list << URI.escape(mci.name.gsub(/ |\t/,'_'))
+              elsif alt_mci.nil?
+                mci_supports_cloud = false
+              elsif alt_mci
+                dep_image_list << URI.escape(alt_mci.name.gsub(/ |\t/,'_'))
+              end
+            end
+            next unless mci_supports_cloud
+
+            if @single_deployment && num_deployments < 1
+              dep_tempname = "#{@prefix}-cloud_#{cloud}-#{rand(1000000)}-"
+              dep_tempname = "#{@prefix}-cloud_multicloud-#{rand(1000000)}-" if @clouds.length > 1
+              num_deployments += 1
+              puts "#{num_deployments}. #{dep_tempname}ALL_IN_ONE"
+            elsif !@single_deployment
+              dep_tempname = "#{@prefix}-cloud_#{cloud}-#{rand(1000000)}-"
+              num_deployments += 1
+              puts "#{num_deployments}. #{dep_tempname + dep_image_list.uniq.join("_AND_")}"
+            end
+          end
+        end
+        if num_deployments < 1
+          msg = "FATAL: No deployments to create. Please check your parameters carefully " +
+                "and ensure that your ServerTemplates are set up correctly"
+          error msg.word_wrap
+        end
+
         unless options[:yes]
-          unless ask("Are these the correct images that should be used?", lambda { |ans| ans =~ /^[yY]/ })
+          unless ask("Are these the correct deployments that should be created?", lambda { |ans| ans =~ /^[yY]/ })
             error "Aborting on user input."
           end
         end
-=end
 
         dep_tempname = ""
         new_deploy = nil

@@ -232,8 +232,8 @@ module VirtualMonkey
             if api0_1?
               found = Ec2SshKeyInternal.find_by_cloud_id("#{cloud}").select { |o| o.aws_key_name =~ /#{key_name}/ }.first
             end
-            if ssh_key_id_ary[cloud.to_s]
-              k = Ec2SshKey[ssh_key_id_ary[cloud.to_s].to_i].first
+            if ssh_key_id_ary[cloud.to_i]
+              k = Ec2SshKey[ssh_key_id_ary[cloud.to_i].to_i].first
             else
               k = (found ? found : Ec2SshKey.create('aws_key_name' => key_name, 'cloud_id' => "#{cloud}"))
             end
@@ -251,8 +251,8 @@ module VirtualMonkey
             if Cloud.find(cloud).ssh_keys
               # Multicloud Resource that supports SSH Keys
               found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /#{key_name}/ }.first
-              if ssh_key_id_ary[cloud.to_s]
-                k = McSshKey[ssh_key_id_ary[cloud.to_s].to_i].first
+              if ssh_key_id_ary[cloud.to_i]
+                k = McSshKey[ssh_key_id_ary[cloud.to_i].to_i].first
               else
                 k = (found ? found : McSshKey.create('name' => key_name, 'cloud_id' => "#{cloud}"))
               end
@@ -269,8 +269,8 @@ module VirtualMonkey
 =begin
               begin
                 found = McSshKey.find_by(:resource_uid, "#{cloud}") { |n| n =~ /publish-test/ }.first
-                if ssh_key_id_ary[cloud.to_s]
-                  k = McSshKey[ssh_key_id_ary[cloud.to_s].to_i].first
+                if ssh_key_id_ary[cloud.to_i]
+                  k = McSshKey[ssh_key_id_ary[cloud.to_i].to_i].first
                 else
                   k = (found ? found : McSshKey.create('name' => "publish-test", 'cloud_id' => "#{cloud}"))
                 end
@@ -415,31 +415,25 @@ module VirtualMonkey
               my_sec_group = nil
             end
           end
-          sg_name = "#{use_this_sec_group || my_sec_group || 'default'}"
+          sg_name = "#{use_this_sec_group || my_sec_group || 'monkey'}"
           puts "Looking for the '#{sg_name}' security group in all supporting clouds."
           if cloud <= 10
-            found = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /#{sg_name}/ }.first
-            if found
-              sg = found
-            else
-              puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
-              default = Ec2SecurityGroup.find_by_cloud_id("#{cloud}").select { |o| o.aws_group_name =~ /default/ }.first
-              raise "Security Group 'default' not found in cloud #{cloud}." unless default
-              sg = default
-            end
-            sgs["#{cloud}"] = {"ec2_security_groups_href" => sg.href }
+            cloud_security_groups = Ec2SecurityGroup.find_by_cloud_id("#{cloud}")
+            found = cloud_security_groups.detect { |sg| sg.aws_group_name =~ /#{sg_name}/ }
+            found ||= cloud_security_groups.detect { |sg| sg.aws_group_name =~ /monkey/ }
+            found ||= cloud_security_groups.detect { |sg| sg.aws_group_name =~ /default/ }
+            raise "Security Group 'default' not found in cloud #{cloud}." unless found
+            puts "Using Security Group '#{found.aws_group_name}' for cloud #{cloud}."
+            sgs["#{cloud}"] = {"ec2_security_groups_href" => found.href }
           else
             begin
-              found = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /#{sg_name}/ }.first
-              if found
-                sg = found
-              else
-                puts "Security Group '#{sg_name}' not found in cloud #{cloud}."
-                default = McSecurityGroup.find_by(:name, "#{cloud}") { |n| n =~ /default/ }.first
-                raise "Security Group 'default' not found in cloud #{cloud}." unless default
-                sg = default
-              end
-              sgs["#{cloud}"] = {"security_group_hrefs" => [sg.href] }
+              cloud_security_groups = McSecurityGroup.find_all("#{cloud}")
+              found = cloud_security_groups.detect { |sg| sg.name =~ /#{sg_name}/ }
+              found ||= cloud_security_groups.detect { |sg| sg.name =~ /monkey/ }
+              found ||= cloud_security_groups.detect { |sg| sg.name =~ /default/ }
+              raise "Security Group 'default' not found in cloud #{cloud}." unless found
+              puts "Using Security Group '#{found.name}' for cloud #{cloud}."
+              sgs["#{cloud}"] = {"security_group_hrefs" => [found.href] }
             rescue Exception => e
               raise if e.message =~ /Security Group.*not found/
               warn "Cloud #{cloud} doesn't support the resource 'security_group'"
