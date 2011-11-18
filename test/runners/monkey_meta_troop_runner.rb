@@ -45,7 +45,7 @@ EOS
         @commands.delete "api_check"
         @commands.delete "version"
         @commands.delete "import_deployment"
-        @commands.delete "new_config"
+        @commands.delete "new_troop_config"
         @commands.delete "new_runner"
         @commands.delete "populate_all_cloud_vars"
         @commands.delete "populate_datacenters"

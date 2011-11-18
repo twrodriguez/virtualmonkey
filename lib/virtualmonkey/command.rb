@@ -15,12 +15,13 @@ module VirtualMonkey
       :create                     => "Create MCI and Cloud permutation Deployments for a set of ServerTemplates",
       :destroy                    => "Destroy a set of Deployments",
       :destroy_ssh_keys           => "Destroy VirtualMonkey-generated SSH Keys",
+      :environment                => "Sets the monkey config variables to presets for certain usage patterns",
       :generate_ssh_keys          => "Generate SSH Key files per Cloud and stores their hrefs in ssh_keys.json",
       :import_deployment          => "Import an existing Deployment and create a new testing scenario for it",
       :list                       => "List the full Deployment nicknames and Server statuses for a set of Deployments",
-      :new_config                 => "Interactively create a new Troop Config JSON File",
+      :new_troop_config           => "Interactively create a new Troop Config JSON File",
       :new_runner                 => "Interactively create a new testing scenario and all necessary files",
-      :populate_all_cloud_vars    => "Calls \"generate_ssh_keys\", \"populate_datacenters\", and \"populate_security_groups\" for all Clouds",
+      :populate_all_cloud_vars    => "Populates ssh_keys.json, datacenters.json, instance_types.json, and security_groups.json for all clouds",
       :populate_datacenters       => "Populates datacenters.json with API 1.5 hrefs per Cloud",
       :populate_instance_types    => "Populates instance_types.json with API 1.5 hrefs per Cloud",
       :populate_security_groups   => "Populates security_groups.json with appropriate hrefs per Cloud",
@@ -32,7 +33,7 @@ module VirtualMonkey
     }
 
     NonInteractiveCommands = AvailableCommands.reject { |cmd,desc|
-      [:new_config, :new_runner, :import_deployment].include?(cmd)
+      [:new_troop_config, :new_runner, :import_deployment].include?(cmd)
     }
 
     AvailableQACommands = {
@@ -118,6 +119,9 @@ module VirtualMonkey
       "max_retries"         => {"description" => "Controls how many retries to attempt in a scope stack before giving up",
                                 "values"      => Integer},
 
+      "enable_log_auditor"  => {"description" => "Enables log auditing for logfiles defined in lists/*.json",
+                                "values"      => [false, true]},
+
       "grinder_subprocess"  => {"description" => "Turns on/off the ability of Grinder to load into the current process",
                                 "values"      => ["allow_same_process", "force_subprocess"]}
     }
@@ -145,11 +149,53 @@ module VirtualMonkey
                       "usage"       => "'monkey collateral (-h|--help|help)'"}
     }
 
+    EnvironmentPresets = {
+      "development" => {"description" => "ServerTemplate Developers need to work efficiently. These " +
+                                         "presets are designed to encourage small, independent tests " +
+                                         "that can be run in any order. Developers should also primarily " +
+                                         "use the grinder tool, to enable inline debugging.",
+                        "values" => {
+                          "test_permutation"    => "distributive",
+                          "test_ordering"       => "random",
+                          "grinder_subprocess"  => "allow_same_process",
+                          "enable_log_auditor"  => true,
+                          "max_retries"         => 3
+                        }
+      },
+      "testing"     => {"description" => "ServerTemplate Testers need to be thorough, and must produce " +
+                                         "reports. These presets are designed to make runs repeatable, " +
+                                         "accountable, and--most importantly--thorough.",
+                        "values" => {
+                          "test_permutation"    => "exhaustive",
+                          "test_ordering"       => "strict",
+                          "grinder_subprocess"  => "force_subprocess",
+                          "enable_log_auditor"  => false,
+                          "max_retries"         => 10
+                        }
+      },
+      "sixsigma"    => {"description" => "SixSigma is a concept from manufacturing meant to minimize " +
+                                         "the rate of defects to 3.4 per million. Due to the nature of " +
+                                         "distributed systems, it is highly unlikely that this testing " +
+                                         "mode will ever pass, but it can be useful in identifying problems.",
+                        "values" => {
+                          "test_permutation"    => "exhaustive",
+                          "test_ordering"       => "random",
+                          "grinder_subprocess"  => "force_subprocess",
+                          "enable_log_auditor"  => true,
+                          "max_retries"         => 5
+                        }
+      }
+    }
+
     @@command_flags ||= {}
 
     def self.init(*args)
       # Monkey available_commands
       @@available_commands = AvailableCommands
+      @@basic_commands = AvailableCommands.reject { |key,val|
+        ![:api_check, :collateral, :create, :destroy, :environment,
+          :import_deployment, :list, :run, :version, :help].include?(key)
+      }
 
       # QA available_commands
       @@available_qa_commands = AvailableQACommands
@@ -160,12 +206,22 @@ module VirtualMonkey
 
       # Regular message
       unless class_variable_defined?("@@usage_msg")
-        @@usage_msg = "\nValid commands for #{@@version_string}:\n\n"
+        @@usage_msg = "\nAll valid commands for #{@@version_string}:\n\n"
         @@usage_msg += pretty_help_message(@@available_commands)
-        @@usage_msg += "\n\nHelp usage: 'monkey help <command>' OR 'monkey <command> --help'\n"
-        @@usage_msg += "If this is your first time using VirtualMonkey, start with 'new_runner' and 'new_config'."
-        @@usage_msg += " If you already have an example deployment, you can use 'import_deployment'.\n\n"
+        @@usage_msg += "\n\nHelp usage: 'monkey help <command>' OR 'monkey <command> --help'\n\n"
         @@usage_msg = word_wrap(@@usage_msg)
+      end
+
+      unless class_variable_defined?("@@simple_usage_msg")
+        @@simple_usage_msg = "\nBasic commands for #{@@version_string}:\n\n"
+        @@simple_usage_msg += pretty_help_message(@@basic_commands)
+        @@simple_usage_msg += "\n\nHelp usage: 'monkey help <command>' OR 'monkey <command> --help'\n" +
+                              "To see all available virtualmonkey commands: 'monkey help all'\n\n" +
+                              "If this is your first time using VirtualMonkey, ensure that you have at least one " +
+                              "collateral project checked out by running 'monkey collateral --list'.\n" +
+                              "Once you have a collateral project, then run 'monkey import_deployment' to " +
+                              "create new collateral based on that example deployment.\n\n"
+        @@simple_usage_msg = word_wrap(@@simple_usage_msg)
       end
 
       # QA Mode message
@@ -249,12 +305,13 @@ EOS
     @@command_flags.merge!("help" => [])
     def self.help(*args)
       self.init(*args)
-      if subcommand = ARGV.shift
+      case ARGV.shift
+      when nil then puts @@simple_usage_msg
+      when "--all", "-a", "all", "commands", "help", "-h", "--help" then puts @@usage_msg
+      else
         ENV['REST_CONNECTION_LOG'] = "/dev/null"
         @@command = subcommand
         VirtualMonkey::Command.__send__(subcommand, "--help")
-      else
-        puts @@usage_msg
       end
       reset()
     end
@@ -265,139 +322,6 @@ EOS
       self.init(*args)
       puts @@version_string
       reset()
-    end
-
-    # Config commands
-    @@command_flags.merge!("config" => [])
-    def self.config(*args)
-      self.init(*args)
-      @@command = "config"
-
-      unless class_variable_defined?("@@config_help_message")
-        @@config_help_message = "  monkey config [options...]\n\n "
-        @@config_help_message += @@available_commands[@@command.to_sym] + "\n"
-        @@config_help_message += pretty_help_message(ConfigOptions)
-      end
-
-      @@last_command_line = "#{@@command} #{ARGV.join(" ")}"
-
-      # Variable Initialization
-      config_file = VirtualMonkey::ROOT_CONFIG
-      configuration = VirtualMonkey::config.dup
-
-      # Print Help?
-      if ARGV.empty? or not (ARGV & ['--help', '-h', 'help']).empty?
-        if ARGV.empty?
-          puts pretty_help_message(configuration) unless configuration.empty?
-        end
-        puts "\n#{@@config_help_message}\n\n"
-        exit(0)
-      end
-
-      # Subcommands
-      improper_argument_error = word_wrap("FATAL: Improper arguments for command '#{ARGV[0]}'.\n\n#{@@config_help_message}\n")
-
-      case ARGV[0]
-      when "set", "-s", "--set", "add", "-a", "--add"
-        if ARGV.length == 1
-          # print catalog
-          puts "\n  Available config variables:\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
-        else
-          error improper_argument_error if ARGV.length != 3
-          if check_variable_value(ARGV[1], ARGV[2])
-            configuration[ARGV[1].to_sym] = convert_value(ARGV[2], ConfigVariables[ARGV[1].to_s]["values"])
-          else
-            error "FATAL: Invalid variable or value. Run 'monkey config catalog' to view available variables."
-          end
-          File.open(config_file, "w") { |f| f.write(configuration.to_yaml) }
-        end
-
-      when "edit", "-e", "--edit"
-        error improper_argument_error if ARGV.length != 1
-        editor = `git config --get core.editor`.chomp
-        editor = "vim" if editor.empty?
-        config_ok = false
-        puts "\n  Available config variables:\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
-        ask("Press Enter to edit using #{editor}")
-        until config_ok
-          exit_status = system("#{editor} '#{config_file}'")
-          begin
-            temp_config = YAML::load(IO.read(config_file))
-            config_ok = temp_config.reduce(exit_status) do |bool,ary|
-              bool && check_variable_value(ary[0], ary[1])
-            end
-            raise "Invalid variable or variable value in config file" unless config_ok
-          rescue Exception => e
-            warn e.message
-            ask("Press enter to continue editing")
-          end
-        end
-
-      when "unset", "-u", "--unset"
-        error improper_argument_error if ARGV.length != 2
-        if ConfigVariables.keys.include?(ARGV[1])
-          configuration.delete(ARGV[1].to_sym)
-        else
-          error "FATAL: '#{ARGV[1]}' is an invalid variable.\n  Available config variables:\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
-        end
-        File.open(config_file, "w") { |f| f.write(configuration.to_yaml) }
-
-      when "list", "-l", "--list"
-        error improper_argument_error if ARGV.length != 1
-        message = ""
-        if configuration.empty?
-          message = "  No variables configured.".apply_color(:yellow)
-        else
-          message = pretty_help_message(configuration)
-        end
-        puts "\n  monkey config list\n\n#{message}\n\n"
-
-      when "catalog", "-c", "--catalog"
-        error improper_argument_error if ARGV.length != 1
-        puts "\n  monkey config catalog\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
-
-      when "get", "-g", "--get"
-        error improper_argument_error if ARGV.length != 2
-        if ConfigVariables.keys.include?(ARGV[1])
-          puts configuration[ARGV[1]]
-        else
-          error "FATAL: '#{ARGV[1]}' is an invalid variable.\n  Available config variables:\n\n#{self.pretty_help_message(ConfigVariables)}\n\n"
-        end
-
-      else
-        error "FATAL: '#{ARGV[0]}' is an invalid command.\n\n#{@@config_help_message}\n"
-      end
-
-      puts ("Command 'monkey #{@@last_command_line}' finished successfully.").apply_color(:green)
-      reset()
-    end
-
-    def self.convert_value(val, values)
-      if values.is_a?(Array)
-        return convert_value(val, values.first.class)
-      elsif values.is_a?(Class) # Integer, String, Symbol
-        case values.to_s
-        when "Integer" then return val.to_i
-        when "String" then return val.to_s
-        when "Symbol" then return val.to_s.to_sym
-        else
-          raise TypeError.new("can't convert #{val.class} into #{values}")
-        end
-      end
-    end
-
-    def self.check_variable_value(var, val)
-      key_exists = ConfigVariables.keys.include?("#{var}")
-      val_valid = false
-      if key_exists
-        values = ConfigVariables["#{var}"]["values"]
-        if values.is_a?(Array)
-          val_valid = values.include?(val)
-        elsif values.is_a?(Class) # Integer, String, Symbol
-          val_valid = convert_value(val, values).is_a?(values)
-        end
-      end
-      key_exists && val_valid
     end
 
     def self.last_command_line

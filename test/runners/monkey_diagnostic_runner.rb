@@ -41,7 +41,7 @@ module VirtualMonkey
         @commands.delete :destroy_ssh_keys
 
         @commands.delete :import_deployment #TODO need a way to test without interactivity
-        @commands.delete :new_config #TODO need a way to test without interactivity
+        @commands.delete :new_troop_config #TODO need a way to test without interactivity
         @commands.delete :new_runner #TODO need a way to test without interactivity
 
         @commands.delete :create
