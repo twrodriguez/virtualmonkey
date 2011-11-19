@@ -29,9 +29,9 @@ module VirtualMonkey
                             :aws_access_key_id => Fog.credentials[:aws_access_key_id_test],
                             :aws_secret_access_key => Fog.credentials[:aws_secret_access_key_test])
       passed = jobs.select { |s| s.status == 0 }
-      failed = jobs.select { |s| s.status == 1 }
+      failed = jobs.select { |s| s.status != 0 && s.status != nil }
       running = jobs.select { |s| s.status == nil }
-      report_on = jobs.select { |s| s.status == 0 || s.status == 1 }
+      report_on = jobs.select { |s| s.status == 0 || (s.status != 0 && s.status != nil) }
       bucket_name = Fog.credentials[:s3_bucket] || "virtual_monkey"
       local_log_dir = File.join(VirtualMonkey::LOG_DIR, log_started)
 

@@ -239,25 +239,29 @@ module VirtualMonkey
       end
 
       # Re-Launch all servers
-      def relaunch_all(wait=false)
-        relaunch_set(@servers, wait)
+      def relaunch_all
+        relaunch_set(@servers)
       end
 
       # Re-Launch a set of servers
-      def relaunch_set(set=@servers, wait=false)
+      def relaunch_set(set=@servers)
         set = select_set(set)
-        set.each { |s|
-          begin
-            transaction {
-              s.relaunch;
-              s.params = s.class[s.href].first.params;
-              s.settings
-            }
-            transaction { wait_for_set(s, "operational") if wait }
-          rescue Exception => e
-            raise #unless e.message =~ /AlreadyLaunchedError/
-          end
-        }
+        begin # This loop is to ensure that public and private ips are different (Euca bug)
+          set.each { |s|
+            begin
+              transaction {
+                s.relaunch;
+                s.params = s.class[s.href].first.params;
+                s.settings
+              }
+            rescue Exception => e
+              raise #unless e.message =~ /AlreadyLaunchedError/
+            end
+          }
+          set.each { |s|
+            transaction { wait_for_set(s, "operational") }
+          }
+        end while set.reduce(false) { |bool,s| bool || (s.dns_name == s.private_ip) }
       end
 
       # un-set all tags on all servers in the deployment
@@ -284,6 +288,9 @@ module VirtualMonkey
         # do a special wait, if waiting for operational (for dns)
         if state == "operational"
           set.each { |server| transaction { server.wait_for_operational_with_dns(timeout) } }
+          if set.reduce(false) { |bool,s| bool || (s.dns_name == s.private_ip) }
+            warn "WARNING: Found a server with duplicate IPs in public and private"
+          end
         else
           set.each { |server| transaction { server.wait_for_state(state, timeout) } }
         end
@@ -322,18 +329,25 @@ module VirtualMonkey
         }
       end
 
-      def reboot_all(serially_reboot = false)
+      def reboot_set(set=@servers, serially_reboot=false)
         wait_for_reboot = true
-        # Do NOT thread this each statement
-        @servers.each do |s|
-          transaction { s.reboot(wait_for_reboot) }
-          if serially_reboot
+        set = select_set(set)
+        begin # This loop is to ensure that public and private ips are different (Euca bug)
+          # Do NOT thread this each statement
+          set.each do |s|
+            transaction { s.reboot(wait_for_reboot) }
+            if serially_reboot
+              transaction { s.wait_for_state("operational") }
+            end
+          end
+          set.each do |s|
             transaction { s.wait_for_state("operational") }
           end
-        end
-        @servers.each do |s|
-          transaction { s.wait_for_state("operational") }
-        end
+        end while set.reduce(false) { |bool,s| bool || (s.dns_name == s.private_ip) }
+      end
+
+      def reboot_all(serially_reboot=false)
+        reboot_set(@servers, serially_reboot)
       end
 
       # Run a script on all servers in the deployment in parallel

@@ -233,3 +233,19 @@ class Time
     str_ary.join(" and ")
   end
 end
+
+module Kernel
+  private
+
+  def this_method
+    (caller[0] =~ /`([^']*)'/ and $1).to_sym
+  rescue NoMethodError
+    nil
+  end
+
+  def calling_method
+    (caller[1] =~ /`([^']*)'/ and $1).to_sym
+  rescue NoMethodError
+    nil
+  end
+end
