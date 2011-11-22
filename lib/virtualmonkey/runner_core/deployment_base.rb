@@ -521,8 +521,8 @@ module VirtualMonkey
       # Assumes the host machine is in the cloud, uses the toolbox functions to grab the IP address of this
       # 'tester server' eg. used for the input variation MASTER_DB_DNSNAME
       def get_tester_ip_addr
-        if VirtualMonkey::my_api_self
-          ip = VirtualMonkey::my_api_self.reachable_ip
+        if ::VirtualMonkey::my_api_self
+          ip = ::VirtualMonkey::my_api_self.reachable_ip
         else
           ip = "127.0.0.1"
         end

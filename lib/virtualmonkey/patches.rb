@@ -149,7 +149,7 @@ class String
 
   def apply_color(*color_symbols)
     ret = self
-    if VirtualMonkey::config[:colorized_text] != "hide"
+    if ::VirtualMonkey::config[:colorized_text] != "hide"
       color_symbols.each { |color| ret = ret.__send__(color) }
     end
     ret

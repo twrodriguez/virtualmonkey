@@ -102,7 +102,7 @@ module VirtualMonkey
         "@rerun_last_command"
       ]
 
-      @max_retries = VirtualMonkey::config[:max_retries] || 10
+      @max_retries = ::VirtualMonkey::config[:max_retries] || 10
       @options = options
       @options[:additional_logs] ||= []
       @deprecation_error = `curl -s "www.kdegraaf.net/cgi-bin/bofh" | grep -o "<b>.*</b>"`
@@ -141,7 +141,7 @@ module VirtualMonkey
         File.join(base_dir, file_name)
       }
 
-      VirtualMonkey::trace_log << { "feature_file" => @options[:file] }
+      ::VirtualMonkey::trace_log << { "feature_file" => @options[:file] }
       write_readable_log("feature_file: #{@options[:file]}")
       # Do renaming stuff
       all_methods = self.methods + self.private_methods -
@@ -240,7 +240,7 @@ module VirtualMonkey
       if @in_transaction.empty?
         real_stack_objects, @stack_objects = @stack_objects, []
         real_iterating_stack, @iterating_stack = @iterating_stack, []
-        real_trace_log, VirtualMonkey::trace_log = VirtualMonkey::trace_log, []
+        real_trace_log, ::VirtualMonkey::trace_log = ::VirtualMonkey::trace_log, []
       end
 
       result = nil
@@ -280,7 +280,7 @@ module VirtualMonkey
           # Return class and instance variables to normal
           @iterating_stack = real_iterating_stack
           @stack_objects = real_stack_objects
-          VirtualMonkey::trace_log = real_trace_log
+          ::VirtualMonkey::trace_log = real_trace_log
         end
       end
       write_trace_log(call_str) unless option == :do_not_trace
@@ -299,7 +299,7 @@ module VirtualMonkey
       return nil unless @in_transaction.empty?
       add_to_trace_log(call) if call.is_a?(String)
       if @done_resuming and @options[:resume_file]
-        File.open(@options[:resume_file], "w") { |f| f.write( VirtualMonkey::trace_log.to_yaml ) }
+        File.open(@options[:resume_file], "w") { |f| f.write( ::VirtualMonkey::trace_log.to_yaml ) }
       end
     end
 
@@ -472,7 +472,7 @@ EOS
     end
 
     def add_to_trace_log(call)
-      return nil unless VirtualMonkey::trace_log
+      return nil unless ::VirtualMonkey::trace_log
 
       referenced_ary = []
       add_hash = { call => referenced_ary }
@@ -522,8 +522,8 @@ EOS
         end
       end
       if @stack_objects.empty?
-        @index_stack << VirtualMonkey::trace_log.length
-        VirtualMonkey::trace_log << add_hash
+        @index_stack << ::VirtualMonkey::trace_log.length
+        ::VirtualMonkey::trace_log << add_hash
       else
         @iterating_stack = @stack_objects.last # get the last object from the object stack
         @iterating_stack << add_hash # here were are adding to iterating stack
@@ -550,15 +550,15 @@ EOS
         # Rebuild Stack from Resume Log
         # Build Stack Length and Depth Expectations Simultaneously
         resume_log = YAML::load(IO.read(@options[:resume_file]))
-        if VirtualMonkey::trace_log == []
+        if ::VirtualMonkey::trace_log == []
           if real_trace_log == resume_log
             return @done_resuming = true
           end
-        elsif VirtualMonkey::trace_log == resume_log
+        elsif ::VirtualMonkey::trace_log == resume_log
           return @done_resuming = true
         end
 
-        if VirtualMonkey::trace_log[0] != resume_log[0]
+        if ::VirtualMonkey::trace_log[0] != resume_log[0]
           # The runner is still being instantiated if these two aren't equal.
           return false
         end
@@ -683,7 +683,7 @@ EOS
       # Each Argument should be a hash
       obj_hsh = @all_trace_variables.map_to_h { |var| instance_variable_get(var) }
       args.each { |hsh| obj_hsh.merge! hsh }
-      obj_hsh["trace_log"] = VirtualMonkey::trace_log
+      obj_hsh["trace_log"] = ::VirtualMonkey::trace_log
       obj_hsh["resume_log"] = YAML::load(IO.read(@options[:resume_file]))
       obj_hsh.each { |name,val| warn "\n#{name}:\n#{val.pretty_inspect}" }
     end
