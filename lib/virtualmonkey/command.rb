@@ -120,7 +120,7 @@ module VirtualMonkey
                                 "values"      => Integer},
 
       "enable_log_auditor"  => {"description" => "Enables log auditing for logfiles defined in lists/*.json",
-                                "values"      => Boolean},
+                                "values"      => [false, true]},
 
       "grinder_subprocess"  => {"description" => "Turns on/off the ability of Grinder to load into the current process",
                                 "values"      => ["allow_same_process", "force_subprocess"]}
@@ -514,7 +514,7 @@ EOS
         when "Integer" then return val.to_i
         when "String" then return val.to_s
         when "Symbol" then return val.to_s.to_sym
-        when "Boolean" then return val == "true" || val == true
+        when "TrueClass", "FalseClass" then return val == "true" || val == true
         else
           raise TypeError.new("can't convert #{val.class} into #{values}")
         end
@@ -532,7 +532,7 @@ EOS
           val_valid = convert_value(val, values).is_a?(values)
         end
       end
-      key_exists && val_valid
+      key_exists && !val_valid.nil?
     end
   end
 end
