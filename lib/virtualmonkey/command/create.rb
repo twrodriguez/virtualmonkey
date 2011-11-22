@@ -9,7 +9,7 @@ module VirtualMonkey
 
       load_config_file
       @@dm = VirtualMonkey::Manager::DeploymentSet.new(@@options)
-      if @@options[:overwrite] && @dm.deployments.size > 0
+      if @@options[:overwrite] && @@dm.deployments.size > 0
         if @@options[:force]
           begin
             destroy_all_logic
