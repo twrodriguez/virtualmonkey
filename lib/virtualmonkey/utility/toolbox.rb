@@ -106,7 +106,7 @@ module VirtualMonkey
       FileUtils.mkdir_p(@@cloud_vars_dir)
       @@ssh_dir = File.expand_path(File.join("~", ".ssh"))
       @@sgs_file = File.join(@@cloud_vars_dir, "security_groups.json")
-      @@its_file = File.join(@@cloud_vars_dir, "intance_types.json")
+      @@its_file = File.join(@@cloud_vars_dir, "instance_types.json")
       @@dcs_file = File.join(@@cloud_vars_dir, "datacenters.json")
       @@keys_file = File.join(@@cloud_vars_dir, "ssh_keys.json")
       @@ssh_key_file_basename = "monkey-cloud-"
