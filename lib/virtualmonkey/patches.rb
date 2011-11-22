@@ -255,4 +255,19 @@ module Kernel
       # For .Net: System.Environment.UserInteractive
     $stdout.isatty
   end
+
+  def tty_width
+    (tty? ? (ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last).to_i : nil)
+  end
+end
+
+module Boolean
+end
+
+class FalseClass
+  include Boolean
+end
+
+class TrueClass
+  include Boolean
 end

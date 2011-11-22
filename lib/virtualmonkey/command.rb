@@ -120,7 +120,7 @@ module VirtualMonkey
                                 "values"      => Integer},
 
       "enable_log_auditor"  => {"description" => "Enables log auditing for logfiles defined in lists/*.json",
-                                "values"      => [false, true]},
+                                "values"      => Boolean},
 
       "grinder_subprocess"  => {"description" => "Turns on/off the ability of Grinder to load into the current process",
                                 "values"      => ["allow_same_process", "force_subprocess"]}
@@ -397,7 +397,7 @@ EOS
       (double_spaced ? message.join("\n\n") : message.join("\n"))
     end
 
-    def self.word_wrap(txt, width=(ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last || 80).to_i)
+    def self.word_wrap(txt, width=(tty_width || 80).to_i)
       txt.gsub(/(.{1,#{width}})( +|$\n?)|(.{1,#{width}})/, "\\1\\3\n")
     end
   end

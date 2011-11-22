@@ -106,13 +106,14 @@ module VirtualMonkey
     end
 
     def self.convert_value(val, values)
-      if values.is_a?(Array)
-        return convert_value(val, values.first.class)
-      elsif values.is_a?(Class) # Integer, String, Symbol
+      case values
+      when Array then return convert_value(val, values.first.class)
+      when Class, Module # Integer, String, Symbol, Boolean
         case values.to_s
         when "Integer" then return val.to_i
         when "String" then return val.to_s
         when "Symbol" then return val.to_s.to_sym
+        when "Boolean" then return val == "true" || val == true
         else
           raise TypeError.new("can't convert #{val.class} into #{values}")
         end
