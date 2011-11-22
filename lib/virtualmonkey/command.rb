@@ -397,7 +397,7 @@ EOS
       (double_spaced ? message.join("\n\n") : message.join("\n"))
     end
 
-    def self.word_wrap(txt, width=(ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last).to_i)
+    def self.word_wrap(txt, width=(ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last || 80).to_i)
       txt.gsub(/(.{1,#{width}})( +|$\n?)|(.{1,#{width}})/, "\\1\\3\n")
     end
   end

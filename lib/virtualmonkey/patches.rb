@@ -248,4 +248,11 @@ module Kernel
   rescue NoMethodError
     nil
   end
+
+  def tty?
+      # TODO
+      # For win32: GetUserObjectInformation
+      # For .Net: System.Environment.UserInteractive
+    $stdout.isatty
+  end
 end
