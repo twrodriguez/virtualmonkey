@@ -155,11 +155,11 @@ class String
     ret
   end
 
-  def word_wrap(width=(ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last).to_i)
+  def word_wrap(width=(tty_width || 80).to_i)
     self.gsub(/(.{1,#{width}})( +|$\n?)|(.{1,#{width}})/, "\\1\\3\n")
   end
 
-  def word_wrap!(width=(ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last).to_i)
+  def word_wrap!(width=(tty_width || 80).to_i)
     self.gsub!(/(.{1,#{width}})( +|$\n?)|(.{1,#{width}})/, "\\1\\3\n")
   end
 end
@@ -250,10 +250,9 @@ module Kernel
   end
 
   def tty?
-      # TODO
-      # For win32: GetUserObjectInformation
-      # For .Net: System.Environment.UserInteractive
-    $stdout.isatty
+    # TODO For win32: GetUserObjectInformation
+    # TODO For .Net: System.Environment.UserInteractive
+    $stdout.isatty && ((ENV["COLUMNS"] || `stty size 2>&1`.chomp.split(/ /).last).to_i > 0)
   end
 
   def tty_width

@@ -213,7 +213,7 @@ class MessageCheck
         list_to_classify = messages_reference
         while list_to_classify.first
           entry = list_to_classify.shift
-          terminal_width = ENV["COLUMNS"].to_i
+          terminal_width = (tty_width || 80).to_i
           puts "#{"*" * terminal_width}\n#{print_entry(entry)}#{"*" * terminal_width}"
           case ask("(B)lacklist, (W)hitelist, (N)eedlist, or (I)gnore?")
           when /^[bB]/

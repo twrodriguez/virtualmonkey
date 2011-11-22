@@ -68,6 +68,9 @@ module VirtualMonkey
           FileUtils.ln_s(File.join(project_path, "git_hooks"), File.join(project_path, ".git", "hooks"))
         end
 
+        # Refresh Projects index
+        VirtualMonkey::Manager::Collateral.refresh()
+
       when "init", "--init", "-i"
         # Command line check
         error improper_argument_error if ARGV.length != 1
@@ -113,6 +116,9 @@ module VirtualMonkey
         FileUtils.mkdir_p(VirtualMonkey::COLLATERAL_TEST_DIR)
         git_objs[project_name].checkout(refspec)
 
+        # Refresh Projects index
+        VirtualMonkey::Manager::Collateral.refresh()
+
       when "pull", "--pull", "-p"
         # Command line check
         error improper_argument_error if ARGV.length < 1 || ARGV.length > 3
@@ -125,6 +131,9 @@ module VirtualMonkey
         branch ||= 'master'
         FileUtils.mkdir_p(VirtualMonkey::COLLATERAL_TEST_DIR)
         git_objs[project_name].pull(remote, branch)
+
+        # Refresh Projects index
+        VirtualMonkey::Manager::Collateral.refresh()
 
       when "list", "--list", "-l"
         # Command line check
@@ -153,12 +162,12 @@ module VirtualMonkey
           error "Aborting on user input."
         end
 
+        # Refresh Projects index
+        VirtualMonkey::Manager::Collateral.refresh()
+
       else
         error "FATAL: '#{subcommand}' is an invalid command.\n\n#{@@collateral_help_message}\n"
       end
-
-      # Refresh Projects index
-      VirtualMonkey::Manager::Collateral.refresh()
 
       puts ("Command 'monkey #{@@last_command_line}' finished successfully.").apply_color(:green)
       reset()

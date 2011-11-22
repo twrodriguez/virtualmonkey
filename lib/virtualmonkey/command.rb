@@ -332,7 +332,7 @@ EOS
       double_spaced = false
       return "" if content_hash.empty?
       max_key_width = content_hash.keys.map { |k| k.to_s.length }.max
-      remaining_width = (ENV["COLUMNS"] || `stty size`.chomp.split(/ /).last).to_i - (max_key_width + "  :   ".size + 2)
+      remaining_width = (tty_width || 80).to_i - (max_key_width + "  :   ".size + 2)
       key_format_string = "  %#{max_key_width}s:   "
       field_format_string = "%-#{remaining_width}s"
       base_format_string = key_format_string + field_format_string
