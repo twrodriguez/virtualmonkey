@@ -31,7 +31,7 @@ module VirtualMonkey
       end
 
       # Restore last_command_line
-      @@last_command_line = create_command_string
+      @@last_command_line = environment_command_string
 
       puts ("Command 'monkey #{@@last_command_line}' finished successfully.").apply_color(:green)
       reset()
