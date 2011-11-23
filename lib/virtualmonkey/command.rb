@@ -275,7 +275,7 @@ module VirtualMonkey
       @@command_flags["#{@@command}"].map { |op| @@flags[op] }.join(";"))
     end
 
-    def self.add_command(command_name, command_flags=[], more_trollop_options=[], &block)
+    def self.add_command(command_name, command_flags=[], more_opts=[], flagless=false, &block)
       command_name = command_name.to_s.downcase
       @@command_flags.merge!(command_name => command_flags.sort { |a,b| a.to_s <=> b.to_s })
       self.instance_eval <<EOS
@@ -285,13 +285,16 @@ module VirtualMonkey
           puts ""
           @@options = Trollop::options do
             eval(VirtualMonkey::Command::use_options)
-            #{more_trollop_options.join("; ")}
+            #{more_opts.join("; ")}
           end
 
           @@last_command_line = VirtualMonkey::Command::reconstruct_command_line()
           if @@last_command_line == "#{command_name}"
-            ans = ask("Did you mean to run 'monkey #{command_name}' without any options (y/n)?")
-            #{command_name}("--help") unless ans =~ /^[yY]/
+            ans = "y"
+            if #{flagless && true}
+              ans = ask("Do you want to print help for 'monkey #{command_name}' (y/n)?")
+            end
+            #{command_name}("--help") if ans =~ /^[yY]/
           end
 
           self.instance_eval(&(#{block.to_ruby}))
@@ -340,19 +343,6 @@ EOS
       sorted_content_ary = content_hash.to_a.sort { |a,b| a.first.to_s <=> b.first.to_s }
       message = []
       case content_hash.values.first
-      when String
-        message = sorted_content_ary.map do |k,v|
-          ret = ""
-          if v.size <= remaining_width
-            ret = base_format_string % [k,v]
-          else
-            double_spaced = true
-            wrapped_ary = word_wrap(v, remaining_width).split("\n")
-            fmt_string = ([base_format_string] + ([val_format_string] * (wrapped_ary.size - 1))).join("\n")
-            ret = fmt_string % ([k] + wrapped_ary)
-          end
-          ret
-        end
       when Hash
         double_spaced = true
         message = sorted_content_ary.map do |k,v|
@@ -392,6 +382,20 @@ EOS
           fmt_string = fmt_string_ary.join("\n")
           fmt_string = key_format_string + fmt_string unless v["description"]
           fmt_string % ([k] + wrapped_ary)
+        end
+      else
+        message = sorted_content_ary.map do |k,v|
+          ret = ""
+          v = v.inspect
+          if v.size <= remaining_width
+            ret = base_format_string % [k,v]
+          else
+            double_spaced = true
+            wrapped_ary = word_wrap(v, remaining_width).split("\n")
+            fmt_string = ([base_format_string] + ([val_format_string] * (wrapped_ary.size - 1))).join("\n")
+            ret = fmt_string % ([k] + wrapped_ary)
+          end
+          ret
         end
       end
       (double_spaced ? message.join("\n\n") : message.join("\n"))

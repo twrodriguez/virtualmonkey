@@ -16,8 +16,8 @@ module VirtualMonkey
         return variations
       end
 
-      def self.from_name(prefix = @prefix)
-        variations = Deployment.find_by(:nickname) { |n| n =~ Regexp.new("^#{Regexp.escape(prefix)}") }
+      def self.from_name(prefix)
+        variations = Deployment.find_by_tags("info:prefix=*").select { |d| d.nickname =~ Regexp.new("^#{Regexp.escape(prefix)}") }
         puts "loading #{variations.size} deployments matching your prefix"
         return variations
       end
@@ -25,11 +25,14 @@ module VirtualMonkey
       # Lists the nicknames of Array of Deployment objects whose nicknames start with prefix
       def self.list(prefix, verbose = false)
         deployments = Deployment.find_by_tags("info:prefix=#{prefix}")
+        deployments = from_name(prefix) if deployments.empty?
         if verbose
           pp deployments.map { |d| { d.nickname => d.servers.map { |s| s.state } } }
         else
           pp deployments.map { |d| d.nickname }
         end
+        puts "Found #{deployments.length} deployment#{deployments.one? ? nil : "s"} with " +
+             "#{deployments.reduce(0) { |sum,d| sum + d.servers_no_reload.length } } servers."
       end
 
       # Lists the nicknames of Array of Deployment objects whose nicknames start with @prefix
@@ -39,6 +42,8 @@ module VirtualMonkey
         else
           pp @deployments.map { |d| d.nickname }
         end
+        puts "Found #{@deployments.length} deployment#{@deployments.one? ? nil : "s"} with " +
+             "#{@deployments.reduce(0) { |sum,d| sum + d.servers_no_reload.length } } servers."
       end
 
 #      def initialize(prefix, server_templates = [], extra_images = [], allow_meta_monkey = false, single_deployment = false)

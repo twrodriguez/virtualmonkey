@@ -1,6 +1,6 @@
 module VirtualMonkey
   module Command
-    add_command("new_troop_config", [:project]) do
+    add_command("new_troop_config", [:project], [], :flagless) do
       self.interactive_select_project_logic()
 
       # PATHs SETUP

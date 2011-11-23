@@ -81,13 +81,14 @@ git diff-index --check HEAD --
 
 if [[ "$fail" -ne 0 && -n "$fail" ]]; then
   echo "Syntax Errors Found. Aborting commit"
+  lod_message
   exit 1
 fi
 
 for FILE in $whitespace; do
   echo "Whitespace problem fixed. Please re-add '$FILE' to your commit"
 done
-if [[ -n "$whitespace" ]]; then exit 1; fi
+if [[ -n "$whitespace" ]]; then lod_message; exit 1; fi
 
 # Check that project metadata files exist
 for FILE in "LICENSE" "README.rdoc" "VERSION" "Gemfile" "Gemfile.lock" ".gitignore" "Rakefile"; do
@@ -111,10 +112,12 @@ if test -e "Gemfile"; then
 
   if [[ ! -e "Gemfile.lock" ]]; then
     echo "Gemfile.lock not present. Aborting commit"
+    lod_message
     exit 1
   fi
   if [[ `stat -c %Z Gemfile.lock` -ne $old_mod_time ]]; then
     echo "Gemfile.lock updated. Please re-add 'Gemfile.lock' to your commit"
+    lod_message
     exit 1
   fi
 fi
@@ -125,9 +128,11 @@ useremail=`git config --get user.email`
 emaildomain=`echo $useremail | grep -o "[^@]*$"`
 if [[ "$username" == "Put Your Name Here" || "$username" == "" ]]; then
   echo "Please set your git user.name by running 'git config user.name <your github username>'"
+  lod_message
   exit 1
 elif [[ "$useremail" == "setyouremail@rightscale.com" || "$useremail" == "" ]] || ! host "$emaildomain" &> /dev/null; then
   echo "Please set your git user.email by running 'git config user.email <your github email>'"
+  lod_message
   exit 1
 fi
 

@@ -1,8 +1,8 @@
 module VirtualMonkey
   module Command
-  add_command("import_deployment", [:deployment, :project]) do
+  add_command("import_deployment", [:deployment, :project], [], :flagless) do
       self.interactive_select_project_logic()
-      
+
       # Find Model Deployment
       deploy_name = @@options[:deployment]
       if @@options[:deployment]
